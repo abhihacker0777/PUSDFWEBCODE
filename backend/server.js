@@ -275,7 +275,7 @@ app.delete("/delete", verifyToken, async (req, res) => {
 app.use(express.static('public'));
 
 app.get("/auth", (req, res) => {
-  const authUrl = oAuth2Client.generateAuthUrl({ access_type: "offline", scope: SCOPES });
+  const authUrl = oAuth2Client.generateAuthUrl({ access_type: "offline", scope: SCOPES, prompt: "consent" });
 
   res.send(`
     <!DOCTYPE html>

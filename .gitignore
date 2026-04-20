@@ -2,7 +2,6 @@ serviceAccount.json
 backend/serviceAccount.json
 token.json
 backend/token.json
-backend/server.json
 
 node_modules/
 backend/node_modules/
@@ -16,7 +15,6 @@ frontend/.env
 dist/
 frontend/dist/
 build/
-.firebase/
 firebase-debug.log*
 firestore-debug.log*
 
