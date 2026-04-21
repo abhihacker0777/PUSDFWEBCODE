@@ -492,6 +492,20 @@ app.get("/papers", verifyToken, async (req, res) => {
 
 app.post("/sync", verifyToken, async (req, res) => {
   try {
+
+    // ADVANCE PRO FIX: Delete old data before syncing new data
+const papersRef = db.collection('papers'); // Change 'papers' to your actual collection name if different
+const snapshot = await papersRef.get();
+
+// Create a batch to delete all existing documents safely
+const batch = db.batch();
+snapshot.docs.forEach((doc) => {
+  batch.delete(doc.ref);
+});
+await batch.commit(); 
+console.log("Old database cleared. Ready for fresh sync.");
+
+// ---> YOUR EXISTING CODE THAT ADDS NEW GOOGLE SHEETS DATA GOES HERE <---
     const response = await fetch(SHEET_URL);
     const text = await response.text();
 
