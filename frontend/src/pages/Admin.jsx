@@ -929,7 +929,7 @@ export default function PaperUpdateList() {
 
       {clearLogsConfirm && (
         <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 transition-opacity">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full text-center transform transition-all border-t-8 border-red-500">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full text-center transform transition-all">
             <div className="text-5xl mb-4">⚠️</div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Clear All Logs ?</h2>
             <p className="text-gray-600 mb-8 text-base">
