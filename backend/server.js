@@ -1,16 +1,17 @@
 require("dotenv").config();
 const admin = require("firebase-admin");
 
-// ADVANCE PRO FIX: Parse Firebase credentials directly from Render Environment
-const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
-
-// Fix potential line-break formatting issues
-if (serviceAccount.private_key) {
-  serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-}
+// ADVANCE PRO FIX: Bulletproof Firebase Auth (No JSON parsing required)
+const privateKey = process.env.FIREBASE_PRIVATE_KEY 
+  ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') 
+  : undefined;
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.cert({
+    projectId: "pu-py-qp",
+    clientEmail: "firebase-adminsdk-fbsvc@pu-py-qp.iam.gserviceaccount.com",
+    privateKey: privateKey
+  }),
   ignoreUndefinedProperties: true
 });
 const db = admin.firestore();
