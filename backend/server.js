@@ -1,18 +1,12 @@
 require("dotenv").config();
 const admin = require("firebase-admin");
 
-// ADVANCE PRO FIX: Bulletproof Firebase Auth (No JSON parsing required)
-const privateKey = process.env.FIREBASE_PRIVATE_KEY 
-  ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') 
-  : undefined;
+// Decode the Base64 string from Render back into a perfect JSON object
+const decodedKey = Buffer.from(process.env.FIREBASE_BASE64, 'base64').toString('utf8');
+const serviceAccount = JSON.parse(decodedKey);
 
 admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: "pu-py-qp",
-    clientEmail: "firebase-adminsdk-fbsvc@pu-py-qp.iam.gserviceaccount.com",
-    privateKey: privateKey
-  }),
-  ignoreUndefinedProperties: true
+  credential: admin.credential.cert(serviceAccount)
 });
 const db = admin.firestore();
 
