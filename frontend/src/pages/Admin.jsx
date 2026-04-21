@@ -488,7 +488,12 @@ export default function PaperUpdateList() {
   const executeClearLogs = async () => {
     setClearLogsConfirm(false);
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/logs/clear`, { method: "DELETE" });
+      // ADVANCE PRO FIX: Added the Security Token here!
+      const token = sessionStorage.getItem("token"); 
+      await fetch(`${import.meta.env.VITE_API_URL}/logs/clear`, { 
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` } // Attached to the request
+      });
       fetchLogs();
       setSelected(new Set());
     } catch (error) {
@@ -689,10 +694,14 @@ export default function PaperUpdateList() {
                         {selected.size > 0
                           ? <button onClick={async () => { 
                               if(window.confirm(`Delete ${selected.size} logs permanently?`)) {
+                                const token = sessionStorage.getItem("token");
                                 const idsToDelete = Array.from(selected);
                                 await fetch(`${import.meta.env.VITE_API_URL}/logs/delete`, {
                                   method: "POST",
-                                  headers: { "Content-Type": "application/json" },
+                                  headers: { 
+                                    "Content-Type": "application/json",
+                                    "Authorization": `Bearer ${token}` 
+                                  },
                                   body: JSON.stringify({ ids: idsToDelete })
                                 });
                                 fetchLogs();
