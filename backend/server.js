@@ -1,9 +1,10 @@
 require("dotenv").config();
-
 const admin = require("firebase-admin");
-const serviceAccount = require("./serviceAccount.json");
 
-// This line fixes the common "Invalid PEM" or "Unauthenticated" errors
+// ADVANCE PRO FIX: Parse Firebase credentials directly from Render Environment
+const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+
+// Fix potential line-break formatting issues
 if (serviceAccount.private_key) {
   serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
 }
