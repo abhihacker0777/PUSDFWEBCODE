@@ -3,6 +3,11 @@ require("dotenv").config();
 const admin = require("firebase-admin");
 const serviceAccount = require("./serviceAccount.json");
 
+// This line fixes the common "Invalid PEM" or "Unauthenticated" errors
+if (serviceAccount.private_key) {
+  serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+}
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   ignoreUndefinedProperties: true
@@ -276,10 +281,10 @@ app.use(express.static('public'));
 
 app.get("/auth", (req, res) => {
   const authUrl = oAuth2Client.generateAuthUrl({ 
-    access_type: "offline", // Crucial for refresh token
-    scope: SCOPES,
-    prompt: 'consent'       // PRO TIP: This forces Google to show the permission screen again
-  });
+  access_type: "offline", 
+  scope: SCOPES, 
+  prompt: "consent" // This is the secret to getting a refresh token!
+});
 
   res.send(`
     <!DOCTYPE html>
