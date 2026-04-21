@@ -74,12 +74,18 @@ function verifyToken(req, res, next) {
 }
 
 app.get('/logs', verifyToken, (req, res) => {
-  const logs = JSON.parse(fs.readFileSync(logFile));
-  res.json(logs);
+  try {
+    const data = fs.readFileSync(logFile, 'utf8');
+    const logs = data ? JSON.parse(data) : [];
+    res.json(logs);
+  } catch (err) {
+    res.json([]); // Return empty array if file is corrupt
+  }
 });
 
 app.post('/logs', verifyToken, (req, res) => {
-  const logs = JSON.parse(fs.readFileSync(logFile));
+  const data = fs.readFileSync(logFile, 'utf8');
+  let logs = data ? JSON.parse(data) : [];
   logs.unshift(req.body);
   fs.writeFileSync(logFile, JSON.stringify(logs, null, 2));
   res.status(200).send("Log Saved Successfully");
@@ -98,7 +104,8 @@ app.delete('/logs/clear', verifyToken, async (req, res) => {
 
 app.post('/logs/delete', verifyToken, (req, res) => {
   const { ids } = req.body;
-  let logs = JSON.parse(fs.readFileSync(logFile));
+  const data = fs.readFileSync(logFile, 'utf8');
+  let logs = data ? JSON.parse(data) : [];
   logs = logs.filter(log => !ids.includes(log.id));
   fs.writeFileSync(logFile, JSON.stringify(logs, null, 2));
   res.status(200).send("Selected Logs Deleted");
