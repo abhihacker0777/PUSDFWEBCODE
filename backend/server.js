@@ -85,9 +85,15 @@ app.post('/logs', verifyToken, (req, res) => {
   res.status(200).send("Log Saved Successfully");
 });
 
-app.delete('/logs/clear', verifyToken, (req, res) => {
-  fs.writeFileSync(logFile, JSON.stringify([]));
-  res.status(200).send("All Logs Cleared");
+app.delete('/logs/clear', verifyToken, async (req, res) => {
+  try {
+    await db.ref('logs').remove(); 
+    
+    res.status(200).send("Database Logs Wiped"); 
+  } catch (error) {
+    console.error("Firebase Clear Error:", error);
+    res.status(500).send("Server failed to wipe database");
+  }
 });
 
 app.post('/logs/delete', verifyToken, (req, res) => {

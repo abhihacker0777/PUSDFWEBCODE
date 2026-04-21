@@ -488,17 +488,26 @@ export default function PaperUpdateList() {
 
   const executeClearLogs = async () => {
     setClearLogsConfirm(false);
+    setIsLoading(true);
+
     try {
       const token = sessionStorage.getItem("token"); 
-      await fetch(`${import.meta.env.VITE_API_URL}/logs/clear`, { 
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/logs/clear`, { 
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: { "Authorization": `Bearer ${token}` } 
       });
-      fetchLogs();
-      setSelected(new Set());
+
+      if (res.ok) {
+        setActionLog([]); 
+        setSelected(new Set());
+        console.log("Logs wiped from server and UI");
+      } else {
+        alert("Server failed to clear logs. Check Render logs!");
+      }
     } catch (error) {
-      console.error("Clear Logs Error:", error);
-      alert("Failed To Clear Logs");
+      console.error("Network Error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
   
