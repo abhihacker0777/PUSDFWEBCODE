@@ -275,7 +275,11 @@ app.delete("/delete", verifyToken, async (req, res) => {
 app.use(express.static('public'));
 
 app.get("/auth", (req, res) => {
-  const authUrl = oAuth2Client.generateAuthUrl({ access_type: "offline", scope: SCOPES, prompt: "consent" });
+  const authUrl = oAuth2Client.generateAuthUrl({ 
+    access_type: "offline", // Crucial for refresh token
+    scope: SCOPES,
+    prompt: 'consent'       // PRO TIP: This forces Google to show the permission screen again
+  });
 
   res.send(`
     <!DOCTYPE html>
