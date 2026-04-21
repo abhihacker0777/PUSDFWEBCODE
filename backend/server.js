@@ -79,7 +79,7 @@ app.get('/logs', verifyToken, (req, res) => {
     const logs = data ? JSON.parse(data) : [];
     res.json(logs);
   } catch (err) {
-    res.json([]); // Return empty array if file is corrupt
+    res.json([]);
   }
 });
 

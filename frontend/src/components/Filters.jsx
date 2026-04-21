@@ -50,7 +50,7 @@ export default function Filters({
         renderRow("Semester", sems, "sem", selected.sem)}
       
       {selected.sem && 
-        renderRow("Exam", exams, "exam", selected.exam)}
+        renderRow("Exam ( Only Access By poornima.edu.in Email )", exams, "exam", selected.exam)}
     </div>
   );
 }

@@ -18,7 +18,6 @@ export default function Home() {
 
   useEffect(() => {
     async function load() {
-      // 1. Check cache first
       const cached = localStorage.getItem("papersCache");
       if (cached) {
         setPapersData(JSON.parse(cached));
