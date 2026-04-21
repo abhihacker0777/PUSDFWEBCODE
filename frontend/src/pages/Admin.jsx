@@ -933,7 +933,7 @@ export default function PaperUpdateList() {
             <div className="text-5xl mb-4">⚠️</div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Clear All Logs ?</h2>
             <p className="text-gray-600 mb-8 text-base">
-              Are You Sure You Want To Permanently Clear ALL Logs For Everyone? <br/>
+              Are You Sure You Want To Permanently Clear Logs For Everyone ? <br/>
               <span className="font-bold text-red-600 text-lg block mt-2">Click: Yes, Clear</span>
               Or To Cancel Please Click On <br/>
               <span className="font-bold text-black text-lg">No, Wait</span>
