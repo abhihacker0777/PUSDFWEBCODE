@@ -36,7 +36,7 @@ If You Want To Run This Project On Your Local Machine, Follow These Steps:
 
 ### 1. Clone The Repository
 ```Bash
-Git Clone [HTTPS://github.com/yourusername/yourreponame.git]
+Git Clone [https://github.com/abhihacker0777/PUSDFWEBCODE.git]
 CD Yourreponame
 ```
 
@@ -84,4 +84,3 @@ To Run This Project, You Will Need To Set Up The Following Environment Variables
 * BCA (Cyber Security) Batch - 2025-28
 * Poornima University
 * [LinkedIn Profile](https://linkedin.com/in/abhihacker0777)
-```
