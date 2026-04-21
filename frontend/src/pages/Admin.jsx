@@ -307,6 +307,7 @@ export default function PaperUpdateList() {
 
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, paperName: "" });
   const [listDeleteConfirm, setListDeleteConfirm] = useState({ show: false, row: null });
+  const [clearLogsConfirm, setClearLogsConfirm] = useState(false); // NEW STATE FOR CLEAR LOGS MODAL
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchPapers = async () => {
@@ -480,16 +481,19 @@ export default function PaperUpdateList() {
     }
   };
 
-  const clearServerLogs = async () => {
-    if (window.confirm("Are You Sure You Want To Permanently Clear ALL Logs For Everyone?")) {
-      try {
-        await fetch(`${import.meta.env.VITE_API_URL}/logs/clear`, { method: "DELETE" });
-        fetchLogs();
-        setSelected(new Set());
-      } catch (error) {
-        console.error("Clear Logs Error:", error);
-        alert("Failed To Clear Logs");
-      }
+  const clearServerLogs = () => {
+    setClearLogsConfirm(true); // SHOW MODAL INSTEAD OF BROWSER CONFIRM
+  };
+
+  const executeClearLogs = async () => {
+    setClearLogsConfirm(false);
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL}/logs/clear`, { method: "DELETE" });
+      fetchLogs();
+      setSelected(new Set());
+    } catch (error) {
+      console.error("Clear Logs Error:", error);
+      alert("Failed To Clear Logs");
     }
   };
   
@@ -654,7 +658,7 @@ export default function PaperUpdateList() {
                 paperName={paperName} setPaperName={setPaperName}
                 handleUpload={handleUpload}
                 handleDelete={handleDelete}
-				        handleSyncToWebsite={handleSyncToWebsite}
+                handleSyncToWebsite={handleSyncToWebsite}
                 openDropdown={openDropdown} setOpenDropdown={setOpenDropdown}
                 setSelectedPaperIndex={setSelectedPaperIndex}
                 fileError={fileError} 
@@ -917,6 +921,35 @@ export default function PaperUpdateList() {
                 className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-colors w-full"
               >
                 Yes, Update
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {clearLogsConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 transition-opacity">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full text-center transform transition-all border-t-8 border-red-500">
+            <div className="text-5xl mb-4">⚠️</div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Clear All Logs ?</h2>
+            <p className="text-gray-600 mb-8 text-base">
+              Are You Sure You Want To Permanently Clear ALL Logs For Everyone? <br/>
+              <span className="font-bold text-red-600 text-lg block mt-2">Click: Yes, Clear</span>
+              Or To Cancel Please Click On <br/>
+              <span className="font-bold text-black text-lg">No, Wait</span>
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+              <button 
+                onClick={() => setClearLogsConfirm(false)} 
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2.5 rounded-lg font-bold transition-colors w-full"
+              >
+                No, Wait
+              </button>
+              <button 
+                onClick={executeClearLogs} 
+                className="bg-[#E31E24] hover:bg-[#c11018] text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-colors w-full"
+              >
+                Yes, Clear
               </button>
             </div>
           </div>
