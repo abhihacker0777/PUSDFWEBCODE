@@ -299,17 +299,14 @@ export default function PaperUpdateList() {
   const [sortType, setSortType] = useState("");
   const [openDropdown, setOpenDropdown] = useState(null);
   const [openAction, setOpenAction] = useState(null);
-
   const [actionLog, setActionLog] = useState([]);
   const [fileError, setFileError] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [deleteStatus, setDeleteStatus] = useState("");
-
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, paperName: "" });
   const [listDeleteConfirm, setListDeleteConfirm] = useState({ show: false, row: null });
-  const [clearLogsConfirm, setClearLogsConfirm] = useState(false); // NEW STATE FOR CLEAR LOGS MODAL
+  const [clearLogsConfirm, setClearLogsConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
   const fetchPapers = async () => {
     const token = sessionStorage.getItem("token");
     if (!token) { window.location.href = "/login"; return; }
@@ -320,7 +317,6 @@ export default function PaperUpdateList() {
         cache: "no-store" 
       });
 
-      // ✅ FIX: Only log out if the token is actually invalid (401)
       if (res.status === 401) {
         sessionStorage.removeItem("token");
         window.location.href = "/login"; 
@@ -345,7 +341,6 @@ export default function PaperUpdateList() {
         cache: "no-store" 
       });
 
-      // ✅ FIX: Only log out if the token is actually invalid (401)
       if (res.status === 401) {
         sessionStorage.removeItem("token");
         window.location.href = "/login"; 
@@ -359,7 +354,7 @@ export default function PaperUpdateList() {
       console.error("Server is waking up...", err);
     }
   };
-  
+
   useEffect(() => { 
     fetchPapers(); 
     fetchLogs(); 
@@ -488,17 +483,16 @@ export default function PaperUpdateList() {
   };
 
   const clearServerLogs = () => {
-    setClearLogsConfirm(true); // SHOW MODAL INSTEAD OF BROWSER CONFIRM
+    setClearLogsConfirm(true);
   };
 
   const executeClearLogs = async () => {
     setClearLogsConfirm(false);
     try {
-      // ADVANCE PRO FIX: Added the Security Token here!
       const token = sessionStorage.getItem("token"); 
       await fetch(`${import.meta.env.VITE_API_URL}/logs/clear`, { 
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` } // Attached to the request
+        headers: { "Authorization": `Bearer ${token}` }
       });
       fetchLogs();
       setSelected(new Set());
@@ -765,7 +759,7 @@ export default function PaperUpdateList() {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {filtered.length === 0 && (
-                        <tr><td colSpan="8" className="text-center py-8 text-gray-400">No recent actions found on the server. Try uploading or deleting a paper!</td></tr>
+                        <tr><td colSpan="8" className="text-center py-8 text-gray-400">No Recent Actions Found On The Server. Try Uploading Or Deleting A Paper!</td></tr>
                       )}
                       {filtered.slice((currentPage - 1) * displayCount, currentPage * displayCount).map((row, idx) => {
                         const isSelected = selected.has(row.id);
@@ -970,7 +964,6 @@ export default function PaperUpdateList() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -1,7 +1,5 @@
 require("dotenv").config();
 const admin = require("firebase-admin");
-
-// Decode the Base64 string from Render back into a perfect JSON object
 const decodedKey = Buffer.from(process.env.FIREBASE_BASE64, 'base64').toString('utf8');
 const serviceAccount = JSON.parse(decodedKey);
 
@@ -279,7 +277,7 @@ app.get("/auth", (req, res) => {
   const authUrl = oAuth2Client.generateAuthUrl({ 
   access_type: "offline", 
   scope: SCOPES, 
-  prompt: "consent" // This is the secret to getting a refresh token!
+  prompt: "consent"
 });
 
   res.send(`
@@ -493,11 +491,9 @@ app.get("/papers", verifyToken, async (req, res) => {
 app.post("/sync", verifyToken, async (req, res) => {
   try {
 
-    // ADVANCE PRO FIX: Delete old data before syncing new data
-const papersRef = db.collection('papers'); // Change 'papers' to your actual collection name if different
+const papersRef = db.collection('papers');
 const snapshot = await papersRef.get();
 
-// Create a batch to delete all existing documents safely
 const batch = db.batch();
 snapshot.docs.forEach((doc) => {
   batch.delete(doc.ref);
@@ -505,7 +501,6 @@ snapshot.docs.forEach((doc) => {
 await batch.commit(); 
 console.log("Old database cleared. Ready for fresh sync.");
 
-// ---> YOUR EXISTING CODE THAT ADDS NEW GOOGLE SHEETS DATA GOES HERE <---
     const response = await fetch(SHEET_URL);
     const text = await response.text();
 
