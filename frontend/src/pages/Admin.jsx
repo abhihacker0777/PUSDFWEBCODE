@@ -320,15 +320,18 @@ export default function PaperUpdateList() {
         cache: "no-store" 
       });
 
-      const contentType = res.headers.get("content-type");
-      if (res.ok && contentType && contentType.includes("application/json")) {
-        setAllPapers(await res.json());
-      } else {
+      // ✅ FIX: Only log out if the token is actually invalid (401)
+      if (res.status === 401) {
         sessionStorage.removeItem("token");
         window.location.href = "/login"; 
+        return;
       }
-    } catch {
-      // Server might be turning on
+
+      if (res.ok) {
+        setAllPapers(await res.json());
+      }
+    } catch (err) {
+      console.error("Server is waking up...", err);
     }
   };
 
@@ -342,18 +345,21 @@ export default function PaperUpdateList() {
         cache: "no-store" 
       });
 
-      const contentType = res.headers.get("content-type");
-      if (res.ok && contentType && contentType.includes("application/json")) {
-        setActionLog(await res.json());
-      } else {
+      // ✅ FIX: Only log out if the token is actually invalid (401)
+      if (res.status === 401) {
         sessionStorage.removeItem("token");
         window.location.href = "/login"; 
+        return;
       }
-    } catch {
-      // Server might be turning on
+
+      if (res.ok) {
+        setActionLog(await res.json());
+      }
+    } catch (err) {
+      console.error("Server is waking up...", err);
     }
   };
-
+  
   useEffect(() => { 
     fetchPapers(); 
     fetchLogs(); 
