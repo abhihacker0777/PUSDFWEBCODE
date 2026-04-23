@@ -1,11 +1,27 @@
 require("dotenv").config();
 const admin = require("firebase-admin");
-const decodedKey = Buffer.from(process.env.FIREBASE_BASE64, 'base64').toString('utf8');
-const serviceAccount = JSON.parse(decodedKey);
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+// Check if the variable exists BEFORE trying to decode it
+const base64Key = process.env.FIREBASE_BASE64;
+
+if (!base64Key) {
+  console.error("❌ FATAL ERROR: FIREBASE_BASE64 is undefined.");
+  console.log("Check if your .env file is in: C:\\PUSDFWEBCODE\\backend\\.env");
+  process.exit(1);
+}
+
+try {
+  const decodedKey = Buffer.from(base64Key, 'base64').toString('utf8');
+  const serviceAccount = JSON.parse(decodedKey);
+
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  console.log("✅ Firebase Admin Initialized");
+} catch (err) {
+  console.error("❌ JSON Parse Error: The decoded Base64 is not a valid JSON string.");
+  process.exit(1);
+}
 const db = admin.firestore();
 
 const jwt = require("jsonwebtoken");
@@ -15,6 +31,7 @@ const multer = require("multer");
 const fs = require("fs"); 
 const path = require("path"); 
 const { google } = require("googleapis");
+const helmet = require("helmet"); // For security headers
 
 const SECRET = process.env.JWT_SECRET;
 const CLIENT_ID = process.env.CLIENT_ID;
@@ -26,6 +43,18 @@ const SHEET_URL = process.env.SHEET_URL;
 
 const app = express();
 app.use(cors());
+
+// Use Helmet to set security headers, including a Content Security Policy
+app.use(helmet());
+app.use(helmet.contentSecurityPolicy({
+  directives: {
+    ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+    "script-src": ["'self'"], // Allow scripts from our own domain
+    // BUG FIX: Whitelisted Google domains so Drive images and icons load correctly
+    "img-src": ["'self'", "data:", "https://*.googleusercontent.com", "https://*.gstatic.com", "https://*.google.com"], 
+  }
+}));
+
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -47,16 +76,6 @@ const upload = multer({
   fileFilter: fileFilter 
 });
 
-const logsDir = path.join(__dirname, 'logs');
-const logFile = path.join(logsDir, 'logs.json');
-
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir);
-}
-if (!fs.existsSync(logFile)) {
-  fs.writeFileSync(logFile, JSON.stringify([]));
-}
-
 function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
 
@@ -73,27 +92,43 @@ function verifyToken(req, res, next) {
   }
 }
 
-app.get('/logs', verifyToken, (req, res) => {
+app.get('/logs', verifyToken, async (req, res) => {
   try {
-    const data = fs.readFileSync(logFile, 'utf8');
-    const logs = data ? JSON.parse(data) : [];
+    const snapshot = await db.collection('logs').orderBy('id', 'desc').get();
+    const logs = snapshot.docs.map(doc => doc.data());
     res.json(logs);
   } catch (err) {
     res.json([]);
   }
 });
 
-app.post('/logs', verifyToken, (req, res) => {
-  const data = fs.readFileSync(logFile, 'utf8');
-  let logs = data ? JSON.parse(data) : [];
-  logs.unshift(req.body);
-  fs.writeFileSync(logFile, JSON.stringify(logs, null, 2));
-  res.status(200).send("Log Saved Successfully");
+app.post('/logs', verifyToken, async (req, res) => {
+  try {
+    const logData = req.body;
+    await db.collection('logs').doc(logData.id.toString()).set(logData);
+    res.status(200).send("Log Saved Successfully");
+  } catch (err) {
+    res.status(500).send("Error saving log");
+  }
 });
 
 app.delete('/logs/clear', verifyToken, async (req, res) => {
   try {
-    await db.ref('logs').remove(); 
+    const snapshot = await db.collection('logs').get();
+    const batches = [];
+    let batch = db.batch();
+    let count = 0;
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+      count++;
+      if (count === 500) {
+        batches.push(batch.commit());
+        batch = db.batch();
+        count = 0;
+      }
+    });
+    if (count > 0) batches.push(batch.commit());
+    await Promise.all(batches);
     
     res.status(200).send("Database Logs Wiped"); 
   } catch (error) {
@@ -102,13 +137,31 @@ app.delete('/logs/clear', verifyToken, async (req, res) => {
   }
 });
 
-app.post('/logs/delete', verifyToken, (req, res) => {
-  const { ids } = req.body;
-  const data = fs.readFileSync(logFile, 'utf8');
-  let logs = data ? JSON.parse(data) : [];
-  logs = logs.filter(log => !ids.includes(log.id));
-  fs.writeFileSync(logFile, JSON.stringify(logs, null, 2));
-  res.status(200).send("Selected Logs Deleted");
+app.post('/logs/delete', verifyToken, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    const batches = [];
+    let batch = db.batch();
+    let count = 0;
+    
+    ids.forEach(id => {
+      const ref = db.collection('logs').doc(id.toString());
+      batch.delete(ref);
+      count++;
+      if (count === 500) {
+        batches.push(batch.commit());
+        batch = db.batch();
+        count = 0;
+      }
+    });
+    if (count > 0) batches.push(batch.commit());
+    await Promise.all(batches);
+    
+    res.status(200).send("Selected Logs Deleted");
+  } catch (error) {
+    console.error("Firebase Delete Error:", error);
+    res.status(500).send("Server failed to delete specific logs");
+  }
 });
 
 const oAuth2Client = new google.auth.OAuth2(
@@ -117,12 +170,24 @@ const oAuth2Client = new google.auth.OAuth2(
   REDIRECT_URI 
 );
 
-if (fs.existsSync("token.json")) {
-  const tokens = JSON.parse(fs.readFileSync("token.json"));
-  oAuth2Client.setCredentials(tokens);
-  global.authClient = oAuth2Client;
-  console.log("✅ Auto logged In Using Saved Token");
-}
+// BUG FIX: Added a listener to save refreshed tokens back to Firestore.
+// This ensures your "Auto login" stays active long-term.
+oAuth2Client.on('tokens', (tokens) => {
+  db.collection('config').doc('google_token').set(tokens, { merge: true });
+});
+
+db.collection('config').doc('google_token').get().then(doc => {
+  if (doc.exists) {
+    try {
+      const tokens = doc.data();
+      oAuth2Client.setCredentials(tokens);
+      global.authClient = oAuth2Client;
+      console.log("✅ Auto logged In Using Saved Database Token");
+    } catch (e) {
+      console.error("❌ Failed to parse database token.");
+    }
+  }
+}).catch(err => console.log("No saved DB token found or DB error", err));
 
 const SCOPES = [
   "https://www.googleapis.com/auth/drive",
@@ -198,7 +263,6 @@ app.post("/upload", verifyToken, (req, res) => {
           requestBody: { role: "reader", type: "anyone" }
         });
 
-        fs.unlinkSync(req.file.path);
         fileLink = `https://drive.google.com/file/d/${driveRes.data.id}/view`;
       }
 
@@ -208,7 +272,7 @@ app.post("/upload", verifyToken, (req, res) => {
           range: `Sheet1!A${index}:G${index}`,
           valueInputOption: "USER_ENTERED",
           requestBody: {
-            values: [[course, year, spec, sem, exam, name, fileLink || rows[index - 1][6]]]
+            values: [[course, year, spec, sem, exam, name, fileLink || (rows[index - 1] ? rows[index - 1][6] : "")]]
           }
         });
         return res.send("✅ Updated Successfully");
@@ -244,6 +308,11 @@ app.post("/upload", verifyToken, (req, res) => {
     } catch (err) {
       console.error(err);
       res.send("❌ Error Occurred");
+    } finally {
+      // BUG FIX: Added path existence check to save disk space and prevent server crashes
+      if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
     }
   });
 });
@@ -319,11 +388,6 @@ app.get("/auth", (req, res) => {
           text-align: center;
           max-width: 400px;
           width: 90%;
-          
-        }
-        .icon {
-          font-size: 48px;
-          margin-bottom: 10px;
         }
         h2 {
           color: #1f2937;
@@ -338,8 +402,8 @@ app.get("/auth", (req, res) => {
         }
         .btn {
           display: inline-block;
-          background-color: #05488B; /* Poornima Blue */
-          color: #ffc107; /* Poornima Yellow */
+          background-color: #05488B;
+          color: #ffc107;
           text-decoration: none;
           padding: 14px 28px;
           border-radius: 8px;
@@ -353,22 +417,11 @@ app.get("/auth", (req, res) => {
           transform: translateY(-2px);
           box-shadow: 0 6px 12px rgba(5, 72, 139, 0.3);
         }
-
-        .card {
-          background-color: white;
-          padding: 40px 30px;
-          border-radius: 16px;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-          text-align: center;
-          max-width: 400px;
-          width: 90%;
-        }
         .logo-img {
           width: 130px;
           height: auto;
           margin-bottom: 15px;
         }
-        .icon {
       </style>
     </head>
     <body>
@@ -376,7 +429,6 @@ app.get("/auth", (req, res) => {
         <img src="/logo.png" alt="Poornima University Logo" class="logo-img">
         <h2>poornima.edu.in 🔐 Authorization</h2>
         <p>To Update The Data , Server Need Your Permission</p>
-        
         <a href="${authUrl}" class="btn">Authorize with Google</a>
       </div>
     </body>
@@ -385,12 +437,13 @@ app.get("/auth", (req, res) => {
 });
 
 app.get("/oauth2callback", async (req, res) => {
-  const code = req.query.code;
-  const { tokens } = await oAuth2Client.getToken(code);
-  oAuth2Client.setCredentials(tokens);
-  fs.writeFileSync("token.json", JSON.stringify(tokens));
-  global.authClient = oAuth2Client;
-  res.send(`
+  try {
+    const code = req.query.code;
+    const { tokens } = await oAuth2Client.getToken(code);
+    oAuth2Client.setCredentials(tokens);
+    await db.collection('config').doc('google_token').set(tokens);
+    global.authClient = oAuth2Client;
+    res.send(`
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -439,8 +492,8 @@ app.get("/oauth2callback", async (req, res) => {
         }
         .btn {
           display: inline-block;
-          background-color: #05488B; /* Poornima Blue */
-          color: #ffc107; /* Poornima Yellow */
+          background-color: #05488B;
+          color: #ffc107;
           text-decoration: none;
           padding: 14px 28px;
           border-radius: 8px;
@@ -448,11 +501,6 @@ app.get("/oauth2callback", async (req, res) => {
           font-size: 16px;
           transition: all 0.3s ease;
           box-shadow: 0 4px 6px rgba(5, 72, 139, 0.2);
-        }
-        .btn:hover {
-          background-color: #043a70;
-          transform: translateY(-2px);
-          box-shadow: 0 6px 12px rgba(5, 72, 139, 0.3);
         }
       </style>
     </head>
@@ -462,12 +510,15 @@ app.get("/oauth2callback", async (req, res) => {
         <div class="icon">🎉</div>
         <h2>Authorization Successful!</h2>
         <p>The Server Is Now Securely Connected To Admin Panel</p>
-        
         <a href="${FRONTEND_URL}/login" class="btn">Return to Dashboard</a>
       </div>
     </body>
     </html>
   `);
+  } catch (err) {
+    console.error("OAuth Callback Error:", err);
+    res.status(500).send("Authorization Failed");
+  }
 });
 
 app.get("/papers", verifyToken, async (req, res) => {
@@ -504,23 +555,44 @@ app.get("/papers", verifyToken, async (req, res) => {
 app.post("/sync", verifyToken, async (req, res) => {
   try {
 
-const papersRef = db.collection('papers');
-const snapshot = await papersRef.get();
-
-const batch = db.batch();
-snapshot.docs.forEach((doc) => {
-  batch.delete(doc.ref);
-});
-await batch.commit(); 
-console.log("Old database cleared. Ready for fresh sync.");
-
     const response = await fetch(SHEET_URL);
     const text = await response.text();
 
-    const json = JSON.parse(text.substr(47).slice(0, -2));
-    const rows = json.table.rows;
+    // BUG FIX: Improved JSON parsing to find braces dynamically
+    let rows = [];
+    try {
+        const start = text.indexOf('{');
+        const end = text.lastIndexOf('}') + 1;
+        const json = JSON.parse(text.substring(start, end));
+        rows = json.table.rows;
+    } catch (e) {
+        throw new Error("Invalid Spreadsheet JSON format");
+    }
+
+    const papersRef = db.collection('papers');
+    const snapshot = await papersRef.get();
+
+    const batches = [];
+    let batch = db.batch();
+    let count = 0;
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+      count++;
+      if (count === 500) {
+        batches.push(batch.commit());
+        batch = db.batch();
+        count = 0;
+      }
+    });
+    if (count > 0) batches.push(batch.commit());
+    await Promise.all(batches);
+
+    console.log("Old database cleared. Ready for fresh sync.");
 
     let updatedCount = 0;
+    const writeBatches = [];
+    let writeBatch = db.batch();
+    let writeCount = 0;
 
     for (const row of rows) {
       const paper = {
@@ -537,12 +609,22 @@ console.log("Old database cleared. Ready for fresh sync.");
         const rawId = `${paper.course}-${paper.year}-${paper.sem}-${paper.exam}-${paper.name}`;
         const docId = rawId.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
 
-        await db.collection("papers").doc(docId).set(paper);
+        const docRef = db.collection("papers").doc(docId);
+        writeBatch.set(docRef, paper);
+        writeCount++;
         updatedCount++;
+
+        if (writeCount === 500) {
+          writeBatches.push(writeBatch.commit());
+          writeBatch = db.batch();
+          writeCount = 0;
+        }
       }
     }
+    if (writeCount > 0) writeBatches.push(writeBatch.commit());
+    await Promise.all(writeBatches);
     
-    res.json({ success: true, message: `✅ Data Updateed Successfully. ${updatedCount} 🎉` });
+    res.json({ success: true, message: `✅ Data Updated Successfully. ${updatedCount} 🎉` });
 
   } catch (err) {
     console.error("Sync Error:", err);
@@ -551,7 +633,8 @@ console.log("Old database cleared. Ready for fresh sync.");
 });
 
 const server = app.listen(3000, () => {
-  console.log("🚀 Server As Been Started On Port 3000");
+  console.log("🚀 Server Started On Port 3000");
 });
 
-server.timeout = 0;
+// BUG FIX: Changed from infinite timeout (0) to 5 minutes to prevent memory leaks while allowing large uploads
+server.timeout = 300000;

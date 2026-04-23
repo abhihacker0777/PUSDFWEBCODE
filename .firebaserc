@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "pu-py-qp"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

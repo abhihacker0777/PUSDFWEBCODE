@@ -55,7 +55,8 @@ const PoornimaLogo = () => (
 const StatusBadge = ({ status }) => (
   <span
     className="inline-flex items-center justify-center rounded-full text-white text-xs font-semibold px-4 py-1 min-w-[96px] whitespace-nowrap"
-    style={{ backgroundColor: status === "Update" ? "#22c55e" : "#e53e3e" }}
+    // BUG FIX: Updated to match all possible server status strings including "Synced"
+    style={{ backgroundColor: (status === "Update" || status === "Updated" || status === "Uploaded" || status === "Synced") ? "#22c55e" : "#e31e24" }}
   >
     {status}
   </span>
@@ -69,7 +70,10 @@ const CustomDropdown = ({ id, label, options, value, setValue, openDropdown, set
       <button
         type="button"
         disabled={disabled}
-        onClick={(e) => { e.stopPropagation(); if (!disabled) setOpenDropdown(isOpen ? null : id); }}
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          if (!disabled) setOpenDropdown(isOpen ? null : id); 
+        }}
         className={`w-full border rounded-lg px-4 py-2 text-base font-medium text-center shadow-sm transition-colors
           ${disabled 
             ? "bg-white text-[#374151] cursor-not-allowed whitespace-nowrap" 
@@ -84,19 +88,20 @@ const CustomDropdown = ({ id, label, options, value, setValue, openDropdown, set
       
       {isOpen && (
         <div 
-          className={`absolute left-0 top-full mt-1 bg-[#cbe0fe] rounded-lg shadow-xl z-[100] border border-blue-200 overflow-hidden 
+          className={`absolute left-0 top-full mt-1 bg-[#cbe0fe] rounded-lg shadow-2xl z-[9999] border border-blue-200 overflow-hidden 
           ${customWidth ? customWidth : 'w-full'}`}
         >
           <div className={`${customHeight ? customHeight : 'max-h-[150px]'} overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] [&::-webkit-scrollbar-thumb]:rounded-full`}>
             {(options || []).map((item, i) => (
-              <div 
+              <button
+                type="button"
                 key={i} 
                 onClick={() => { setValue(item); setOpenDropdown(null); }} 
-                className="px-4 py-2.5 hover:bg-blue-300 cursor-pointer text-sm md:text-base truncate text-gray-800 transition-colors border-b border-blue-200/50 last:border-0"
+                className="w-full text-left px-4 py-2.5 hover:bg-blue-300 cursor-pointer text-sm md:text-base text-gray-800 transition-colors border-b border-blue-200/50 last:border-0"
                 title={item} 
               >
                 {item}
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -166,7 +171,8 @@ const DashboardPage = ({
           )}
         </div>
 
-        <div className="w-full p-4 rounded-xl border shadow-sm" style={{ backgroundColor: "#E31E24" }}>
+        {/* BUG FIX: Added relative z-30 to ensure dropdown menus stay above the table and image */}
+        <div className="w-full p-4 rounded-xl border shadow-sm overflow-visible relative z-30" style={{ backgroundColor: "#E31E24" }}>
           <div className="flex flex-col gap-4 overflow-visible">
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -180,7 +186,7 @@ const DashboardPage = ({
                 setValue={(val) => { setSpec(val); setSemester(""); setExam(""); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 overflow-visible">
               <CustomDropdown id="sem" label="Semester" options={semesters} value={semester} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown}
                 setValue={(val) => { setSemester(val); setExam(""); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
               
@@ -261,11 +267,11 @@ const DashboardPage = ({
 
           <div className="w-full lg:flex-1 flex items-center justify-center lg:justify-end order-3">
              <button 
-  onClick={handleSyncToWebsite}
-  className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded shadow-sm font-medium transition-colors"
->
-  🔄 Fetch To PU-Site
-</button>
+              onClick={handleSyncToWebsite}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded shadow-sm font-medium transition-colors"
+            >
+              🔄 Fetch To PU-Site
+            </button>
           </div>
           
         </div>
@@ -283,7 +289,7 @@ export default function PaperUpdateList() {
   const [spec, setSpec] = useState("");
   const [semester, setSemester] = useState("");
   const [exam, setExam] = useState("");
-  const [paper, setPaper] = useState("");        
+  const [paper, setPaper] = useState("");         
   const [paperName, setPaperName] = useState(""); 
   const [selectedPaperIndex, setSelectedPaperIndex] = useState(null);
   const [fileName, setFileName] = useState("No file chosen");
@@ -306,7 +312,13 @@ export default function PaperUpdateList() {
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, paperName: "" });
   const [listDeleteConfirm, setListDeleteConfirm] = useState({ show: false, row: null });
   const [clearLogsConfirm, setClearLogsConfirm] = useState(false);
+  const [clearSelectedConfirm, setClearSelectedConfirm] = useState(false); 
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, sortType, displayCount]);
+
   const fetchPapers = async () => {
     const token = sessionStorage.getItem("token");
     if (!token) { window.location.href = "/login"; return; }
@@ -356,19 +368,42 @@ export default function PaperUpdateList() {
   };
 
   useEffect(() => { 
-    fetchPapers(); 
-    fetchLogs(); 
+    let isPolling = false;
 
-    const intervalId = setInterval(() => {
-      fetchPapers();
-      fetchLogs();
-    }, 3000);
+    const loadData = async () => {
+      if (sessionStorage.getItem("token")) {
+        if (isPolling) return;
+        isPolling = true;
+        try {
+          await fetchPapers(); 
+          await fetchLogs();
+        } catch (e) {
+          console.warn("Polling error: Server may be busy.", e);
+        } finally {
+          isPolling = false;
+        }
+      }
+    };
 
-    return () => clearInterval(intervalId);
+    loadData();
+    const intervalId = setInterval(loadData, 3000);
+    
+    const closeAll = () => {
+      setOpenDropdown(null);
+      setOpenAction(null);
+      setShowAllMenu(false);
+      setShowFilter(false);
+    };
+    window.addEventListener("click", closeAll);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("click", closeAll);
+    };
   }, []);
 
   const handleUpload = async () => {
-    if (!file) { setFileError(true); return; }
+    if (!file && !selectedPaperIndex) { setFileError(true); return; }
     if (!course || !year || !spec || !semester || !exam || !paperName) {
       setUploadStatus("❌ Please Fill All Fields");
       setTimeout(() => setUploadStatus(""), 4000);
@@ -500,7 +535,7 @@ export default function PaperUpdateList() {
       if (res.ok) {
         setActionLog([]); 
         setSelected(new Set());
-        console.log("Logs wiped from server and UI");
+        setSelectAll(false);
       } else {
         alert("Server failed to clear logs. Check Render logs!");
       }
@@ -511,6 +546,31 @@ export default function PaperUpdateList() {
     }
   };
   
+  const executeClearSelected = async () => {
+    setClearSelectedConfirm(false);
+    setIsLoading(true);
+    try {
+      const token = sessionStorage.getItem("token");
+      const idsToDelete = Array.from(selected);
+      await fetch(`${import.meta.env.VITE_API_URL}/logs/delete`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+        },
+        body: JSON.stringify({ ids: idsToDelete })
+      });
+      fetchLogs();
+      setSelected(new Set());
+      setSelectAll(false);
+    } catch (err) {
+      console.error(err);
+      alert("❌ Failed to delete selected logs");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const executeListDelete = async () => {
     const row = listDeleteConfirm.row;
     if (!row) return;
@@ -563,32 +623,30 @@ export default function PaperUpdateList() {
   };
 
   const executeSync = async () => {
-  setSyncConfirm(false); 
-  setIsLoading(true); 
-  
-  try {
-    const token = sessionStorage.getItem("token"); 
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/sync`, {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${token}` }
-    });
+    setSyncConfirm(false); 
+    setIsLoading(true); 
     
-    const data = await response.json();
+    try {
+      const token = sessionStorage.getItem("token"); 
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/sync`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
 
-    setUploadStatus(data.message); 
-    
-    setTimeout(() => setUploadStatus(""), 5000); 
-
-    setIsLoading(false); 
-  } catch (error) {
-    console.error(error);
-    
-    setUploadStatus("❌ Sync Failed. Please try again.");
-    setTimeout(() => setUploadStatus(""), 5000);
-    
-    setIsLoading(false); 
-  }
-};
+      setUploadStatus(data.success ? `✅ ${data.message}` : `❌ ${data.message}`); 
+      
+      setTimeout(() => setUploadStatus(""), 5000); 
+    } catch (error) {
+      console.error(error);
+      
+      setUploadStatus("❌ Sync Failed. Please try again.");
+      setTimeout(() => setUploadStatus(""), 5000);
+    } finally {
+      setIsLoading(false); 
+    }
+  };
 
   const courses = [...new Set(allPapers.map(p => p.course))];
   const years = [...new Set(allPapers.filter(p => p.course === course).map(p => p.year))];
@@ -597,25 +655,28 @@ export default function PaperUpdateList() {
   const exams = [...new Set(allPapers.filter(p => p.course === course && p.year === year && p.spec === spec && p.sem === semester).map(p => p.exam))];
   const papers = allPapers.filter(p => p.course === course && p.year === year && p.spec === spec && p.sem === semester && p.exam === exam);
 
+  // BUG FIX: Added Null-Safety (?? "") to prevent crashing if a database record is missing a field
+  let filtered = actionLog.filter(r => 
+    (r.name ?? "").toLowerCase().includes(search.toLowerCase()) || 
+    (r.semester ?? "").toLowerCase().includes(search.toLowerCase())
+  );
+
   const toggleAll = () => {
     if (selectAll) { setSelected(new Set()); setSelectAll(false); }
-    else { setSelected(new Set(actionLog.map(r => r.id))); setSelectAll(true); }
+    else { setSelected(new Set(filtered.map(r => r.id))); setSelectAll(true); }
   };
 
   const toggleRow = (id) => {
     const next = new Set(selected);
     next.has(id) ? next.delete(id) : next.add(id);
     setSelected(next);
-    setSelectAll(next.size === actionLog.length);
+    // BUG FIX: Sync the 'Select All' checkbox properly when a single row is un-checked
+    setSelectAll(next.size === filtered.length && filtered.length > 0);
   };
-
-  let filtered = actionLog.filter(r => 
-    r.name.toLowerCase().includes(search.toLowerCase()) || 
-    r.semester.toLowerCase().includes(search.toLowerCase())
-  );
   
-  if (sortType === "az") filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-  if (sortType === "za") filtered = [...filtered].sort((a, b) => b.name.localeCompare(a.name));
+  // BUG FIX: Null-Safety added to sort strings to prevent crashing
+  if (sortType === "az") filtered = [...filtered].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+  if (sortType === "za") filtered = [...filtered].sort((a, b) => (b.name ?? "").localeCompare(a.name ?? ""));
   if (sortType === "new") filtered = [...filtered].sort((a, b) => b.id - a.id); 
   if (sortType === "old") filtered = [...filtered].sort((a, b) => a.id - b.id); 
 
@@ -633,7 +694,7 @@ export default function PaperUpdateList() {
         <nav className="flex-1 px-3 md:px-2 mt-3 md:mt-0 pb-2 md:pb-0 flex flex-row md:flex-col items-center justify-center md:justify-start md:items-stretch space-x-4 md:space-x-0 space-y-0 md:space-y-1 w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <button onClick={() => setActiveNav("dashboard")} className={`whitespace-nowrap w-auto md:w-full flex items-center justify-center md:justify-start gap-2.5 px-6 md:px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeNav === "dashboard" ? "bg-white text-[#05488b] shadow-md" : "text-black/75 hover:bg-white/15 hover:text-black"}`}>
             <FiHome className={`${activeNav === "dashboard" ? "text-[#05488b]" : ""} w-4 h-4`} />
-            <span>Dashboard</span>
+            <span>Home</span>
           </button>
           <button onClick={() => setActiveNav("paper")} className={`whitespace-nowrap w-auto md:w-full flex items-center justify-center md:justify-start gap-2.5 px-6 md:px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeNav === "paper" ? "bg-white text-[#05488b] shadow-md" : "text-black/75 hover:bg-white/15 hover:text-black"}`}>
             <FiFileText className={`${activeNav === "paper" ? "text-[#05488b]" : ""} w-4 h-4`} />
@@ -701,22 +762,9 @@ export default function PaperUpdateList() {
                     {showAllMenu && (
                       <div onClick={(e) => e.stopPropagation()} className="absolute mt-2 w-full md:w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                         {selected.size > 0
-                          ? <button onClick={async () => { 
-                              if(window.confirm(`Delete ${selected.size} logs permanently?`)) {
-                                const token = sessionStorage.getItem("token");
-                                const idsToDelete = Array.from(selected);
-                                await fetch(`${import.meta.env.VITE_API_URL}/logs/delete`, {
-                                  method: "POST",
-                                  headers: { 
-                                    "Content-Type": "application/json",
-                                    "Authorization": `Bearer ${token}` 
-                                  },
-                                  body: JSON.stringify({ ids: idsToDelete })
-                                });
-                                fetchLogs();
-                                setSelected(new Set());
-                                setShowAllMenu(false);
-                              }
+                          ? <button onClick={() => { 
+                              setClearSelectedConfirm(true); 
+                              setShowAllMenu(false);
                             }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
                               {selected.size === 1 ? "Clear Log" : "Clear Logs"} ({selected.size})
                             </button>
@@ -757,8 +805,8 @@ export default function PaperUpdateList() {
                     <thead>
                       <tr className="border-b-2 border-gray-100 bg-white">
                         <th className="px-4 py-2 w-10 text-center rounded-tl-xl"><input type="checkbox" checked={selectAll} onChange={toggleAll} className="w-4 h-4 rounded accent-amber-500 cursor-pointer" /></th>
-                        <th className="px-4 py-2 text-center text-gray-600 font-semibold"><div className="flex items-center justify-center gap-1">Title </div></th>
-                        <th className="px-4 py-2 text-center text-gray-600 font-semibold"><div className="flex items-center justify-center gap-1">Semester </div></th>
+                        <th className="px-4 py-2 text-center text-gray-600 font-semibold">Title</th>
+                        <th className="px-4 py-2 text-center text-gray-600 font-semibold">Semester</th>
                         <th className="px-4 py-2 text-center text-gray-600 font-semibold">Year</th>
                         <th className="px-4 py-2 text-center text-gray-600 font-semibold">Exam</th> 
                         <th className="px-4 py-2 text-center text-gray-600 font-semibold">Date</th>
@@ -768,7 +816,7 @@ export default function PaperUpdateList() {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {filtered.length === 0 && (
-                        <tr><td colSpan="8" className="text-center py-8 text-gray-400">No Recent Actions Found On The Server. Try Uploading Or Deleting A Paper!</td></tr>
+                        <tr><td colSpan="8" className="text-center py-8 text-gray-400">No Recent Actions Found.</td></tr>
                       )}
                       {filtered.slice((currentPage - 1) * displayCount, currentPage * displayCount).map((row, idx) => {
                         const isSelected = selected.has(row.id);
@@ -834,11 +882,11 @@ export default function PaperUpdateList() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-2.5 border-t border-gray-100 bg-white rounded-b-xl gap-2 sm:gap-0">
-                  <span className="text-xs text-gray-500">Showing {(currentPage - 1) * displayCount + 1} to {Math.min(currentPage * displayCount, filtered.length)} of {filtered.length} entries</span>
+                  <span className="text-xs text-gray-500">Showing {filtered.length === 0 ? 0 : (currentPage - 1) * displayCount + 1} to {Math.min(currentPage * displayCount, filtered.length)} of {filtered.length} entries</span>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-gray-500">Display</span>
-                      <select value={displayCount} onChange={(e) => { setDisplayCount(Number(e.target.value)); setCurrentPage(1); }} className="text-xs border border-gray-300 rounded px-2 py-1 bg-white outline-none cursor-pointer">
+                      <select value={displayCount} onChange={(e) => setDisplayCount(Number(e.target.value))} className="text-xs border border-gray-300 rounded px-2 py-1 bg-white outline-none cursor-pointer">
                         {[10,30,50,70,90].map(n => <option key={n} value={n}>{n}</option>)}
                       </select>
                     </div>
@@ -856,7 +904,7 @@ export default function PaperUpdateList() {
           )}
         </main>
       </div>
- 
+
       {deleteConfirm.show && (
         <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 transition-opacity">
           <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full text-center transform transition-all border-t-8 border-red-500">
@@ -965,6 +1013,35 @@ export default function PaperUpdateList() {
               </button>
               <button 
                 onClick={executeClearLogs} 
+                className="bg-[#E31E24] hover:bg-[#c11018] text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-colors w-full"
+              >
+                Yes, Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {clearSelectedConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 transition-opacity">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full text-center transform transition-all">
+            <div className="text-5xl mb-4">⚠️</div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Clear Selected Logs ?</h2>
+            <p className="text-gray-600 mb-8 text-base">
+              Are You Sure You Want To Permanently Clear Selected Logs<br/>
+              <span className="font-bold text-red-600 text-lg block mt-2">Click: Yes, Clear</span>
+              Or To Cancel Please Click On <br/>
+              <span className="font-bold text-black text-lg">No, Wait</span>
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+              <button 
+                onClick={() => setClearSelectedConfirm(false)} 
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2.5 rounded-lg font-bold transition-colors w-full"
+              >
+                No, Wait
+              </button>
+              <button 
+                onClick={executeClearSelected} 
                 className="bg-[#E31E24] hover:bg-[#c11018] text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-colors w-full"
               >
                 Yes, Clear

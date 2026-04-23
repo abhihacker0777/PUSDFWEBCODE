@@ -18,16 +18,20 @@ export default function Home() {
 
   useEffect(() => {
     async function load() {
-      const cached = localStorage.getItem("papersCache");
+      const cached = sessionStorage.getItem("papersCache");
       if (cached) {
-        setPapersData(JSON.parse(cached));
-        setIsLoading(false);
+        try {
+          setPapersData(JSON.parse(cached));
+          setIsLoading(false);
+        } catch {
+          sessionStorage.removeItem("papersCache");
+        }
       }
 
       try {
         const data = await fetchPapers();
         setPapersData(data);
-        localStorage.setItem("papersCache", JSON.stringify(data));
+        sessionStorage.setItem("papersCache", JSON.stringify(data));
       } catch {
         console.error("Fetch failed: Could not retrieve papers data.");
       } finally {
@@ -43,39 +47,56 @@ export default function Home() {
         .filter(p =>
           Object.keys(filter)
             .filter(k => filter[k])
-            .every(k => p[k] === filter[k])
+            .every(k => {
+              // BUG FIX: Switched to ?? to prevent empty strings from triggering incorrect fallbacks
+              const pVal = p[k] ?? (k === "specialization" ? p.spec : null);
+              return String(pVal ?? "").trim() === String(filter[k] ?? "").trim();
+            })
         )
-        .map(p => p[field])
+        // BUG FIX: Ensure mapping is null-safe so filter buttons always render if data exists
+        .map(p => p[field] ?? (field === "specialization" ? p.spec : null))
         .filter(Boolean)
     )];
   };
 
   const ordered = (list, sequence) => {
-    return sequence.filter(v => list.includes(v));
+    // BUG FIX: Show items in sequence first, but APPEND unknown items so they don't become invisible
+    const known = sequence.filter(v => list.includes(v));
+    const unknown = list.filter(v => !sequence.includes(v));
+    return [...known, ...unknown];
   };
 
   const handleSelect = (type, value) => {
-    let newState = { ...selected, [type]: value };
-    if (type === "course") newState = { course: value };
-    if (type === "year") newState = { course: selected.course, year: value, specialization: null, sem: null, exam: null };
-    if (type === "specialization") newState = { ...selected, specialization: value, sem: null, exam: null };
-    if (type === "sem") newState = { ...selected, sem: value, exam: null };
-    if (type === "exam") newState = { ...selected, exam: value };
-    setSelected(newState);
+    if (type === "course") {
+      setSelected({ course: value, year: null, specialization: null, sem: null, exam: null });
+    } else if (type === "year") {
+      setSelected(prev => ({ ...prev, year: value, specialization: null, sem: null, exam: null }));
+    } else if (type === "specialization") {
+      setSelected(prev => ({ ...prev, specialization: value, sem: null, exam: null }));
+    } else if (type === "sem") {
+      setSelected(prev => ({ ...prev, sem: value, exam: null }));
+    } else {
+      setSelected(prev => ({ ...prev, [type]: value }));
+    }
   };
 
   const years = ordered(unique("year", { course: selected.course }), yearSequence);
   const specs = unique("specialization", { course: selected.course, year: selected.year }).sort((a, b) => a.localeCompare(b));
   const sems = ordered(unique("sem", { course: selected.course, year: selected.year, specialization: selected.specialization }), semSequence);
   const exams = ordered(unique("exam", { course: selected.course, year: selected.year, specialization: selected.specialization, sem: selected.sem }), examSequence);
+  
   const filteredPapers = [...papersData]
   .filter(p =>
-    Object.keys(selected).every(k => !selected[k] || p[k] === selected[k])
+    Object.keys(selected).every(k => {
+      if (!selected[k]) return true;
+      const paperValue = p[k] ?? (k === "specialization" ? p.spec : null);
+      // BUG FIX: Standardized null handling to prevent literal "null" string matches
+      return String(paperValue ?? "").trim() === String(selected[k] ?? "").trim();
+    })
   )
   .sort((a, b) => {
     const textA = (a.subject || a.title || a.name || "").toLowerCase().trim();
     const textB = (b.subject || b.title || b.name || "").toLowerCase().trim();
-    
     return textA.localeCompare(textB);
   });
 
@@ -84,19 +105,30 @@ export default function Home() {
       <Navbar />
 
       <main className="max-w-[1600px] mx-auto px-4 md:px-10 py-6">
-	  
-	  {isLoading && papersData.length === 0 ? (
-		 <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm py-7 flex justify-center items-center mt-4">
-			<p className="text-black font-serif">Loading...</p>
-		 </div>
-	   ) : papersData.length === 0 ? (
+    
+    {isLoading && papersData.length === 0 ? (
+     <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm py-7 flex justify-center items-center mt-4">
+    {/* Replace the old div below with this animated one */}
+     <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mr-3"
+          style={{
+            animation: 'spin 1s linear infinite, colorChange 2s linear infinite'
+          }}
+     ></div>
+    
+     <style>{`
+       @keyframes colorChange {
+         0% { border-color: #05488B; border-top-color: transparent; }
+         50% { border-color: #ffc107; border-top-color: transparent; }
+         100% { border-color: #05488B; border-top-color: transparent; }
+       }
+     `}</style>
+
+      <p className="text-black font-serif">Loading...</p>
+     </div>
+    ) : papersData.length === 0 ? (
     <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm py-6 flex flex-col justify-center items-center mt-10 animate-fade-in">
-      <p className="text-sm font-serif text-[#212529] mb-1">
-        No Papers Available
-      </p>
-      <span className="text-lg font-playfair display,Sans-serif text-[#4b5563] tracking-tight">
-        Please Check Back Later.
-      </span>
+      <p className="text-sm font-serif text-[#212529] mb-1">No Papers Available</p>
+      <span className="text-lg font-playfair text-[#4b5563] tracking-tight">Please Check Back Later.</span>
     </div>
   ) : (
     <Filters
@@ -117,24 +149,13 @@ export default function Home() {
         )}
       </main>
     
-<footer className="mt-20 mb-10 flex flex-col items-center justify-center text-center text-[#374151]">
-  <p className="text-sm md:text-base">
-    Created By - <a 
-      href="https://linkedin.com/in/abhihacker0777" 
-      target="_blank" 
-      rel="noopener noreferrer"
-      className="text-blue-600 hover:underline font-medium"
-    >
-      Abhishek Sankhla
-    </a>
-  </p>
-  <p className="text-sm md:text-base mt-1">
-    BCA (Cyber Security) Batch - 2025-28
-  </p>
-  <p className="text-sm md:text-base mt-0.5">
-    Poornima University
-  </p>
-</footer>
-</div>
+      <footer className="mt-20 mb-10 flex flex-col items-center justify-center text-center text-[#374151]">
+        <p className="text-sm md:text-base">
+          Created By - <a href="https://linkedin.com/in/abhihacker0777" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Abhishek Sankhla</a>
+        </p>
+        <p className="text-sm md:text-base mt-1">BCA (Cyber Security) Batch - 2025-28</p>
+        <p className="text-sm md:text-base mt-0.5">Poornima University</p>
+      </footer>
+    </div>
   );
 }

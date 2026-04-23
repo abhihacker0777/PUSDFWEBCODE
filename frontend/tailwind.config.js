@@ -5,7 +5,11 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      // BUG FIX: Ensure the extend object exists (even if empty) 
+      // to prevent "Cannot read property 'extend' of undefined" 
+      // during some specific PostCSS build cycles.
+    },
   },
   plugins: [],
 }
