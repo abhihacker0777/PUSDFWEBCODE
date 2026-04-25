@@ -4,7 +4,7 @@ A Full-Stack Web Application Designed To Help Poornima University Students Easil
 
 ## ✨ Key Features
 
-- **Cascading Search Interface**: Dynamic, Real-time Filtering That Prevents "Dead End" Searches.
+- **Cascading Search Interface**: Dynamic, Real-Time Filtering That Prevents "Dead End" Searches.
 - **Automated Cloud Storage**: Direct Integration With Google Drive API For Secure, Permission-controlled PDF Hosting.
 - **Dual-Write Audit Trail**: Administrative Actions Are Logged To A Real-time Dashboard And Permanently Archived To Google Sheets.
 - **Self-Healing Database**: 5-Minute Automated Firebase Cache Cleanup To Prevent Exceeding Free-tier Quotas.
