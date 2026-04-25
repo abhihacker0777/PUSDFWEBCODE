@@ -88,13 +88,13 @@ PYQP-Portal/
 ## 🌟 Features In Detail
 
 ### Smart Document Processing
-When An Admin Uploads A Document, The Server Temporarily Parses It Via `multer`, Automatically Generates A Secure, View-only Google Drive Link, Indexes The Metadata (Course, Year, Semester) Into Firestore, And Immediately Deletes The Temporary Local File To Prevent Server Bloat.
+When An Admin Uploads A Document, The Server Temporarily Parses It Via `multer`, Automatically Generates A Secure, View-Only Google Drive Link, Indexes The Metadata (Course, Year, Semester) Into Firestore, And Immediately Deletes The Temporary Local File To Prevent Server Bloat.
 
 ### Persistent OAuth Security
-Instead Of Requiring Admins To Constantly Log In, Google OAuth 2.0 Tokens Are Encrypted And Saved Securely Within Firestore. This Ensures The Node.js Server Remains Persistently Authenticated To Google Workspace Even After Server Restarts Or Deployments.
+Instead Of Requiring Admins To Constantly Log In, Google OAuth 2.0 Tokens Are Encrypted And Saved Securely Within Firestore. This Ensures The node.js Server Remains Persistently Authenticated To Google Workspace Even After Server Restarts Or Deployments.
 
 ### Infinite Scalability Logging
-To Keep The Database Fast And Free, The `logs` API Utilizes An Automated Garbage Collection System. Recent Activity Is Kept In Firestore For 5 Minutes For Rapid UI Rendering In The Admin Panel, While All Logs Are Simultaneously Appended To A Hidden Google Sheet For Permanent, Zero-cost Data Archiving.
+To Keep The Database Fast And Free, The `logs` API Utilizes An Automated Garbage Collection System. Recent Activity Is Kept In Firestore For 5 Minutes For Rapid UI Rendering In The Admin Panel, While All Logs Are Simultaneously Appended To A Hidden Google Sheet For Permanent, Zero-Cost Data Archiving.
 
 ---
 **Developed By:** Abhishek Sankhla  
