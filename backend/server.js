@@ -648,7 +648,7 @@ app.post("/sync", verifyToken, async (req, res) => {
       };
 
       if (paper.course && paper.year && paper.sem && paper.exam && paper.name) {
-        const rawId = `${paper.course}-${paper.year}-${paper.sem}-${paper.exam}-${paper.name}`;
+        const rawId = `${paper.course}-${paper.year}-${paper.specialization}-${paper.sem}-${paper.exam}-${paper.name}`;
         const docId = rawId.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
 
         const docRef = db.collection("papers").doc(docId);
