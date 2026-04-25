@@ -6,8 +6,8 @@ A Full-Stack Web Application Designed To Help Poornima University Students Easil
 
 - **Cascading Search Interface**: Dynamic, Real-time Filtering That Prevents "Dead End" Searches.
 - **Automated Cloud Storage**: Direct Integration With Google Drive API For Secure, Permission-controlled PDF Hosting.
-- **Dual-write Audit Trail**: Administrative Actions Are Logged To A Real-time Dashboard And Permanently Archived To Google Sheets.
-- **Self-healing Database**: 5-minute Automated Firebase Cache Cleanup To Prevent Exceeding Free-tier Quotas.
+- **Dual-Write Audit Trail**: Administrative Actions Are Logged To A Real-time Dashboard And Permanently Archived To Google Sheets.
+- **Self-Healing Database**: 5-Minute Automated Firebase Cache Cleanup To Prevent Exceeding Free-tier Quotas.
 - **Secure Authentication**: Google OAuth 2.0 Login System Restricted To Authorized University Administrators.
 - **Responsive Architecture**: Polished UI Built With React And Tailwind CSS, Fully Optimized For Both Mobile And Desktop.
 
@@ -61,7 +61,7 @@ A Full-Stack Web Application Designed To Help Poornima University Students Easil
    
    **Terminal 1 (Backend):**
    ```Bash
-   cd Backend
+   cd backend
    node server.js
    ```
    **Terminal 2 (Frontend):**
