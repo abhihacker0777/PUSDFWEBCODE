@@ -9,7 +9,6 @@ export default function Filters({
   const activeCard = "bg-[#4a80bc] text-white border-[#ffc107] !border-[#ffc107] !border-solid !border-[2px] shadow-md";
 
   const renderRow = (title, items, type, isSelected) => {
-    // BUG FIX: Added ?.length to prevent crash if items is temporarily null
     if (!items || items?.length === 0) return null;
 
     const sortedItems = type === "specialization" 
@@ -25,7 +24,6 @@ export default function Filters({
             return (
               <button
                 type="button" 
-                // BUG FIX: Made key unique by adding type to prevent UI update glitches
                 key={`${type}-${item}-${i}`} 
                 onClick={() => handleSelect(type, item)}
                 className={`${baseCard} ${isActive ? activeCard : "bg-white text-gray-700"}`}
@@ -46,11 +44,9 @@ export default function Filters({
       {selected.course && 
         renderRow("Year", years, "year", selected.year)}
       
-      {/* BUG FIX: Added ?.length check here to prevent crashes during data fetch */}
       {selected.year && (specs?.length > 0) && 
         renderRow("Specialization", specs, "specialization", selected.specialization)}
       
-      {/* BUG FIX: Added ?.length check to ensure semester shows correctly if no specs exist */}
       {(selected.specialization || (selected.year && (specs?.length === 0))) && selected.year &&
         renderRow("Semester", sems, "sem", selected.sem)}
       

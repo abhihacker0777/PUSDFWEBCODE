@@ -2,85 +2,100 @@
 
 A Full-Stack Web Application Designed To Help Poornima University Students Easily Find, Filter, And View Previous Year Question Papers (Mse & Ese). Built With A Focus On Speed, Responsive Design, And An Intuitive User Experience.
 
-## ✨ Features
-* **Smart Filtering:** Dynamically Filter Papers By Course, Year, Specialization, Semester, And Exam Type.
-* **Lightning Fast:** Implements A Local Caching System (`localstorage`) To Load Papers Instantly On Repeat Visits And Save Database Reads.
-* **Secure Admin Uploads:** A Dedicated Node.js/express Backend Handles Secure Paper Uploads And Authentication.
-* **Modern UI/UX:** Clean, Responsive Interface Styled With Tailwind CSS, Featuring Smooth Loading States And Academic Typography.
+## ✨ Key Features
 
-## 🛠️ Tech Stack
-**Frontend:**
-* React.js (Vite)
-* Tailwind CSS
-* React Hooks (State Management & Side Effects)
+- **Cascading Search Interface**: Dynamic, Real-time Filtering That Prevents "Dead End" Searches.
+- **Automated Cloud Storage**: Direct Integration With Google Drive API For Secure, Permission-controlled PDF Hosting.
+- **Dual-write Audit Trail**: Administrative Actions Are Logged To A Real-time Dashboard And Permanently Archived To Google Sheets.
+- **Self-healing Database**: 5-minute Automated Firebase Cache Cleanup To Prevent Exceeding Free-tier Quotas.
+- **Secure Authentication**: Google OAuth 2.0 Login System Restricted To Authorized University Administrators.
+- **Responsive Architecture**: Polished UI Built With React And Tailwind CSS, Fully Optimized For Both Mobile And Desktop.
 
-**Backend & Database:**
-* Node.js & Express.js
-* Firebase Cloud Firestore (NoSQL Database)
-* Google Cloud Service Accounts (Secure Backend Access)
 
----
+
+## 🚀 Technologies Used
+
+**Frontend Ecosystem**
+- **Core**: react.js, Vite
+- **Styling**: Tailwind CSS
+- **State & Routing**: React Hooks, React Router DOM
+
+**Backend Ecosystem**
+- **Server**: node.js, express.js
+- **Database (Indexing)**: Google Firebase (Firestore)
+- **Storage (Files)**: Google Drive API V3
+- **Logging (Archive)**: Google Sheets API V4
+- **Security**: JWT (JSON Web Tokens), Helmet.js, Google OAuth 2.0
+
+## 🛠️ Getting Started
+
+### Prerequisites
+- node.js (V18 Or Higher)
+- npm Or yarn
+- Git
+
+### Installation & Setup
+
+1. **Clone The Repository:**
+   ```Bash
+   git clone [https://github.com/abhihacker0777/PUSDFWEBCODE.git]
+   cd pusdfwebcode
+   ```
+
+2. **Setup The Backend:**
+   ```Bash
+   cd backend
+   npm install
+   ```
+   *Create A `.env` File In The `backend` Folder And Securely Add Your Firebase Base64 Credentials, Google OAuth Keys, And JWT Secrets.*
+
+3. **Setup The Frontend:**
+   ```Bash
+   cd ../frontend
+   npm install
+   ```
+   *Create A `.env` File In The `frontend` Folder And Set `Vite_API_URL` To Your Backend Server URL.*
+
+4. **Run The Development Servers:**
+   *Open Two Terminal Windows.*
+   
+   **Terminal 1 (Backend):**
+   ```Bash
+   cd Backend
+   node server.js
+   ```
+   **Terminal 2 (Frontend):**
+   ```Bash
+   cd frontend
+   npm run dev
+   ```
 
 ## 📂 Project Structure
 
-This Repository Is Split Into Two Main Directories:
+```Text
+PYQP-Portal/
+├── backend/               # Express.js Server & API Routes
+│   ├── uploads/           # Ephemeral storage for Multer Parsing
+│   ├── server.js          # Core Logic, OAuth, And API Integrations
+│   └── package.json
+├── frontend/              # React.js SPA (Single Page Application)
+│   ├── src/               # Components, Pages, And API Services
+│   ├── tailwind.config.js # Custom Poornima University Branding Themes
+│   └── package.json
+└── .gitignore             # Global Security Exclusions
+```
 
-* `/frontend` - The React Vite Application (User Interface)
-* `/backend` - The Express.js Server (Admin & File Handling)
+## 🌟 Features In Detail
+
+### Smart Document Processing
+When An Admin Uploads A Document, The Server Temporarily Parses It Via `multer`, Automatically Generates A Secure, View-only Google Drive Link, Indexes The Metadata (Course, Year, Semester) Into Firestore, And Immediately Deletes The Temporary Local File To Prevent Server Bloat.
+
+### Persistent OAuth Security
+Instead Of Requiring Admins To Constantly Log In, Google OAuth 2.0 Tokens Are Encrypted And Saved Securely Within Firestore. This Ensures The Node.js Server Remains Persistently Authenticated To Google Workspace Even After Server Restarts Or Deployments.
+
+### Infinite Scalability Logging
+To Keep The Database Fast And Free, The `logs` API Utilizes An Automated Garbage Collection System. Recent Activity Is Kept In Firestore For 5 Minutes For Rapid UI Rendering In The Admin Panel, While All Logs Are Simultaneously Appended To A Hidden Google Sheet For Permanent, Zero-cost Data Archiving.
 
 ---
-
-## 🚀 Local Development Setup
-
-If You Want To Run This Project On Your Local Machine, Follow These Steps:
-
-### 1. Clone The Repository
-```Bash
-Git Clone [https://github.com/abhihacker0777/PUSDFWEBCODE.git]
-CD Yourreponame
-```
-
-### 2. Backend Setup
-```Bash
-CD Backend
-npm Install
-```
-**Important:** You Will Need To Create A `.env` File And Add Your `serviceaccount.json` Inside The `backend/` Folder To Connect To Firebase. (These Files Are Ignored In Git For Security).
-
-Start The Server:
-```Bash
-Node Server.js
-```
-
-### 3. Frontend Setup
-Open A New Terminal Window:
-```Bash
-CD Frontend
-npm Install
-```
-Start The React Development Server:
-```Bash
-npm Run Dev
-```
-
----
-
-## 🔐 Environment Variables
-To Run This Project, You Will Need To Set Up The Following Environment Variables. Create A `.env` File In Both The Frontend And Backend Directories.
-
-**Frontend (`frontend/.env`):**
-* `Vite_API_BASE_URL` (Your Backend URL)
-* Firebase Config Keys (If Connecting Directly From The Client)
-
-**Backend (`backend/.env`):**
-* `port`
-* Firebase Admin Credentials
-
-*(Note: Never Push Your Actual `.env` Files Or `serviceaccount.json` To GitHub!)*
-
----
-## 👨‍💻 Author
-**Abhishek Sankhla**
-* BCA (Cyber Security) Batch - 2025-28
-* Poornima University
-* [LinkedIn Profile](https://linkedin.com/in/abhihacker0777)
+**Developed By:** Abhishek Sankhla  
+*BCA (Cyber Security) Batch 2025-28 | Poornima University | [LinkedIn Profile](https://linkedin.com/in/abhihacker0777)*

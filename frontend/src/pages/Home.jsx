@@ -48,19 +48,16 @@ export default function Home() {
           Object.keys(filter)
             .filter(k => filter[k])
             .every(k => {
-              // BUG FIX: Switched to ?? to prevent empty strings from triggering incorrect fallbacks
               const pVal = p[k] ?? (k === "specialization" ? p.spec : null);
               return String(pVal ?? "").trim() === String(filter[k] ?? "").trim();
             })
         )
-        // BUG FIX: Ensure mapping is null-safe so filter buttons always render if data exists
         .map(p => p[field] ?? (field === "specialization" ? p.spec : null))
         .filter(Boolean)
     )];
   };
 
   const ordered = (list, sequence) => {
-    // BUG FIX: Show items in sequence first, but APPEND unknown items so they don't become invisible
     const known = sequence.filter(v => list.includes(v));
     const unknown = list.filter(v => !sequence.includes(v));
     return [...known, ...unknown];
@@ -90,7 +87,6 @@ export default function Home() {
     Object.keys(selected).every(k => {
       if (!selected[k]) return true;
       const paperValue = p[k] ?? (k === "specialization" ? p.spec : null);
-      // BUG FIX: Standardized null handling to prevent literal "null" string matches
       return String(paperValue ?? "").trim() === String(selected[k] ?? "").trim();
     })
   )
@@ -108,7 +104,6 @@ export default function Home() {
     
     {isLoading && papersData.length === 0 ? (
      <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm py-7 flex justify-center items-center mt-4">
-    {/* Replace the old div below with this animated one */}
      <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mr-3"
           style={{
             animation: 'spin 1s linear infinite, colorChange 2s linear infinite'

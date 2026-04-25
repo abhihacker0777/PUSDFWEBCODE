@@ -2,10 +2,9 @@ import { useState, useRef } from "react";
 
 export default function UploadForm({ reload }) {
   const fileInputRef = useRef(null); 
-  const [isUploading, setIsUploading] = useState(false); // BUG FIX: Prevent double-submission
+  const [isUploading, setIsUploading] = useState(false);
   
   const [form, setForm] = useState({
-    // BUG FIX: Changed 'spec' to 'specialization' to match your database/filters
     course: "", year: "", specialization: "", sem: "", exam: "", name: "", index: ""
   });
 
@@ -18,7 +17,6 @@ export default function UploadForm({ reload }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // BUG FIX: Added field validation to prevent empty records in the database
     const requiredFields = ["course", "year", "specialization", "sem", "exam", "name"];
     const isFormIncomplete = requiredFields.some(field => !form[field].trim());
 
@@ -26,17 +24,15 @@ export default function UploadForm({ reload }) {
       return alert("❌ All text fields are required.");
     }
 
-    // BUG FIX: Ensure a file or index is present before hitting the server
     if (!file && !form.index) return alert("❌ Please Select A File First.");
 
-    setIsUploading(true); // Start loading
+    setIsUploading(true);
     const token = sessionStorage.getItem("token");
     const formData = new FormData();
 
     if (file) formData.append("file", file);
 
     Object.keys(form).forEach(k => {
-      // BUG FIX: Only append the index if it actually has a value to prevent server-side update errors
       if (form[k] && form[k] !== "") {
         formData.append(k === 'specialization' ? 'spec' : k, form[k]);
       }
@@ -55,7 +51,6 @@ export default function UploadForm({ reload }) {
       alert(message);
 
       if (message.includes("✅")) {
-        // BUG FIX: Full state reset to ensure a clean slate for the next upload
         setForm({ course: "", year: "", specialization: "", sem: "", exam: "", name: "", index: "" });
         setFile(null);
         if (fileInputRef.current) {
@@ -67,7 +62,7 @@ export default function UploadForm({ reload }) {
       console.error(err);
       alert("❌ Upload Failed. Check Connection.");
     } finally {
-      setIsUploading(false); // BUG FIX: Always re-enable button after attempt
+      setIsUploading(false);
     }
   };
 
@@ -121,7 +116,7 @@ export default function UploadForm({ reload }) {
 
       <button 
         type="submit"
-        disabled={isUploading} // BUG FIX: Disable button while uploading
+        disabled={isUploading}
         className={`w-full font-bold py-3 rounded-lg transition-colors shadow-md ${
           isUploading ? "bg-gray-400 cursor-not-allowed" : "bg-[#ffc107] hover:bg-[#e6ae06] text-[#05488B]"
         }`}

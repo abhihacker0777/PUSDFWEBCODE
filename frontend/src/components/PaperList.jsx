@@ -1,11 +1,9 @@
 import React from "react";
 
 export default function PaperList({ papers }) {
-  // Sync and Loading states removed for public view
 
   if (!papers || papers.length === 0) return null;
 
-  // BUG FIX: Added optional chaining to prevent crashes if specific paper fields are null/undefined
   const uniquePapers = papers.filter((paper, index, self) =>
     index === self.findIndex((p) => 
       p?.name === paper?.name && 
@@ -28,15 +26,12 @@ export default function PaperList({ papers }) {
       <div className="flex flex-col gap-3">
         {uniquePapers.map((p) => (
           <div 
-            // BUG FIX: Created a more unique key by combining course and name to prevent list jumping
             key={`${p.course}-${p.name}-${p.index}`} 
             className="bg-white p-4 border-l-[6px] border-[#ffca2c] rounded-lg shadow-sm transition-all hover:-translate-y-1 hover:shadow-md flex items-center gap-3"
           >
-            {/* BUG FIX: Added role and label for better screen reader accessibility */}
             <span className="text-xl text-gray-400" role="img" aria-label="paper icon">📄</span>
             
             <div className="flex flex-col flex-grow">
-              {/* BUG FIX: Added a check to ensure p.link is valid before rendering the anchor tag */}
               {p.link ? (
                 <a 
                   href={p.link} 

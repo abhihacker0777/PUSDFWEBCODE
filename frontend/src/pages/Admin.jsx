@@ -55,7 +55,6 @@ const PoornimaLogo = () => (
 const StatusBadge = ({ status }) => (
   <span
     className="inline-flex items-center justify-center rounded-full text-white text-xs font-semibold px-4 py-1 min-w-[96px] whitespace-nowrap"
-    // BUG FIX: Updated to match all possible server status strings including "Synced"
     style={{ backgroundColor: (status === "Update" || status === "Updated" || status === "Uploaded" || status === "Synced") ? "#22c55e" : "#e31e24" }}
   >
     {status}
@@ -171,7 +170,6 @@ const DashboardPage = ({
           )}
         </div>
 
-        {/* BUG FIX: Added relative z-30 to ensure dropdown menus stay above the table and image */}
         <div className="w-full p-4 rounded-xl border shadow-sm overflow-visible relative z-30" style={{ backgroundColor: "#E31E24" }}>
           <div className="flex flex-col gap-4 overflow-visible">
             
@@ -450,7 +448,7 @@ export default function PaperUpdateList() {
       });
 
       setFile(null);
-      setFileName("No file chosen");
+      setFileName("No File Chosen");
       setPaper("");
       setPaperName("");
       setSelectedPaperIndex(null);
@@ -484,7 +482,7 @@ export default function PaperUpdateList() {
         body: JSON.stringify({ index: selectedPaperIndex })
       });
 
-      if (!res.ok) throw new Error(`Server rejected request: ${res.status}`);
+      if (!res.ok) throw new Error(`Server Rejected Request: ${res.status}`);
 
       const text = await res.text();
       setDeleteStatus(text);
@@ -655,7 +653,6 @@ export default function PaperUpdateList() {
   const exams = [...new Set(allPapers.filter(p => p.course === course && p.year === year && p.spec === spec && p.sem === semester).map(p => p.exam))];
   const papers = allPapers.filter(p => p.course === course && p.year === year && p.spec === spec && p.sem === semester && p.exam === exam);
 
-  // BUG FIX: Added Null-Safety (?? "") to prevent crashing if a database record is missing a field
   let filtered = actionLog.filter(r => 
     (r.name ?? "").toLowerCase().includes(search.toLowerCase()) || 
     (r.semester ?? "").toLowerCase().includes(search.toLowerCase())
@@ -670,11 +667,9 @@ export default function PaperUpdateList() {
     const next = new Set(selected);
     next.has(id) ? next.delete(id) : next.add(id);
     setSelected(next);
-    // BUG FIX: Sync the 'Select All' checkbox properly when a single row is un-checked
     setSelectAll(next.size === filtered.length && filtered.length > 0);
   };
   
-  // BUG FIX: Null-Safety added to sort strings to prevent crashing
   if (sortType === "az") filtered = [...filtered].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
   if (sortType === "za") filtered = [...filtered].sort((a, b) => (b.name ?? "").localeCompare(a.name ?? ""));
   if (sortType === "new") filtered = [...filtered].sort((a, b) => b.id - a.id); 

@@ -1,7 +1,6 @@
 require("dotenv").config();
 const admin = require("firebase-admin");
 
-// Check if the variable exists BEFORE trying to decode it
 const base64Key = process.env.FIREBASE_BASE64;
 
 if (!base64Key) {
@@ -31,7 +30,7 @@ const multer = require("multer");
 const fs = require("fs"); 
 const path = require("path"); 
 const { google } = require("googleapis");
-const helmet = require("helmet"); // For security headers
+const helmet = require("helmet");
 
 const SECRET = process.env.JWT_SECRET;
 const CLIENT_ID = process.env.CLIENT_ID;
@@ -44,13 +43,11 @@ const SHEET_URL = process.env.SHEET_URL;
 const app = express();
 app.use(cors());
 
-// Use Helmet to set security headers, including a Content Security Policy
 app.use(helmet());
 app.use(helmet.contentSecurityPolicy({
   directives: {
     ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-    "script-src": ["'self'"], // Allow scripts from our own domain
-    // BUG FIX: Whitelisted Google domains so Drive images and icons load correctly
+    "script-src": ["'self'"],
     "img-src": ["'self'", "data:", "https://*.googleusercontent.com", "https://*.gstatic.com", "https://*.google.com"], 
   }
 }));
@@ -95,9 +92,32 @@ function verifyToken(req, res, next) {
 app.get('/logs', verifyToken, async (req, res) => {
   try {
     const snapshot = await db.collection('logs').orderBy('id', 'desc').get();
-    const logs = snapshot.docs.map(doc => doc.data());
+    const logs = [];
+    
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    
+    let batch = db.batch();
+    let deletedCount = 0;
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      
+      if (data.id < sevenDaysAgo) {
+        batch.delete(doc.ref);
+        deletedCount++;
+      } else {
+        logs.push(data);
+      }
+    });
+
+    if (deletedCount > 0) {
+      await batch.commit();
+      console.log(`🧹 Auto-cleaned ${deletedCount} logs older than 7 days from Firebase.`);
+    }
+
     res.json(logs);
   } catch (err) {
+    console.error("Log fetch error:", err);
     res.json([]);
   }
 });
@@ -105,9 +125,35 @@ app.get('/logs', verifyToken, async (req, res) => {
 app.post('/logs', verifyToken, async (req, res) => {
   try {
     const logData = req.body;
+
     await db.collection('logs').doc(logData.id.toString()).set(logData);
+
+    if (global.authClient) {
+      const sheets = google.sheets({ version: "v4", auth: global.authClient });
+      
+      const rowData = [
+        logData.id,
+        logData.date,
+        logData.status,
+        logData.course || "-",
+        logData.year || "-",
+        logData.spec || "-",
+        logData.semester || "-",
+        logData.exam || "-",
+        logData.name || "-"
+      ];
+
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SHEET_ID,
+        range: "Logs!A:I",
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values: [rowData] }
+      });
+    }
+
     res.status(200).send("Log Saved Successfully");
   } catch (err) {
+    console.error("Log write error:", err);
     res.status(500).send("Error saving log");
   }
 });
@@ -170,8 +216,6 @@ const oAuth2Client = new google.auth.OAuth2(
   REDIRECT_URI 
 );
 
-// BUG FIX: Added a listener to save refreshed tokens back to Firestore.
-// This ensures your "Auto login" stays active long-term.
 oAuth2Client.on('tokens', (tokens) => {
   db.collection('config').doc('google_token').set(tokens, { merge: true });
 });
@@ -182,12 +226,12 @@ db.collection('config').doc('google_token').get().then(doc => {
       const tokens = doc.data();
       oAuth2Client.setCredentials(tokens);
       global.authClient = oAuth2Client;
-      console.log("✅ Auto logged In Using Saved Database Token");
+      console.log("✅ Auto Logged In Using Saved Database Token");
     } catch (e) {
       console.error("❌ Failed to parse database token.");
     }
   }
-}).catch(err => console.log("No saved DB token found or DB error", err));
+}).catch(err => console.log("No saved DB Token Found Or DB Error", err));
 
 const SCOPES = [
   "https://www.googleapis.com/auth/drive",
@@ -309,7 +353,6 @@ app.post("/upload", verifyToken, (req, res) => {
       console.error(err);
       res.send("❌ Error Occurred");
     } finally {
-      // BUG FIX: Added path existence check to save disk space and prevent server crashes
       if (req.file && req.file.path && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }
@@ -558,7 +601,6 @@ app.post("/sync", verifyToken, async (req, res) => {
     const response = await fetch(SHEET_URL);
     const text = await response.text();
 
-    // BUG FIX: Improved JSON parsing to find braces dynamically
     let rows = [];
     try {
         const start = text.indexOf('{');
@@ -636,5 +678,4 @@ const server = app.listen(3000, () => {
   console.log("🚀 Server Started On Port 3000");
 });
 
-// BUG FIX: Changed from infinite timeout (0) to 5 minutes to prevent memory leaks while allowing large uploads
 server.timeout = 300000;

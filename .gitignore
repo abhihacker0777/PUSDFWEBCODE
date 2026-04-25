@@ -1,27 +1,18 @@
-# --- SENSITIVE FILES (Firebase/Google Auth) ---
-# Recursive check prevents leaks even if files are moved
 **/serviceAccount.json
 **/token.json
 
-# --- DEPENDENCIES ---
-# Matches node_modules in root and all subdirectories (frontend/backend)
 node_modules/
 
-# --- ENV / SECRETS ---
-# Matches .env files everywhere
 .env
 .env.local
 .env.*.local
-# Removed generic *.local to prevent accidental blocking of valid code files
 
-# --- BUILDS & LOGS ---
 dist/
 build/
 *.log
 *-debug.log*
 *-error.log*
 
-# --- SYSTEM & IDE ---
 .vscode/
 .idea/
 .DS_Store
@@ -29,13 +20,10 @@ build/
 Thumbs.db
 desktop.ini
 
-# --- VITE & FIREBASE SPECIFIC ---
 .vite/
 vite.config.js.timestamp-*
 .firebase/
-# Cache for linting tools
+
 .eslintcache
 
-# --- OPTIONAL: Testing/Database ---
-# If using local Firebase Emulators
 firebase-export-*/

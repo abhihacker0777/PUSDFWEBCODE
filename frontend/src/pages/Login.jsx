@@ -7,7 +7,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [focusedField, setFocusedField] = useState(null); 
-  const [isLoading, setIsLoading] = useState(false); // BUG FIX: Track submission state
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -46,7 +46,7 @@ export default function LoginPage() {
       console.error(err);
       setError("🛠️ Maintenance Mode. Try Again Later");
     } finally {
-      setIsLoading(false); // BUG FIX: Stop loading after response
+      setIsLoading(false);
     }
   };
 
@@ -57,7 +57,6 @@ export default function LoginPage() {
         style={{ backgroundColor: "#264796" }}
       >
         <h1 className="text-2xl md:text-4xl font-extrabold leading-snug text-center md:text-left">
-          {/* BUG FIX: Replaced \n with <br /> for actual line breaks */}
           <span className="text-white">Create, Update,<br />Manage<br /></span>
           <span style={{ color: "#e31d23" }}>&amp; Upload Your<br /></span>
           <span className="text-white">PYQP</span>
@@ -116,7 +115,7 @@ export default function LoginPage() {
 
               {password && (
                 <button
-                  type="button" // BUG FIX: accessibility button
+                  type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-2 top-2 text-gray-500 hover:text-black focus:outline-none"
                 >
@@ -127,10 +126,9 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={isLoading} // BUG FIX: Disable during loading
+              disabled={isLoading}
               className="w-full py-3.5 rounded-lg font-bold text-base tracking-wide transition-all duration-300 hover:opacity-90 shadow-md"
               style={{
-                // KEEPING YOUR REQUESTED LOGIC (Point 4)
                 backgroundColor: focusedField ? "#ffc107" : "#05488b",
                 color: "#ffffff",
                 opacity: isLoading ? 0.7 : 1,

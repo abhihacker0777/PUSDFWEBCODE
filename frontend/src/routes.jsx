@@ -6,8 +6,6 @@ import Login from "./pages/Login";
 const ProtectedRoute = ({ children }) => {
   const token = sessionStorage.getItem("token");
   
-  // BUG FIX: sessionStorage returns null if empty. 
-  // Added checks for "null" or "undefined" strings to prevent unauthorized bypass.
   if (!token || token === "" || token === "null" || token === "undefined") {
     return <Navigate to="/login" replace />;
   }
@@ -25,7 +23,6 @@ export default function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      {/* BUG FIX: Catch-all route to prevent blank screens on invalid URLs */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

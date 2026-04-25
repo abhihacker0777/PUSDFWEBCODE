@@ -6,10 +6,8 @@ export default function Navbar() {
   return (
     <header className="w-full bg-[#b22222] shadow-md">
       
-      {/* BUG FIX: Balanced right padding (pr) to match left padding (pl) for a centered look */}
       <nav className="w-full pl-[40px] md:pl-[120px] pr-1 md:pr-1 py-1 flex items-center justify-between">
         
-        {/* BUG FIX: Added focus-visible ring so keyboard users can see where they are without breaking the design */}
         <a href="/" className="flex items-center no-underline rounded-lg focus-visible:ring-2 focus-visible:ring-white">
           <img 
             src={logo} 
