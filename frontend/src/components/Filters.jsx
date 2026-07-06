@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 export default function Filters({
   courses, years, specs, sems, exams,
   selected, handleSelect
@@ -8,23 +10,31 @@ export default function Filters({
   
   const activeCard = "bg-[#4a80bc] text-white border-[#ffc107] !border-[#ffc107] !border-solid !border-[2px] shadow-md";
 
+  // ⚡ OPTIMIZATION: Memoize the sorted specializations so it only runs when `specs` changes,
+  // preventing unnecessary re-sorting on every single click.
+  const sortedSpecs = useMemo(() => {
+    if (!specs || specs.length === 0) return [];
+    return [...specs].sort((a, b) => a.localeCompare(b));
+  }, [specs]);
+
   const renderRow = (title, items, type, isSelected) => {
     if (!items || items?.length === 0) return null;
 
-    const sortedItems = type === "specialization" 
-      ? [...items].sort((a, b) => a.localeCompare(b)) 
-      : items;
+    // Use the pre-sorted memoized array if the type is "specialization"
+    const displayItems = type === "specialization" ? sortedSpecs : items;
 
     return (
       <div className="w-full mb-4">
         <h3 className="mt-[25px] font-bold text-gray-800 text-lg mb-2">{title}</h3>
         <div className={scrollbarStyles}>
-          {sortedItems.map((item, i) => {
+          {displayItems.map((item) => {
             const isActive = isSelected === item;
             return (
               <button
                 type="button" 
-                key={`${type}-${item}-${i}`} 
+                // ⚡ OPTIMIZATION: Removed the array index from the key. 
+                // Using just the item name is safer and faster for React's virtual DOM.
+                key={`${type}-${item}`} 
                 onClick={() => handleSelect(type, item)}
                 className={`${baseCard} ${isActive ? activeCard : "bg-white text-gray-700"}`}
               >

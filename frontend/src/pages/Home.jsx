@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import Filters from "../components/Filters";
 import PaperList from "../components/PaperList";
-import { fetchPapers } from "../services/api";
+import PaperAssistant from "../components/PaperAssistant";
+import { clearPaperCaches, fetchPapers } from "../services/api";
 
 const _courseSequence = ["B.Arch","B.Com","B.Des","B.Sc","B.Tech","BA","BBA","BCA","BVA","M.Plan","M.Tech","MA","MBA","MCA","MPH","MVA","Ph.D","PIHM"];
 const yearSequence = ["1 Year","2 Year","3 Year","4 Year","5 Year"];
@@ -17,28 +18,69 @@ export default function Home() {
   });
 
   useEffect(() => {
-    async function load() {
-      const cached = sessionStorage.getItem("papersCache");
-      if (cached) {
-        try {
-          setPapersData(JSON.parse(cached));
-          setIsLoading(false);
-        } catch {
-          sessionStorage.removeItem("papersCache");
+    let disposed = false;
+
+    async function load({ force = false } = {}) {
+      if (force) {
+        clearPaperCaches();
+        setIsLoading(true);
+      } else {
+        const cached = sessionStorage.getItem("papersCache");
+        if (cached) {
+          try {
+            const cachedAt = Number(sessionStorage.getItem("papersCacheTime") || 0);
+            const updatedAt = Number(localStorage.getItem("papers.updated") || 0);
+            if (!updatedAt || cachedAt >= updatedAt) {
+              setPapersData(JSON.parse(cached));
+              setIsLoading(false);
+            }
+          } catch {
+            sessionStorage.removeItem("papersCache");
+          }
         }
       }
 
       try {
-        const data = await fetchPapers();
+        const data = await fetchPapers({ force });
+        if (disposed) return;
         setPapersData(data);
-        sessionStorage.setItem("papersCache", JSON.stringify(data));
       } catch {
         console.error("Fetch failed: Could not retrieve papers data.");
       } finally {
-        setIsLoading(false);
+        if (!disposed) setIsLoading(false);
       }
     }
+
+    const refreshFromAdminUpdate = () => {
+      setSelected({ course: null, year: null, specialization: null, sem: null, exam: null });
+      load({ force: true });
+    };
+
     load();
+
+    const handleStorage = (event) => {
+      if (event.key === "papers.updated") refreshFromAdminUpdate();
+    };
+
+    window.addEventListener("papers-updated", refreshFromAdminUpdate);
+    window.addEventListener("storage", handleStorage);
+
+    let channel = null;
+    try {
+      if (window.BroadcastChannel) {
+        channel = new BroadcastChannel("papers-updated");
+        channel.onmessage = refreshFromAdminUpdate;
+      }
+    } catch {
+      channel = null;
+    }
+
+    return () => {
+      disposed = true;
+      window.removeEventListener("papers-updated", refreshFromAdminUpdate);
+      window.removeEventListener("storage", handleStorage);
+      if (channel) channel.close();
+    };
   }, []);
 
   const unique = (field, filter = {}) => {
@@ -105,9 +147,9 @@ export default function Home() {
     {isLoading && papersData.length === 0 ? (
      <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm py-7 flex justify-center items-center mt-4">
      <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mr-3"
-          style={{
-            animation: 'spin 1s linear infinite, colorChange 2s linear infinite'
-          }}
+         style={{
+           animation: 'spin 1s linear infinite, colorChange 2s linear infinite'
+         }}
      ></div>
     
      <style>{`
@@ -151,6 +193,8 @@ export default function Home() {
         <p className="text-sm md:text-base mt-1">BCA (Cyber Security) Batch - 2025-28</p>
         <p className="text-sm md:text-base mt-0.5">Poornima University</p>
       </footer>
+      
+      <PaperAssistant />
     </div>
   );
 }
