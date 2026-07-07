@@ -25,7 +25,10 @@ let googleScriptPromise = null;
 const getSafeUrl = (url) => {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : null;
+    return (
+      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      ["drive.google.com", "docs.google.com"].includes(parsed.hostname.toLowerCase())
+    ) ? parsed.href : null;
   } catch {
     return null;
   }

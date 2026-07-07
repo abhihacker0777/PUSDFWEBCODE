@@ -19,7 +19,10 @@ export default function PaperList({ papers }) {
     if (!url) return null;
     try {
       const parsedUrl = new URL(url);
-      if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+      if (
+        (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") &&
+        ["drive.google.com", "docs.google.com"].includes(parsedUrl.hostname.toLowerCase())
+      ) {
         return parsedUrl.href;
       }
     } catch {

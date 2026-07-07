@@ -145,7 +145,7 @@ app.set("trust proxy", Number(process.env.TRUST_PROXY || 1));
 const cookieOptions = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: "strict"
+  sameSite: isProduction ? "none" : "lax"
 };
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_HEADER_NAME = "x-csrf-token";
@@ -250,7 +250,7 @@ function toSupabasePaperRow(paper, extras = {}) {
     semester: sanitizePaperText(paper.sem || paper.semester, 30),
     exam: sanitizePaperText(paper.exam, 30),
     title: sanitizePaperText(paper.name, 160),
-    drive_url: safeHttpUrl(extras.link ?? paper.link),
+    drive_url: safePaperUrl(extras.link ?? paper.link),
     drive_file_id: normalizeText(extras.driveFileId ?? paper.driveFileId, 160),
     updated_at: new Date().toISOString()
   };
@@ -270,7 +270,7 @@ function paperFromSupabaseRow(row = {}) {
     semester: sem,
     exam: sanitizePaperText(row.exam, 30),
     name: sanitizePaperText(row.title || row.name, 160),
-    link: safeHttpUrl(row.drive_url || row.link),
+    link: safePaperUrl(row.drive_url || row.link),
     driveFileId: normalizeText(row.drive_file_id || row.driveFileId, 160)
   };
 }
@@ -360,6 +360,18 @@ function safeHttpUrl(value, maxLength = 500) {
   try {
     const parsed = new URL(text);
     return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function safePaperUrl(value, maxLength = 500) {
+  const href = safeHttpUrl(value, maxLength);
+  if (!href) return "";
+  try {
+    const parsed = new URL(href);
+    const hostname = parsed.hostname.toLowerCase();
+    return hostname === "drive.google.com" || hostname === "docs.google.com" ? parsed.href : "";
   } catch {
     return "";
   }
@@ -896,7 +908,7 @@ function resolveExpectedSheetRowIndex(index, rows, expectedPaper) {
 }
 
 function rowHasBlankPaperData(row = []) {
-  return !sanitizePaperText(row[5], 160) && !safeHttpUrl(row[6]);
+  return !sanitizePaperText(row[5], 160) && !safePaperUrl(row[6]);
 }
 
 function paperFromSheetRow(row = [], index = null) {
@@ -912,7 +924,7 @@ function paperFromSheetRow(row = [], index = null) {
     semester: sem,
     exam: sanitizePaperText(row[4], 30),
     name: sanitizePaperText(row[5], 160),
-    link: safeHttpUrl(row[6])
+    link: safePaperUrl(row[6])
   };
 }
 
@@ -986,7 +998,7 @@ function formatAssistantResult(paper) {
     sem: sanitizePaperText(paper.sem || paper.semester || "", 30),
     exam: sanitizePaperText(paper.exam, 30),
     name: sanitizePaperText(paper.name, 160),
-    link: safeHttpUrl(paper.link)
+    link: safePaperUrl(paper.link)
   };
 }
 
@@ -998,7 +1010,7 @@ function publicPaperDedupeKey(paper) {
     normalizeSearchText(paper.sem || paper.semester),
     normalizeSearchText(paper.exam),
     normalizeSearchText(paper.name),
-    safeHttpUrl(paper.link).toLowerCase()
+    safePaperUrl(paper.link).toLowerCase()
   ].join("|");
 }
 
@@ -3045,9 +3057,7 @@ app.get("/admin/papers", requireAdminIp, adminMutationLimiter, verifyToken, asyn
 
 app.get("/papers", publicDataLimiter, async (req, res) => {
   try {
-    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    res.set("Pragma", "no-cache");
-    res.set("Expires", "0");
+    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     res.json(await fetchPublicPapers());
   } catch (err) {
     console.error("Papers fetch failed:", err.message);
@@ -3067,9 +3077,7 @@ app.get("/paper-options", publicDataLimiter, async (req, res) => {
 
 app.get("/papers/search", publicDataLimiter, async (req, res) => {
   try {
-    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    res.set("Pragma", "no-cache");
-    res.set("Expires", "0");
+    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     res.json(await fetchPublicPapersByFilter(req.query || {}));
   } catch (err) {
     console.error("Filtered papers fetch failed:", err.message);
