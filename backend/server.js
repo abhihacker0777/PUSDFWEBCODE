@@ -145,7 +145,7 @@ app.set("trust proxy", Number(process.env.TRUST_PROXY || 1));
 const cookieOptions = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: isProduction ? "none" : "lax"
+  sameSite: "strict"
 };
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_HEADER_NAME = "x-csrf-token";
@@ -1926,10 +1926,7 @@ function requireCsrf(req, res, next) {
 
   const cookieToken = req.cookies?.[CSRF_COOKIE_NAME] || "";
   const headerToken = req.get(CSRF_HEADER_NAME) || "";
-  const hasValidHeaderToken = headerToken && verifyCsrfToken(headerToken);
-  const cookieMatchesHeader = cookieToken && headerToken && safeCompare(cookieToken, headerToken);
-
-  if (!hasValidHeaderToken || (cookieToken && !cookieMatchesHeader)) {
+  if (!cookieToken || !headerToken || !safeCompare(cookieToken, headerToken) || !verifyCsrfToken(headerToken)) {
     return res.status(403).json({ success: false, code: "CSRF_REQUIRED", message: "Security token expired. Refresh and try again." });
   }
 
@@ -3060,7 +3057,9 @@ app.get("/admin/papers", requireAdminIp, adminMutationLimiter, verifyToken, asyn
 
 app.get("/papers", publicDataLimiter, async (req, res) => {
   try {
-    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
     res.json(await fetchPublicPapers());
   } catch (err) {
     console.error("Papers fetch failed:", err.message);
@@ -3070,7 +3069,9 @@ app.get("/papers", publicDataLimiter, async (req, res) => {
 
 app.get("/paper-options", publicDataLimiter, async (req, res) => {
   try {
-    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
     res.json(await fetchPaperOptions());
   } catch (err) {
     console.error("Paper options fetch failed:", err.message);
