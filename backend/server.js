@@ -1926,7 +1926,10 @@ function requireCsrf(req, res, next) {
 
   const cookieToken = req.cookies?.[CSRF_COOKIE_NAME] || "";
   const headerToken = req.get(CSRF_HEADER_NAME) || "";
-  if (!cookieToken || !headerToken || !safeCompare(cookieToken, headerToken) || !verifyCsrfToken(headerToken)) {
+  const hasValidHeaderToken = headerToken && verifyCsrfToken(headerToken);
+  const cookieMatchesHeader = cookieToken && headerToken && safeCompare(cookieToken, headerToken);
+
+  if (!hasValidHeaderToken || (cookieToken && !cookieMatchesHeader)) {
     return res.status(403).json({ success: false, code: "CSRF_REQUIRED", message: "Security token expired. Refresh and try again." });
   }
 
