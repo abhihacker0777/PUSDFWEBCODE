@@ -145,7 +145,7 @@ app.set("trust proxy", Number(process.env.TRUST_PROXY || 1));
 const cookieOptions = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: "strict"
+  sameSite: isProduction ? "none" : "lax"
 };
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_HEADER_NAME = "x-csrf-token";
