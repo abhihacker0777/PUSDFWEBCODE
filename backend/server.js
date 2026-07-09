@@ -3063,6 +3063,7 @@ app.get("/papers", publicDataLimiter, async (req, res) => {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.set("Pragma", "no-cache");
     res.set("Expires", "0");
+    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     res.json(await fetchPublicPapers());
   } catch (err) {
     console.error("Papers fetch failed:", err.message);
@@ -3075,6 +3076,7 @@ app.get("/paper-options", publicDataLimiter, async (req, res) => {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.set("Pragma", "no-cache");
     res.set("Expires", "0");
+    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     res.json(await fetchPaperOptions());
   } catch (err) {
     console.error("Paper options fetch failed:", err.message);
