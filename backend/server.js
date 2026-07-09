@@ -2442,7 +2442,7 @@ async function loginLimiter(req, res, next) {
 }
 
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: [FRONTEND_URL, BASE_URL].filter(Boolean),
   credentials: true 
 }));
 
@@ -3256,6 +3256,15 @@ app.post("/sync", requireAdminIp, requireCsrf, adminMutationLimiter, verifyToken
     res.json({ success: true, message: `Data Imported From Google Sheet. ${updatedCount}` });
   } catch (err) { res.status(500).json({ success: false, message: "❌ Sync Failed." }); }
 });
+
+// --- SERVE FRONTEND (SPA) ---
+const clientBuildPath = path.join(__dirname, "client");
+if (fs.existsSync(clientBuildPath)) {
+  app.use(express.static(clientBuildPath));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(clientBuildPath, "index.html"));
+  });
+}
 
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => console.log(`🚀 Server Started On Port ${PORT}`));
