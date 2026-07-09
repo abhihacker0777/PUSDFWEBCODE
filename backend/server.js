@@ -150,6 +150,9 @@ const cookieOptions = {
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_HEADER_NAME = "x-csrf-token";
 const CSRF_MAX_AGE_MS = ADMIN_SESSION_MAX_AGE_MS;
+const REDIS_FAILURE_FALLBACK_MS = 60 * 1000;
+const REDIS_AUTH_TIMEOUT_MS = Math.min(5000, Math.max(500, Number(process.env.REDIS_AUTH_TIMEOUT_MS) || 1500));
+const USE_REDIS_AUTH_STORE = isProduction || process.env.USE_REDIS_IN_DEVELOPMENT === "true";
 
 let papersCache = { expiresAt: 0, data: [] };
 let paperOptionsCache = { expiresAt: 0, data: [] };
@@ -157,6 +160,7 @@ let assistantSheetsAuthClient = null;
 let googleServiceAuthClient = null;
 let assistantSheetReady = false;
 let assistantSheetLogDisabled = false;
+let redisUnavailableUntil = 0;
 const googleSignInClient = new google.auth.OAuth2(GOOGLE_SIGNIN_CLIENT_ID);
 const invalidatePapersCache = () => {
   papersCache = { expiresAt: 0, data: [] };
@@ -1941,6 +1945,20 @@ function authStoreKey(prefix, value) {
   return `${prefix}:${digest}`;
 }
 
+function shouldUseRedisAuthStore() {
+  return USE_REDIS_AUTH_STORE && isRedisUrlConfigured() && Date.now() >= redisUnavailableUntil;
+}
+
+async function runRedisAuthCommand(commands) {
+  try {
+    return await redisUrlPipeline(commands);
+  } catch (err) {
+    redisUnavailableUntil = Date.now() + REDIS_FAILURE_FALLBACK_MS;
+    console.error("Redis auth store unavailable, using in-memory fallback:", err.message);
+    return null;
+  }
+}
+
 function encodeRedisCommand(command) {
   const parts = command.map((part) => Buffer.from(String(part)));
   const chunks = [Buffer.from(`*${parts.length}\r\n`)];
@@ -2025,7 +2043,7 @@ async function redisUrlPipeline(commands) {
       else resolve(value);
     };
 
-    socket.setTimeout(5000);
+    socket.setTimeout(REDIS_AUTH_TIMEOUT_MS);
     if (useTls) socket.once("secureConnect", () => socket.write(request));
     else socket.once("connect", () => socket.write(request));
     socket.on("timeout", () => finish(new Error("Redis connection timed out.")));
@@ -2060,16 +2078,19 @@ function getMemoryItem(key) {
 }
 
 async function authStoreIncr(key, ttlSeconds) {
-  if (isRedisUrlConfigured()) {
-    const [count, , ttl] = await redisUrlPipeline([
+  if (shouldUseRedisAuthStore()) {
+    const result = await runRedisAuthCommand([
       ["INCR", key],
       ["EXPIRE", key, ttlSeconds],
       ["TTL", key]
     ]);
-    return {
-      count: Number(count) || 0,
-      ttlSeconds: Math.max(1, Number(ttl) || ttlSeconds)
-    };
+    if (result) {
+      const [count, , ttl] = result;
+      return {
+        count: Number(count) || 0,
+        ttlSeconds: Math.max(1, Number(ttl) || ttlSeconds)
+      };
+    }
   }
 
   const current = getMemoryItem(key);
@@ -2082,18 +2103,21 @@ async function authStoreIncr(key, ttlSeconds) {
 }
 
 async function authStoreGet(key) {
-  if (isRedisUrlConfigured()) {
-    const [value] = await redisUrlPipeline([["GET", key]]);
-    return value;
+  if (shouldUseRedisAuthStore()) {
+    const result = await runRedisAuthCommand([["GET", key]]);
+    if (result) {
+      const [value] = result;
+      return value;
+    }
   }
 
   return getMemoryItem(key)?.value || null;
 }
 
 async function authStoreSet(key, value, ttlSeconds) {
-  if (isRedisUrlConfigured()) {
-    await redisUrlPipeline([["SET", key, value, "EX", ttlSeconds]]);
-    return;
+  if (shouldUseRedisAuthStore()) {
+    const result = await runRedisAuthCommand([["SET", key, value, "EX", ttlSeconds]]);
+    if (result) return;
   }
 
   authMemoryStore.set(key, {
@@ -2103,9 +2127,12 @@ async function authStoreSet(key, value, ttlSeconds) {
 }
 
 async function authStoreTtl(key) {
-  if (isRedisUrlConfigured()) {
-    const [ttl] = await redisUrlPipeline([["TTL", key]]);
-    return Math.max(0, Number(ttl) || 0);
+  if (shouldUseRedisAuthStore()) {
+    const result = await runRedisAuthCommand([["TTL", key]]);
+    if (result) {
+      const [ttl] = result;
+      return Math.max(0, Number(ttl) || 0);
+    }
   }
 
   const item = getMemoryItem(key);
@@ -2114,9 +2141,9 @@ async function authStoreTtl(key) {
 
 async function authStoreDel(...keys) {
   if (keys.length === 0) return;
-  if (isRedisUrlConfigured()) {
-    await redisUrlPipeline([["DEL", ...keys]]);
-    return;
+  if (shouldUseRedisAuthStore()) {
+    const result = await runRedisAuthCommand([["DEL", ...keys]]);
+    if (result) return;
   }
 
   keys.forEach((key) => authMemoryStore.delete(key));
