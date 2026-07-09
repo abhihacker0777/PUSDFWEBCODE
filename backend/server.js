@@ -145,14 +145,11 @@ app.set("trust proxy", Number(process.env.TRUST_PROXY || 1));
 const cookieOptions = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: isProduction ? "none" : "lax"
+  sameSite: "strict"
 };
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_HEADER_NAME = "x-csrf-token";
 const CSRF_MAX_AGE_MS = ADMIN_SESSION_MAX_AGE_MS;
-const REDIS_FAILURE_FALLBACK_MS = 60 * 1000;
-const REDIS_AUTH_TIMEOUT_MS = Math.min(5000, Math.max(500, Number(process.env.REDIS_AUTH_TIMEOUT_MS) || 1500));
-const USE_REDIS_AUTH_STORE = isProduction || process.env.USE_REDIS_IN_DEVELOPMENT === "true";
 
 let papersCache = { expiresAt: 0, data: [] };
 let paperOptionsCache = { expiresAt: 0, data: [] };
@@ -160,7 +157,6 @@ let assistantSheetsAuthClient = null;
 let googleServiceAuthClient = null;
 let assistantSheetReady = false;
 let assistantSheetLogDisabled = false;
-let redisUnavailableUntil = 0;
 const googleSignInClient = new google.auth.OAuth2(GOOGLE_SIGNIN_CLIENT_ID);
 const invalidatePapersCache = () => {
   papersCache = { expiresAt: 0, data: [] };
@@ -1930,10 +1926,7 @@ function requireCsrf(req, res, next) {
 
   const cookieToken = req.cookies?.[CSRF_COOKIE_NAME] || "";
   const headerToken = req.get(CSRF_HEADER_NAME) || "";
-  const hasValidHeaderToken = headerToken && verifyCsrfToken(headerToken);
-  const cookieMatchesHeader = cookieToken && headerToken && safeCompare(cookieToken, headerToken);
-
-  if (!hasValidHeaderToken || (cookieToken && !cookieMatchesHeader)) {
+  if (!cookieToken || !headerToken || !safeCompare(cookieToken, headerToken) || !verifyCsrfToken(headerToken)) {
     return res.status(403).json({ success: false, code: "CSRF_REQUIRED", message: "Security token expired. Refresh and try again." });
   }
 
@@ -1943,20 +1936,6 @@ function requireCsrf(req, res, next) {
 function authStoreKey(prefix, value) {
   const digest = crypto.createHash("sha256").update(String(value || "")).digest("hex");
   return `${prefix}:${digest}`;
-}
-
-function shouldUseRedisAuthStore() {
-  return USE_REDIS_AUTH_STORE && isRedisUrlConfigured() && Date.now() >= redisUnavailableUntil;
-}
-
-async function runRedisAuthCommand(commands) {
-  try {
-    return await redisUrlPipeline(commands);
-  } catch (err) {
-    redisUnavailableUntil = Date.now() + REDIS_FAILURE_FALLBACK_MS;
-    console.error("Redis auth store unavailable, using in-memory fallback:", err.message);
-    return null;
-  }
 }
 
 function encodeRedisCommand(command) {
@@ -2043,7 +2022,7 @@ async function redisUrlPipeline(commands) {
       else resolve(value);
     };
 
-    socket.setTimeout(REDIS_AUTH_TIMEOUT_MS);
+    socket.setTimeout(5000);
     if (useTls) socket.once("secureConnect", () => socket.write(request));
     else socket.once("connect", () => socket.write(request));
     socket.on("timeout", () => finish(new Error("Redis connection timed out.")));
@@ -2078,8 +2057,8 @@ function getMemoryItem(key) {
 }
 
 async function authStoreIncr(key, ttlSeconds) {
-  if (shouldUseRedisAuthStore()) {
-    const result = await runRedisAuthCommand([
+  if (isRedisUrlConfigured()) {
+    const result = await redisUrlPipeline([
       ["INCR", key],
       ["EXPIRE", key, ttlSeconds],
       ["TTL", key]
@@ -2103,21 +2082,18 @@ async function authStoreIncr(key, ttlSeconds) {
 }
 
 async function authStoreGet(key) {
-  if (shouldUseRedisAuthStore()) {
-    const result = await runRedisAuthCommand([["GET", key]]);
-    if (result) {
-      const [value] = result;
-      return value;
-    }
+  if (isRedisUrlConfigured()) {
+    const [value] = await redisUrlPipeline([["GET", key]]);
+    return value;
   }
 
   return getMemoryItem(key)?.value || null;
 }
 
 async function authStoreSet(key, value, ttlSeconds) {
-  if (shouldUseRedisAuthStore()) {
-    const result = await runRedisAuthCommand([["SET", key, value, "EX", ttlSeconds]]);
-    if (result) return;
+  if (isRedisUrlConfigured()) {
+    await redisUrlPipeline([["SET", key, value, "EX", ttlSeconds]]);
+    return;
   }
 
   authMemoryStore.set(key, {
@@ -2127,12 +2103,9 @@ async function authStoreSet(key, value, ttlSeconds) {
 }
 
 async function authStoreTtl(key) {
-  if (shouldUseRedisAuthStore()) {
-    const result = await runRedisAuthCommand([["TTL", key]]);
-    if (result) {
-      const [ttl] = result;
-      return Math.max(0, Number(ttl) || 0);
-    }
+  if (isRedisUrlConfigured()) {
+    const [ttl] = await redisUrlPipeline([["TTL", key]]);
+    return Math.max(0, Number(ttl) || 0);
   }
 
   const item = getMemoryItem(key);
@@ -2141,9 +2114,9 @@ async function authStoreTtl(key) {
 
 async function authStoreDel(...keys) {
   if (keys.length === 0) return;
-  if (shouldUseRedisAuthStore()) {
-    const result = await runRedisAuthCommand([["DEL", ...keys]]);
-    if (result) return;
+  if (isRedisUrlConfigured()) {
+    await redisUrlPipeline([["DEL", ...keys]]);
+    return;
   }
 
   keys.forEach((key) => authMemoryStore.delete(key));
@@ -3111,7 +3084,6 @@ app.get("/paper-options", publicDataLimiter, async (req, res) => {
 
 app.get("/papers/search", publicDataLimiter, async (req, res) => {
   try {
-    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     res.json(await fetchPublicPapersByFilter(req.query || {}));
   } catch (err) {
     console.error("Filtered papers fetch failed:", err.message);
