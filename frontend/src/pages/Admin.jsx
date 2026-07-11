@@ -960,7 +960,7 @@ export default function PaperUpdateList() {
                  </div>
               </div>
 
-              <div className="border border-gray-200 rounded-xl shadow-sm bg-white flex flex-col flex-1 min-h-[300px]">
+              <div className="border border-gray-200 rounded-xl shadow-sm bg-white">
                  <div className="px-4 py-4 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-xl">
                    <h2 className="text-lg font-bold text-[#05488b]">Existing Custom Replies</h2>
                  </div>
