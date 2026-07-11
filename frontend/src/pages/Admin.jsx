@@ -2,9 +2,7 @@ import React, { useState, useEffect } from "react";
 import logo from "../assets/puupdatelogo.png";
 import { FiHome, FiFileText, FiLogOut, FiMessageCircle, FiSettings, FiChevronDown, FiChevronRight } from "react-icons/fi";
 import coverImg from "../assets/pucoverlogo.webp";
-import { clearPaperCaches as clearClientPaperCaches, csrfFetch } from "../services/api";
-
-const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import { BACKEND_URL, clearPaperCaches as clearClientPaperCaches, csrfFetch } from "../services/api";
 
 const clearPapersCache = () => {
   clearClientPaperCaches();

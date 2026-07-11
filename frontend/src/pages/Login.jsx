@@ -2,9 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/pulogo.png";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { csrfFetch, getCsrfToken } from "../services/api";
+import { BACKEND_URL, csrfFetch, getCsrfToken } from "../services/api";
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 const GENERIC_LOGIN_ERROR = "Incorrect email or password.";
 

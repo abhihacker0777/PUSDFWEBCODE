@@ -1,4 +1,13 @@
-const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const configuredBackendUrl = (import.meta.env.VITE_API_URL || "").trim();
+const isVercelFrontend = typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app");
+const shouldUseVercelProxy = import.meta.env.PROD && isVercelFrontend && (
+  !configuredBackendUrl ||
+  configuredBackendUrl.includes("onrender.com") ||
+  configuredBackendUrl.includes("localhost") ||
+  configuredBackendUrl.includes("127.0.0.1")
+);
+const DEFAULT_BACKEND_URL = import.meta.env.PROD ? "/api" : "http://localhost:3000";
+export const BACKEND_URL = shouldUseVercelProxy ? "/api" : configuredBackendUrl || DEFAULT_BACKEND_URL;
 const PAPERS_CACHE_KEY = "papersCache";
 const PAPERS_CACHE_TIME_KEY = "papersCacheTime";
 const PAPER_OPTIONS_CACHE_KEY = "paperOptionsCache";

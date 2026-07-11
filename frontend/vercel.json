@@ -28,6 +28,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://pusdfwebcode-1.onrender.com/:path*"
+    },
+    {
       "source": "/((?!api/|static/|.*\\..*).*)",
       "destination": "/index.html"
     }

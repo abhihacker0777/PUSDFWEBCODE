@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import logo from "../assets/pulogo.png";
-import { csrfFetch, getCsrfToken } from "../services/api";
-
-const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import { BACKEND_URL, csrfFetch, getCsrfToken } from "../services/api";
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();

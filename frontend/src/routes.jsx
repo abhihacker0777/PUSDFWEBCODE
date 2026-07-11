@@ -3,8 +3,8 @@ import { Suspense, lazy, useState, useEffect } from "react";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
+import { BACKEND_URL } from "./services/api";
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const Admin = lazy(() => import("./pages/Admin"));
 
 const ProtectedRoute = ({ children }) => {
