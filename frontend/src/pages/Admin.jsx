@@ -844,7 +844,7 @@ export default function PaperUpdateList() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-xl shadow-sm bg-white flex flex-col flex-1 min-h-[500px] overflow-hidden">
+              <div className="border border-gray-200 rounded-xl shadow-sm bg-white">
                 <div className="w-full overflow-y-auto pb-2 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track] [&::-webkit-scrollbar-thumb]:bg-[#ffc107] hover:[&::-webkit-scrollbar-thumb]:bg-[#05488B] [&::-webkit-scrollbar-thumb]:rounded-full flex-1">
                   <table className="w-full text-sm min-w-[800px]">
                     <thead>
