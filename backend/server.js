@@ -1868,7 +1868,21 @@ function normalizeIp(value) {
 }
 
 function getClientIp(req) {
-  return normalizeIp(req.ip || String(req.headers["x-forwarded-for"] || "").split(",")[0] || req.socket?.remoteAddress || "unknown");
+  const candidates = [
+    req.headers["cf-connecting-ip"],
+    req.headers["x-vercel-forwarded-for"],
+    req.headers["x-forwarded-for"],
+    req.headers["x-real-ip"],
+    req.ip,
+    req.socket?.remoteAddress
+  ];
+
+  for (const candidate of candidates) {
+    const ip = normalizeIp(Array.isArray(candidate) ? candidate[0] : candidate);
+    if (ip) return ip;
+  }
+
+  return "unknown";
 }
 
 function isAdminIpAllowed(req) {
