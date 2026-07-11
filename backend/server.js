@@ -48,7 +48,7 @@ const MAX_ASSISTANT_TEXT_LENGTH = 500;
 const ADMIN_LOG_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const SHEET_WRITE_MODE = "RAW";
 const isProduction = process.env.NODE_ENV === "production";
-const ADMIN_SESSION_ID = crypto.randomBytes(16).toString("hex");
+const ADMIN_SESSION_ID = String(process.env.ADMIN_SESSION_VERSION || "1").trim().slice(0, 64) || "1";
 const ADMIN_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const GENERIC_LOGIN_ERROR = "Incorrect email or password.";
 const PASSWORD_RESET_RESPONSE = "If that email is registered, you'll receive a password reset link.";
@@ -2442,7 +2442,7 @@ async function loginLimiter(req, res, next) {
 }
 
 app.use(cors({
-  origin: [FRONTEND_URL, BASE_URL].filter(Boolean),
+  origin: FRONTEND_URL,
   credentials: true 
 }));
 
@@ -3256,15 +3256,6 @@ app.post("/sync", requireAdminIp, requireCsrf, adminMutationLimiter, verifyToken
     res.json({ success: true, message: `Data Imported From Google Sheet. ${updatedCount}` });
   } catch (err) { res.status(500).json({ success: false, message: "❌ Sync Failed." }); }
 });
-
-// --- SERVE FRONTEND (SPA) ---
-const clientBuildPath = path.join(__dirname, "client");
-if (fs.existsSync(clientBuildPath)) {
-  app.use(express.static(clientBuildPath));
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(clientBuildPath, "index.html"));
-  });
-}
 
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => console.log(`🚀 Server Started On Port ${PORT}`));
