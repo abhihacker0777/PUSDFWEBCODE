@@ -31,6 +31,7 @@ function getRetryAfterSeconds(req, windowMs) {
 
 function getClientIp(req) {
   const candidates = [
+    req.headers["x-vercel-forwarded-for"],
     req.headers["cf-connecting-ip"],
     req.headers["x-forwarded-for"],
     req.headers["x-real-ip"],
