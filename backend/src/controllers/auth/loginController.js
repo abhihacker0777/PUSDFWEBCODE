@@ -134,6 +134,12 @@ function setAdminSessionCookie(res, authenticatedUser) {
     ...cookieOptions,
     maxAge: ADMIN_SESSION_MAX_AGE_MS
   });
+  try {
+    const sc = res.getHeader("set-cookie");
+    console.log(`Set admin cookie header present: ${Array.isArray(sc) ? sc.length : !!sc} cookieOptions=${JSON.stringify(cookieOptions)}`);
+  } catch (err) {
+    console.error("Error reading set-cookie header:", err && err.message);
+  }
 }
 
 module.exports = { login };
