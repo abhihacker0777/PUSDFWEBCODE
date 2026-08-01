@@ -11,6 +11,7 @@ const {
   recordFailedLogin,
   setRetryAfter,
   verifyCaptchaToken
+  , getClientIp
 } = require("../../middleware/securityMiddleware");
 const {
   ADMIN_SESSION_ID,
@@ -60,6 +61,14 @@ async function login(req, res) {
 
     const authenticatedUser = await verifyAdminCredentials(identifier, password);
     if (!authenticatedUser) return handleLoginFailure(identifier, startedAt, res);
+
+    // Log client IP and owner/admin-ip check to help debug owner access issues in production
+    try {
+      const clientIp = getClientIp(req);
+      console.log(`Login attempt: identifier=${identifier} owner=${authenticatedUser.isOwner} clientIp=${clientIp} adminAllowed=${isAdminIpAllowed(req)}`);
+    } catch (logErr) {
+      console.error("Error logging admin IP check:", logErr && logErr.message);
+    }
 
     if (authenticatedUser.isOwner && !isAdminIpAllowed(req)) {
       await equalizeLoginTiming(startedAt);
