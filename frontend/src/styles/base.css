@@ -1,0 +1,45 @@
+html, body {
+  background-color: #f3f8fc;
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #ffc107;
+  border-radius: 10px;
+  background-clip: padding-box;
+  border: 1px solid transparent; 
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #05488B;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+input::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+}
+
+input::-webkit-caps-lock-indicator {
+  display: none !important;
+}

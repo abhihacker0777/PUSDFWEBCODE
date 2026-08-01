@@ -49,11 +49,7 @@ A Full-Stack Web Application Designed To Help Poornima University Students Easil
    cd backend
    npm install
    ```
-   *Create A `.env` File In The `backend` Folder And Securely Add Your Supabase Keys, Google OAuth Client ID/Secret/Refresh Token, Google Sign-In Client ID, JWT Secret, `ADMIN_PASSWORD_HASH`, Redis URL, CAPTCHA Secret, And Password Reset Email Settings.*
-   Generate The Admin Password Hash With:
-   ```Bash
-   npm run hash-admin-password -- "your-long-admin-password"
-   ```
+   *Create A `.env` File In The `backend` Folder And Securely Add Your Supabase Keys, Google OAuth Client ID/Secret/Refresh Token, Google Sign-In Client ID, JWT Secret, Redis URL, CAPTCHA Secret, And Password Reset Email Settings.*
 
 3. **Setup The Frontend:**
    ```Bash
@@ -63,7 +59,7 @@ A Full-Stack Web Application Designed To Help Poornima University Students Easil
    *Create A `.env` File In The `frontend` Folder And Set `VITE_API_URL` To Your Backend Server URL. For Cloudflare Turnstile, set `VITE_TURNSTILE_SITE_KEY`; do not commit CAPTCHA keys to git.*
 
 ### Authentication Security
-Admin login now validates inputs on the server with Zod, verifies bcrypt password hashes, rate-limits login through Redis in production, locks accounts after repeated failures, checks Cloudflare Turnstile after repeated failures, uses CSRF tokens on state-changing admin requests, and returns generic credential errors. Use Render Redis with `REDIS_URL`. Password reset links are emailed through Resend when `ADMIN_EMAIL` or `ADMIN_RESET_EMAIL`, `RESEND_API_KEY`, and `PASSWORD_RESET_FROM` are configured. The reset token itself is never stored, only its HMAC hash in Supabase.
+Admin login now validates inputs on the server with Zod, verifies passwords through Supabase Auth, rate-limits login through Redis in production, locks accounts after repeated failures, checks Cloudflare Turnstile after repeated failures, uses CSRF tokens on state-changing admin requests, and returns generic credential errors. Use Redis with `REDIS_URL`. Password reset links are emailed through Resend when `RESEND_API_KEY` and `PASSWORD_RESET_FROM` are configured. The reset token itself is never stored, only its HMAC hash in Supabase; the new password is written to Supabase Auth.
 
 Set `ADMIN_ALLOWED_IPS` in `backend/.env` to restrict admin login and admin APIs to trusted IP addresses, for example `ADMIN_ALLOWED_IPS=127.0.0.1,203.0.113.10`.
 
@@ -77,7 +73,7 @@ PASSWORD_RESET_FROM=PYQP Admin <noreply@your-verified-domain>
 PASSWORD_RESET_URL=https://pyqp.poornima.edu.in/reset-password
 ```
 
-Run [backend/supabase_schema.sql](backend/supabase_schema.sql) in Supabase so the `admin_users` table exists. On the first reset request for `ADMIN_EMAIL`, the backend seeds `admin_users` from the current `ADMIN_PASSWORD_HASH`.
+Create the main admin user in Supabase Auth with the same email as `ADMIN_EMAIL`, then run [backend/supabase_schema.sql](backend/supabase_schema.sql). On first successful main-admin login, the backend links that Supabase Auth user to the `admin_users` metadata table.
 
 4. **Run The Development Servers:**
    *Open Two Terminal Windows.*
@@ -93,20 +89,45 @@ Run [backend/supabase_schema.sql](backend/supabase_schema.sql) in Supabase so th
    npm run dev
    ```
 
-## 📂 Project Structure
+## Project Structure
 
 ```Text
 PYQP-Portal/
-├── backend/               # Express.js Server & API Routes
-│   ├── uploads/           # Ephemeral storage for Multer Parsing
-│   ├── server.js          # Core Logic, Google OAuth, And API Integrations
-│   └── package.json
-├── frontend/              # React.js SPA (Single Page Application)
-│   ├── src/               # Components, Pages, And API Services
-│   ├── tailwind.config.js # Custom Poornima University Branding Themes
-│   └── package.json
-└── .gitignore             # Global Security Exclusions
+├── backend/
+│   ├── server.js              # Starts the API
+│   ├── scripts/               # Utility and validation scripts
+│   └── src/
+│       ├── bootstrap/         # Express middleware, uploads, dependency wiring
+│       ├── config/            # Environment and provider config
+│       ├── controllers/       # HTTP request handlers
+│       ├── middleware/        # Auth, CSRF, IP, CAPTCHA, rate-limit checks
+│       ├── models/            # Data mapping helpers
+│       ├── routes/            # API route groups
+│       ├── services/          # Supabase, Google, Redis, auth, assistant logic
+│       ├── utils/             # Shared helpers
+│       └── validators/        # Zod schemas
+├── frontend/
+│   └── src/
+│       ├── components/        # Shared UI and paper assistant
+│       ├── pages/             # Route pages and page-specific modules
+│       ├── services/          # API clients and browser cache
+│       └── styles/            # Global and assistant CSS
+├── docs/                      # Architecture, security, deployment handover
+└── .github/workflows/ci.yml   # CI validation
 ```
+
+## Validation Commands
+
+```Bash
+cd backend
+npm run check
+
+cd ../frontend
+npm run lint
+npm run build
+```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/SECURITY_HANDOVER.md](docs/SECURITY_HANDOVER.md), and [docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md) for the production handover.
 
 ## 🌟 Features In Detail
 

@@ -1,11 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Suspense, lazy, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import Admin from "./pages/Admin";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import { BACKEND_URL } from "./services/api";
-
-const Admin = lazy(() => import("./pages/Admin"));
 
 const ProtectedRoute = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null); // null = loading
@@ -36,9 +35,7 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin" element={
           <ProtectedRoute>
-            <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading admin...</div>}>
-              <Admin />
-            </Suspense>
+            <Admin />
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />

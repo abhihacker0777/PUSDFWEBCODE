@@ -78,18 +78,68 @@ create table if not exists public.custom_replies (
   created_at timestamptz not null default now()
 );
 
--- 5. Custom admin login + password reset
+-- 5. Supabase Auth admin metadata + password reset tokens
 create table if not exists public.admin_users (
   id uuid primary key default gen_random_uuid(),
-  email text not null unique,
+  auth_user_id uuid unique,
+  email text unique,
+  auth_email text unique,
   login_identifier text not null unique,
-  password_hash text not null,
+  display_name text not null default '',
+  role text not null default 'view',
+  is_active boolean not null default true,
   reset_token_hash text,
   reset_token_expires_at timestamptz,
   reset_requested_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.admin_users
+  add column if not exists auth_user_id uuid;
+
+alter table public.admin_users
+  add column if not exists auth_email text;
+
+alter table public.admin_users
+  alter column email drop not null;
+
+create unique index if not exists admin_users_auth_user_id_idx
+  on public.admin_users (auth_user_id)
+  where auth_user_id is not null;
+
+create unique index if not exists admin_users_auth_email_idx
+  on public.admin_users (auth_email)
+  where auth_email is not null;
+
+alter table public.admin_users
+  drop column if exists password_hash;
+
+alter table public.admin_users
+  drop column if exists password_encrypted;
+
+alter table public.admin_users
+  add column if not exists display_name text not null default '';
+
+alter table public.admin_users
+  add column if not exists role text not null default 'view';
+
+alter table public.admin_users
+  add column if not exists is_active boolean not null default true;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'admin_users_role_check'
+      and conrelid = 'public.admin_users'::regclass
+  ) then
+    alter table public.admin_users
+      add constraint admin_users_role_check
+      check (role in ('full', 'editor', 'view'));
+  end if;
+end $$;
 
 create unique index if not exists admin_users_reset_token_hash_idx
   on public.admin_users (reset_token_hash)
