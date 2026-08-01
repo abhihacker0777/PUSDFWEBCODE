@@ -14,11 +14,11 @@ export const getPapers = () =>
 export const uploadPaper = (formData) =>
   csrfFetch(`${BACKEND_URL}/upload`, { method: "POST", body: formData });
 
-export const deletePaper = (index) =>
+export const deletePaper = (index, expected = {}) =>
   csrfFetch(`${BACKEND_URL}/delete`, {
     method: "DELETE",
     headers: jsonHeaders,
-    body: JSON.stringify({ index })
+    body: JSON.stringify({ index, ...expected })
   });
 
 export const syncPapersToWebsite = () =>

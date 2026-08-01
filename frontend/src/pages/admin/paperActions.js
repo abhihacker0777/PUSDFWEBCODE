@@ -73,10 +73,22 @@ export const createPaperActions = ({
       formData.append("course", course);
       formData.append("year", year);
       formData.append("spec", spec);
-      formData.append("semester", semester);
+      // backend expects `sem` and `name` fields
+      formData.append("sem", semester);
       formData.append("exam", exam);
-      formData.append("paperName", paperName.trim());
-      if (selectedPaperIndex) formData.append("index", selectedPaperIndex);
+      formData.append("name", paperName.trim());
+      if (selectedPaperIndex) {
+        formData.append("index", selectedPaperIndex);
+        // include expected snapshot fields for concurrency checks
+        if (selectedPaper) {
+          formData.append("expectedCourse", selectedPaper.course || "");
+          formData.append("expectedYear", selectedPaper.year || "");
+          formData.append("expectedSpec", selectedPaper.spec || selectedPaper.specialization || "");
+          formData.append("expectedSem", selectedPaper.sem || selectedPaper.semester || "");
+          formData.append("expectedExam", selectedPaper.exam || "");
+          formData.append("expectedName", selectedPaper.name || selectedPaper.title || "");
+        }
+      }
 
       const response = await uploadPaper(formData);
       const payload = await readApiResponse(response);
@@ -89,7 +101,7 @@ export const createPaperActions = ({
         course,
         year,
         spec,
-        semester,
+        sem: semester,
         exam,
         name: paperName.trim(),
         url: payload.url || "",
@@ -127,7 +139,16 @@ export const createPaperActions = ({
     setIsLoading(true);
     setDeleteStatus("");
     try {
-      const response = await deletePaper(selectedPaperIndex);
+      const expected = selectedPaper ? {
+        expectedCourse: selectedPaper.course || "",
+        expectedYear: selectedPaper.year || "",
+        expectedSpec: selectedPaper.spec || selectedPaper.specialization || "",
+        expectedSem: selectedPaper.sem || selectedPaper.semester || "",
+        expectedExam: selectedPaper.exam || "",
+        expectedName: selectedPaper.name || selectedPaper.title || ""
+      } : {};
+
+      const response = await deletePaper(selectedPaperIndex, expected);
       const payload = await readApiResponse(response);
       if (!response.ok) {
         setDeleteStatus(`Error: ${cleanStatusMessage(payload.message || "Delete failed")}`);
@@ -151,7 +172,16 @@ export const createPaperActions = ({
     if (!canDeletePapers || !listDeleteConfirm.row?.index) return;
     setIsLoading(true);
     try {
-      const response = await deletePaper(listDeleteConfirm.row.index);
+      const row = listDeleteConfirm.row;
+      const expected = row ? {
+        expectedCourse: row.course || "",
+        expectedYear: row.year || "",
+        expectedSpec: row.spec || row.specialization || "",
+        expectedSem: row.sem || row.semester || "",
+        expectedExam: row.exam || "",
+        expectedName: row.name || row.title || ""
+      } : {};
+      const response = await deletePaper(listDeleteConfirm.row.index, expected);
       const payload = await readApiResponse(response);
       if (!response.ok) {
         setDeleteStatus(`Error: ${cleanStatusMessage(payload.message || "Delete failed")}`);

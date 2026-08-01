@@ -119,6 +119,7 @@ export default function usePaperDashboard({
     exam,
     paperName,
     selectedPaperIndex,
+    selectedPaper: allPapers.find(p => String(p.index) === String(selectedPaperIndex)) || null,
     file,
     listDeleteConfirm,
     rememberCustomSpec,
