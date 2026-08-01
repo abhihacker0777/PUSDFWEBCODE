@@ -16,13 +16,13 @@ export const uploadPaper = (formData) =>
 
 export const deletePaper = (index) =>
   csrfFetch(`${BACKEND_URL}/delete`, {
-    method: "POST",
+    method: "DELETE",
     headers: jsonHeaders,
     body: JSON.stringify({ index })
   });
 
 export const syncPapersToWebsite = () =>
-  csrfFetch(`${BACKEND_URL}/sync-to-website`, { method: "POST" });
+  csrfFetch(`${BACKEND_URL}/sync`, { method: "POST" });
 
 export const getLogs = () =>
   fetch(`${BACKEND_URL}/logs`, { credentials: "include", cache: "no-store" });
@@ -31,7 +31,7 @@ export const clearLogs = () =>
   csrfFetch(`${BACKEND_URL}/logs/clear`, { method: "DELETE" });
 
 export const clearSelectedLogs = (ids) =>
-  csrfFetch(`${BACKEND_URL}/logs/clear-selected`, {
+  csrfFetch(`${BACKEND_URL}/logs/delete`, {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ ids })
@@ -44,14 +44,14 @@ export const getCustomReplies = () =>
   fetch(`${BACKEND_URL}/admin/settings/replies`, { credentials: "include", cache: "no-store" });
 
 export const blockAssistantUser = (email) =>
-  csrfFetch(`${BACKEND_URL}/admin/settings/block-user`, {
+  csrfFetch(`${BACKEND_URL}/admin/settings/block`, {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ email })
   });
 
 export const unblockAssistantUser = (email) =>
-  csrfFetch(`${BACKEND_URL}/admin/settings/unblock-user`, {
+  csrfFetch(`${BACKEND_URL}/admin/settings/unblock`, {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ email })
@@ -65,8 +65,8 @@ export const saveCustomReply = (reply) =>
   });
 
 export const deleteCustomReply = (keyword) =>
-  csrfFetch(`${BACKEND_URL}/admin/settings/reply`, {
-    method: "DELETE",
+  csrfFetch(`${BACKEND_URL}/admin/settings/reply/delete`, {
+    method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ keyword })
   });

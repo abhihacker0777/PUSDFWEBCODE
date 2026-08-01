@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
-const path = require("path");
+const path = require("node:path");
 const { BACKEND_ROOT, FRONTEND_URL } = require("../config/env");
 
 function configureAppMiddleware(app) {
