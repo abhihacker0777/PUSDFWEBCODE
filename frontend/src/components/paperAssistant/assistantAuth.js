@@ -5,9 +5,12 @@ const DEFAULT_DOMAIN = "poornima.edu.in";
 let googleScriptPromise = null;
 
 export const getSafeUrl = (url) => {
+  if (!url) return null;
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : null;
+    const isHttp = parsed.protocol === "http:" || parsed.protocol === "https:";
+    const isAllowedHost = ["drive.google.com", "docs.google.com"].includes(parsed.hostname.toLowerCase());
+    return isHttp && isAllowedHost ? parsed.href : null;
   } catch {
     return null;
   }

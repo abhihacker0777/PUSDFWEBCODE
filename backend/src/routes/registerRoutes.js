@@ -58,6 +58,7 @@ function registerRoutes(app, dependencies) {
     requireOwnerAdminIp,
     requirePermission,
     controllerDependencies: {
+      appendAdminLogToSupabase: adminLogs.appendAdminLogToSupabase,
       deleteSupabasePaper: paper.deleteSupabasePaper,
       extractDriveFileId: drive.extractDriveFileId,
       fetchAdminPapersFromPublishedSheet: paper.fetchAdminPapersFromPublishedSheet,
@@ -67,6 +68,7 @@ function registerRoutes(app, dependencies) {
       getSheetRows: paper.getSheetRows,
       getSupabasePaperById: paper.getSupabasePaperById,
       hasAdminPermission,
+      hasAllPaperFields: paper.hasAllPaperFields,
       insertSupabasePaper: paper.insertSupabasePaper,
       invalidatePapersCache: paper.invalidatePapersCache,
       isAdminSheetRow: paper.isAdminSheetRow,

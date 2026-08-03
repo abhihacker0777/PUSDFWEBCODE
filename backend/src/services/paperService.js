@@ -7,6 +7,7 @@ const { sanitizePaperText } = require("../utils/helpers");
 const {
   getPaperPayload,
   getExpectedPaperPayload,
+  hasAllPaperFields,
   paperMatchesExpectedSnapshot,
   rowMatchesPaper,
   rowMatchesPaperSlot,
@@ -116,6 +117,7 @@ function createPaperService() {
     ...paperRepository,
     getPaperPayload,
     getExpectedPaperPayload,
+    hasAllPaperFields,
     paperMatchesExpectedSnapshot,
     rowMatchesPaper,
     rowMatchesPaperSlot,

@@ -68,7 +68,7 @@ const DashboardPage = ({
             {canDeletePapers && <button onClick={handleDelete} className="w-full sm:w-auto bg-[#E31E24] hover:bg-[#c11018] text-white px-6 py-2 rounded shadow-sm font-medium">🗑️ Delete</button>}
           </div>
           <div className="w-full lg:flex-1 flex items-center justify-center lg:justify-end order-3">
-             {canSyncPapers && <button onClick={handleSyncToWebsite} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded shadow-sm font-medium transition-colors">🔄 Fetch To PU-Site</button>}
+             {canSyncPapers && <button onClick={handleSyncToWebsite} className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded shadow-sm font-medium transition-colors" title="Deletes every paper in the live database and replaces it with whatever is currently in the Google Sheet backup.">⚠️ Restore From Sheet Backup</button>}
           </div>
         </div>
       </div>

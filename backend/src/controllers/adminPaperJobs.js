@@ -5,6 +5,19 @@ function removeUploadedFile(file) {
   if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
 }
 
+// admin_logs.id is a plain bigint primary key with no auto-increment, so the
+// writer has to supply a unique value itself. Millisecond timestamp + a few
+// random digits keeps this comfortably within Number.isSafeInteger while
+// making same-millisecond collisions between two admin actions extremely
+// unlikely.
+function generateLogId() {
+  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+}
+
+function formatLogDate() {
+  return new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+}
+
 function createAdminPaperJobs({
   isSupabaseConfigured,
   getSupabasePaperById,
@@ -22,10 +35,32 @@ function createAdminPaperJobs({
   getSheetRows,
   resolveExpectedSheetRowIndex,
   deleteSupabasePaper,
-  mirrorDeletePaperFromSheet
+  mirrorDeletePaperFromSheet,
+  appendAdminLogToSupabase
 }) {
+  async function logPaperAction(status, index, paper) {
+    if (!appendAdminLogToSupabase || !paper) return;
+    try {
+      await appendAdminLogToSupabase({
+        id: generateLogId(),
+        index,
+        date: formatLogDate(),
+        status,
+        course: paper.course,
+        year: paper.year,
+        spec: paper.spec,
+        semester: paper.sem,
+        exam: paper.exam,
+        name: paper.name
+      });
+    } catch (logErr) {
+      console.error("Admin log write failed:", logErr.message);
+    }
+  }
+
   async function runSupabaseUpload({ fileLink, driveFileId, index, paper, expectedPaper }) {
     let savedPaper = null;
+    let logStatus = "Updated";
     const allPapers = await fetchSupabasePapers({ publicOnly: false });
 
     if (index) {
@@ -63,12 +98,14 @@ function createAdminPaperJobs({
           link: fileLink || "",
           driveFileId: driveFileId || ""
         });
+        logStatus = "Uploaded";
       }
     }
 
     invalidatePapersCache();
     const paperToMirror = savedPaper || { ...paper, link: fileLink || "", driveFileId: driveFileId || "" };
     mirrorPaperToSheet(paperToMirror, index ? expectedPaper : null).catch(console.error);
+    await logPaperAction(logStatus, savedPaper?.id || index, paper);
   }
 
   async function runSheetUpload({ fileLink, index, paper, expectedPaper }) {
@@ -85,10 +122,12 @@ function createAdminPaperJobs({
         requestBody: { values: [[paper.course, paper.year, paper.spec, paper.sem, paper.exam, paper.name, fileLink || rows[rowIndex - 1][6] || ""]] }
       });
       invalidatePapersCache();
+      await logPaperAction("Updated", rowIndex, paper);
       return;
     }
 
     let found = false;
+    let foundRowIndex = null;
     const blankSlotExists = rows.some((row, i) => i > 0 && rowMatchesPaperSlot(row, paper) && rowHasBlankPaperData(row));
     const duplicateRowIndexes = [];
 
@@ -106,6 +145,7 @@ function createAdminPaperJobs({
           requestBody: { values: [[fileLink || row[6]]] }
         });
         found = true;
+        foundRowIndex = i + 1;
         break;
       }
     }
@@ -127,6 +167,7 @@ function createAdminPaperJobs({
             });
           }
           found = true;
+          foundRowIndex = i + 1;
           break;
         }
       }
@@ -141,7 +182,9 @@ function createAdminPaperJobs({
       });
     }
     invalidatePapersCache();
+    await logPaperAction(found ? "Updated" : "Uploaded", foundRowIndex, paper);
   }
+
 
   async function runUploadPaperJob({ file, index, paper, expectedPaper }) {
     try {
@@ -179,6 +222,7 @@ function createAdminPaperJobs({
         await deleteSupabasePaper(index);
         mirrorDeletePaperFromSheet(expectedPaper).catch(console.error);
         invalidatePapersCache();
+        await logPaperAction("Deleted", index, expectedPaper);
         return;
       }
 
@@ -200,6 +244,7 @@ function createAdminPaperJobs({
         }
       });
       invalidatePapersCache();
+      await logPaperAction("Deleted", rowIndex, expectedPaper);
     } catch (backgroundErr) {
       console.error("Background Delete failed:", backgroundErr.message);
     }

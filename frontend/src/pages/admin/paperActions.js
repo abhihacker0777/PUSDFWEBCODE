@@ -18,6 +18,7 @@ export const createPaperActions = ({
   exam,
   paperName,
   selectedPaperIndex,
+  selectedPaper,
   file,
   listDeleteConfirm,
   rememberCustomSpec,

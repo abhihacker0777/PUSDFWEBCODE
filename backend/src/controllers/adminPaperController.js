@@ -10,6 +10,7 @@ function createAdminPaperController(dependencies) {
     getPaperPayload,
     getExpectedPaperPayload,
     hasAdminPermission,
+    hasAllPaperFields,
     isSupabaseConfigured,
     getSupabasePaperById,
     paperMatchesExpectedSnapshot,
@@ -40,6 +41,11 @@ function createAdminPaperController(dependencies) {
         if (req.file && !hasAdminPermission(req.admin, "papers:file")) {
           removeUploadedFile(req.file);
           return res.status(403).send("File upload not permitted");
+        }
+
+        if (!hasAllPaperFields(paper)) {
+          removeUploadedFile(req.file);
+          return res.status(400).send("Course, year, specialization, semester, exam and paper name are all required.");
         }
 
         if (index && isSupabaseConfigured()) {

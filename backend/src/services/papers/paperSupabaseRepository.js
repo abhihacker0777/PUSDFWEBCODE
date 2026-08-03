@@ -8,6 +8,7 @@ const { extractDriveFileId } = require("../driveService");
 const {
   isPublicPaper,
   isAdminSheetRow,
+  isCompleteSheetRow,
   sortPublicPapers,
   toSupabasePaperRow,
   paperFromSupabaseRow,
@@ -122,7 +123,7 @@ async function replaceSupabasePapers(papers) {
   });
 
   const rows = (papers || [])
-    .filter(isAdminSheetRow)
+    .filter(isCompleteSheetRow)
     .map((paper) => toSupabasePaperRow(paper, {
       link: paper.link || null,
       driveFileId: extractDriveFileId(paper.link)
