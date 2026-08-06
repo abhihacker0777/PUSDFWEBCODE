@@ -68,8 +68,6 @@ function registerRoutes(app, dependencies) {
     requireOwnerAdminIp,
     requirePermission,
     controllerDependencies: {
-      appendAdminLogToSupabase: adminLogs.appendAdminLogToSupabase,
-      appendAdminLogToSheet: adminLogs.appendAdminLogToSheet,
       deleteSupabasePaper: paper.deleteSupabasePaper,
       extractDriveFileId: drive.extractDriveFileId,
       fetchAdminPapersFromPublishedSheet: paper.fetchAdminPapersFromPublishedSheet,

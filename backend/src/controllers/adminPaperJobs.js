@@ -5,35 +5,6 @@ function removeUploadedFile(file) {
   if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
 }
 
-class PaperConflictError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "PaperConflictError";
-    this.code = "PAPER_CONFLICT";
-  }
-}
-
-class PaperNotFoundError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "PaperNotFoundError";
-    this.code = "PAPER_NOT_FOUND";
-  }
-}
-
-// admin_logs.id is a plain bigint primary key with no auto-increment, so the
-// writer has to supply a unique value itself. Millisecond timestamp + a few
-// random digits keeps this comfortably within Number.isSafeInteger while
-// making same-millisecond collisions between two admin actions extremely
-// unlikely.
-function generateLogId() {
-  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
-}
-
-function formatLogDate() {
-  return new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-}
-
 function createAdminPaperJobs({
   isSupabaseConfigured,
   getSupabasePaperById,
@@ -51,44 +22,9 @@ function createAdminPaperJobs({
   getSheetRows,
   resolveExpectedSheetRowIndex,
   deleteSupabasePaper,
-  mirrorDeletePaperFromSheet,
-  appendAdminLogToSupabase,
-  appendAdminLogToSheet
+  mirrorDeletePaperFromSheet
 }) {
-  async function logPaperAction(status, index, paper, adminName) {
-    if (!paper) return;
-    const logData = {
-      id: generateLogId(),
-      index,
-      date: formatLogDate(),
-      status,
-      course: paper.course,
-      year: paper.year,
-      spec: paper.spec,
-      semester: paper.sem,
-      exam: paper.exam,
-      name: paper.name,
-      adminName
-    };
-
-    if (appendAdminLogToSupabase) {
-      try {
-        await appendAdminLogToSupabase(logData);
-      } catch (logErr) {
-        console.error("Admin log write failed:", logErr.message);
-      }
-    }
-
-    if (appendAdminLogToSheet) {
-      try {
-        await appendAdminLogToSheet(logData);
-      } catch (sheetLogErr) {
-        console.error("Admin log sheet backup failed:", sheetLogErr.message);
-      }
-    }
-  }
-
-  async function runSupabaseUpload({ fileLink, driveFileId, index, paper, expectedPaper, adminName }) {
+  async function runSupabaseUpload({ fileLink, driveFileId, index, paper, expectedPaper }) {
     let savedPaper = null;
     let logStatus = "Updated";
     const allPapers = await fetchSupabasePapers({ publicOnly: false });
@@ -133,11 +69,7 @@ function createAdminPaperJobs({
 
     invalidatePapersCache();
     const paperToMirror = savedPaper || { ...paper, link: fileLink || "", driveFileId: driveFileId || "" };
-    if (!DISABLE_INLINE_SHEET_MIRROR) {
-      mirrorPaperToSheet(paperToMirror, index ? expectedPaper : null).catch(console.error);
-    }
-    await logPaperAction(logStatus, savedPaper?.id || index, paper, adminName);
-    return { paper: savedPaper || paperToMirror, status: logStatus };
+    mirrorPaperToSheet(paperToMirror, index ? expectedPaper : null).catch(console.error);
   }
 
   async function runSheetUpload({ fileLink, index, paper, expectedPaper, adminName }) {
@@ -154,8 +86,7 @@ function createAdminPaperJobs({
         requestBody: { values: [[paper.course, paper.year, paper.spec, paper.sem, paper.exam, paper.name, fileLink || rows[rowIndex - 1][6] || ""]] }
       });
       invalidatePapersCache();
-      await logPaperAction("Updated", rowIndex, paper, adminName);
-      return { paper: { ...paper, link: fileLink || rows[rowIndex - 1][6] || "" }, status: "Updated" };
+      return;
     }
 
     let found = false;
@@ -214,10 +145,8 @@ function createAdminPaperJobs({
       });
     }
     invalidatePapersCache();
-    const logStatus = found ? "Updated" : "Uploaded";
-    await logPaperAction(logStatus, foundRowIndex, paper, adminName);
-    return { paper: { ...paper, link: fileLink || "" }, status: logStatus };
   }
+
 
 
   async function runUploadPaperJob({ file, index, paper, expectedPaper, adminName }) {
@@ -251,11 +180,9 @@ function createAdminPaperJobs({
       await deleteSupabasePaper(index);
       if (!DISABLE_INLINE_SHEET_MIRROR) {
         mirrorDeletePaperFromSheet(expectedPaper).catch(console.error);
+        invalidatePapersCache();
+        return;
       }
-      invalidatePapersCache();
-      await logPaperAction("Deleted", index, expectedPaper, adminName);
-      return { status: "Deleted" };
-    }
 
     const { sheets, rows } = await getSheetRows();
     const rowIndex = resolveExpectedSheetRowIndex(index, rows, expectedPaper);
@@ -264,19 +191,20 @@ function createAdminPaperJobs({
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
     const sheetId = spreadsheet.data.sheets[0].properties.sheetId;
 
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: SHEET_ID,
-      requestBody: {
-        requests: [{
-          deleteDimension: {
-            range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex }
-          }
-        }]
-      }
-    });
-    invalidatePapersCache();
-    await logPaperAction("Deleted", rowIndex, expectedPaper, adminName);
-    return { status: "Deleted" };
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        requestBody: {
+          requests: [{
+            deleteDimension: {
+              range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex }
+            }
+          }]
+        }
+      });
+      invalidatePapersCache();
+    } catch (backgroundErr) {
+      console.error("Background Delete failed:", backgroundErr.message);
+    }
   }
 
   return {
