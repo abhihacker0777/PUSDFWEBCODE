@@ -7,7 +7,7 @@ import AdminUsersPanel from "./admin/AdminUsersPanel";
 import AssistantSettingsPanel from "./admin/AssistantSettingsPanel";
 import DashboardHome from "./admin/DashboardHome";
 import RecentActionsPanel from "./admin/RecentActionsPanel";
-import StudentQueriesPanel from "./admin/StudentQueriesPanel";
+import StudentQueriesHome from "./admin/StudentQueriesHome";
 import useAdminPageController from "./admin/useAdminPageController";
 
 export default function PaperUpdateList() {
@@ -16,8 +16,10 @@ export default function PaperUpdateList() {
     sidebarProps,
     headerProps,
     dashboardProps,
+    bulkUploadProps,
     recentActionsProps,
     studentQueriesProps,
+    insightsProps,
     assistantSettingsProps,
     adminUsersPanelProps,
     modalProps
@@ -32,11 +34,11 @@ export default function PaperUpdateList() {
 
         <main className="flex-1 overflow-auto px-3 sm:px-5 py-4 bg-gray-100 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track] [&::-webkit-scrollbar-thumb]:bg-[#ffc107] hover:[&::-webkit-scrollbar-thumb]:bg-[#05488B] [&::-webkit-scrollbar-thumb]:rounded-full flex flex-col">
           {activeNav === "dashboard" ? (
-            <DashboardHome {...dashboardProps} coverImg={coverImg} />
+            <DashboardHome {...dashboardProps} bulkUploadProps={bulkUploadProps} coverImg={coverImg} />
           ) : activeNav === "paper" ? (
             <RecentActionsPanel {...recentActionsProps} />
           ) : activeNav === "queries" ? (
-            <StudentQueriesPanel {...studentQueriesProps} newQueryGif={newQueryGif} />
+            <StudentQueriesHome {...studentQueriesProps} newQueryGif={newQueryGif} insightsProps={insightsProps} />
           ) : activeNav === "assistant" ? (
             <AssistantSettingsPanel {...assistantSettingsProps} />
           ) : activeNav === "admins" ? (

@@ -25,7 +25,6 @@ Required:
 ```env
 JWT_SECRET=at-least-32-characters
 ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD_HASH=$2b$12$...
 ADMIN_ALLOWED_IPS=127.0.0.1,203.0.113.10
 FRONTEND_URL=https://your-frontend-domain
 BASE_URL=https://your-backend-domain
@@ -64,11 +63,11 @@ CAPTCHA_VERIFY_URL=https://challenges.cloudflare.com/turnstile/v0/siteverify
 
 Use Render Redis by setting `REDIS_URL`.
 
-Generate `ADMIN_PASSWORD_HASH` from the backend folder with `npm run hash-admin-password -- "your-long-admin-password"`. Do not keep `ADMIN_PASS` in production. The first successful reset setup seeds the Supabase `admin_users` row from `ADMIN_EMAIL`, `ADMIN_USER`, and `ADMIN_PASSWORD_HASH`; future password reset links update the bcrypt hash stored in Supabase.
+The owner admin's password lives in Supabase Auth, not in an env var or a locally stored hash - create/set it via the Supabase dashboard (Authentication → Users) for the account matching `ADMIN_EMAIL`, or use the password reset flow. On first login, the matching `admin_users` row is linked to that Supabase Auth user automatically. Password reset links go through Supabase Auth as well; there is no `hash-admin-password` script or `ADMIN_PASSWORD_HASH` env var in the current codebase.
 
 Set `ADMIN_ALLOWED_IPS` to a comma-separated list of IP addresses allowed to use admin login and admin APIs. Leave it empty only during unrestricted local development.
 
-The admin panel still has custom login code. Migrate it to Supabase Auth, Clerk, or Auth0 for long-term production ownership; Supabase Auth is recommended here because Supabase is already part of the stack. After migration, store only non-sensitive application data in the project database.
+What remains custom on top of Supabase Auth is session issuance (JWT + cookie), rate limiting, CAPTCHA, account lockout, and the owner IP allow-list - that's intentional hardening, not a migration that still needs to happen.
 
 ## One-Time Setup
 
@@ -85,9 +84,9 @@ The admin panel still has custom login code. Migrate it to Supabase Auth, Clerk,
 
 - Admin upload/update/delete writes to Supabase first.
 - Uploaded files go to Google Drive.
-- The matching Google Sheet row is updated in the background when possible.
-- Admin action logs and assistant query logs are saved in Google Sheets only.
-- If Supabase data is lost, use the admin "Fetch To PU-Site" action to import rows from the Google Sheet back into Supabase.
+- The matching Google Sheet row is updated in place in the background (course/year/spec/sem/exam identify which row to update).
+- Admin action logs are saved to the Supabase `admin_logs` table (the source for the "Recent Action" panel), with a Google Sheets copy as a secondary backup.
+- If Supabase data is lost, use the admin "Restore From Sheet Backup" action to import rows from the Google Sheet back into Supabase. This is destructive - it replaces the entire live paper list - so only use it for actual recovery.
 
 ## Important Security Rules
 

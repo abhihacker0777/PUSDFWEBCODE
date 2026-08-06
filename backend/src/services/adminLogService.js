@@ -22,6 +22,40 @@ function sheetRange(tabName, range) {
   return `'${safeTabName}'!${range}`;
 }
 
+// Pure function: given raw student_queries rows, compute the insights
+// summary. Kept separate from the Supabase fetch so it can be tested with
+// plain arrays, no network access needed.
+function computeStudentQueryInsights(rows = []) {
+  const statusCounts = {};
+  const notFoundCounts = new Map();
+  const foundPaperCounts = new Map();
+
+  for (const row of rows) {
+    const status = normalizeText(row.status, 30) || "unknown";
+    statusCounts[status] = (statusCounts[status] || 0) + 1;
+
+    if (status === "not_found") {
+      const key = normalizeText(row.question, 200).toLowerCase().trim();
+      if (key) notFoundCounts.set(key, (notFoundCounts.get(key) || 0) + 1);
+    }
+
+    if (status === "found") {
+      const key = normalizeText(row.paper_name || row.paperName, 160).trim();
+      if (key) foundPaperCounts.set(key, (foundPaperCounts.get(key) || 0) + 1);
+    }
+  }
+
+  const sortDescByCount = (map) => [...map.entries()].sort((a, b) => b[1] - a[1]);
+
+  return {
+    totalQueries: rows.length,
+    statusCounts,
+    notFoundRate: rows.length > 0 ? Math.round(((statusCounts.not_found || 0) / rows.length) * 100) : 0,
+    topNotFoundQuestions: sortDescByCount(notFoundCounts).slice(0, 15).map(([question, count]) => ({ question, count })),
+    topFoundPapers: sortDescByCount(foundPaperCounts).slice(0, 15).map(([paperName, count]) => ({ paperName, count }))
+  };
+}
+
 function createAdminLogService() {
   let assistantSheetReady = false;
   let assistantSheetLogDisabled = false;
@@ -52,7 +86,11 @@ function createAdminLogService() {
 
   async function getAdminLogsFromSupabase() {
     try {
-      const cutoffId = Date.now() - ADMIN_LOG_RETENTION_MS;
+      // IDs are generated as Date.now() * 1000 + a small random offset (see
+      // generateLogId in adminPaperJobs.js), so the cutoff must be scaled the
+      // same way - otherwise every id looks "newer" than the cutoff forever,
+      // regardless of true age, and nothing ever gets cleaned up.
+      const cutoffId = (Date.now() - ADMIN_LOG_RETENTION_MS) * 1000;
       supabaseRequest("admin_logs", { method: "DELETE", query: `id=lt.${cutoffId}` })
         .catch((err) => console.error("Old Supabase log cleanup failed:", err.message));
 
@@ -72,7 +110,8 @@ function createAdminLogService() {
         spec: normalizeText(row.spec, 100),
         semester: normalizeText(row.semester, 30),
         exam: normalizeText(row.exam, 30),
-        name: normalizeText(row.name, 160)
+        name: normalizeText(row.name, 160),
+        adminName: normalizeText(row.admin_name, 100)
       }));
     } catch (err) {
       console.error("Supabase logs fetch failed:", err.message);
@@ -94,12 +133,38 @@ function createAdminLogService() {
           spec: normalizeText(logData.spec || "-", 100),
           semester: normalizeText(logData.semester || "-", 30),
           exam: normalizeText(logData.exam || "-", 30),
-          name: normalizeText(logData.name || "-", 160)
+          name: normalizeText(logData.name || "-", 160),
+          admin_name: normalizeText(logData.adminName || "-", 100)
         }
       });
     } catch (err) {
       console.error("Supabase log insert crash:", err.message);
     }
+  }
+
+  // Column order MUST match the "Logs" tab header row exactly:
+  // ID | Course | Year | Spec | Sem | Exam | Status | Date | Name | Admin
+  async function appendAdminLogToSheet(logData) {
+    const sheets = await getServiceSheets();
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: "Logs!A:J",
+      valueInputOption: SHEET_WRITE_MODE,
+      requestBody: {
+        values: [[
+          logData.id,
+          sheetCell(logData.course || "-", 60),
+          sheetCell(logData.year || "-", 30),
+          sheetCell(logData.spec || "-", 100),
+          sheetCell(logData.semester || "-", 30),
+          sheetCell(logData.exam || "-", 30),
+          sheetCell(logData.status || "-", 30),
+          sheetCell(logData.date || "-", 40),
+          sheetCell(logData.name || "-", 160),
+          sheetCell(logData.adminName || "-", 100)
+        ]]
+      }
+    });
   }
 
   async function ensureAssistantSheetTab(sheets) {
@@ -150,7 +215,7 @@ function createAdminLogService() {
 
   async function clearAdminLogsSheet() {
     const sheets = await getServiceSheets();
-    await sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range: "Logs!A2:I" });
+    await sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range: "Logs!A2:J" });
   }
 
   async function deleteAdminLogsFromSheet(ids) {
@@ -161,9 +226,9 @@ function createAdminLogService() {
     if (safeIds.size === 0) return;
 
     const sheets = await getServiceSheets();
-    const response = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: "Logs!A2:I" });
+    const response = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: "Logs!A2:J" });
     const remainingRows = (response.data.values || []).filter((row) => !safeIds.has(String(Number(row[0]) || 0)));
-    await sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range: "Logs!A2:I" });
+    await sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range: "Logs!A2:J" });
     if (remainingRows.length > 0) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID,
@@ -174,14 +239,26 @@ function createAdminLogService() {
     }
   }
 
+  async function getStudentQueryInsights({ days = 30 } = {}) {
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const rows = await supabaseSelectAll("student_queries", {
+      select: "question,status,paper_name,created_at",
+      query: `created_at=gte.${cutoffDate}`,
+      order: "created_at.desc"
+    });
+    return { windowDays: days, ...computeStudentQueryInsights(rows || []) };
+  }
+
   return {
     sheetCell,
     saveAssistantRequestLog,
     getAdminLogsFromSupabase,
     appendAdminLogToSupabase,
+    appendAdminLogToSheet,
     clearAdminLogsSheet,
-    deleteAdminLogsFromSheet
+    deleteAdminLogsFromSheet,
+    getStudentQueryInsights
   };
 }
 
-module.exports = { createAdminLogService, sheetCell, sheetRange };
+module.exports = { createAdminLogService, sheetCell, sheetRange, computeStudentQueryInsights };

@@ -1,5 +1,4 @@
 const { sanitizePaperText, safePaperUrl } = require("../../utils/helpers");
-const { hasAllPaperFields, hasPaperSlotFields } = require("./paperFields");
 
 function parseSheetRowIndex(index, rows = []) {
   const rowIndex = Number(index);
@@ -31,12 +30,9 @@ function rowMatchesPaperSlot(row = [], paper = {}) {
 }
 
 function resolveExpectedSheetRowIndex(index, rows = [], expectedPaper = {}) {
-  if (!hasPaperSlotFields(expectedPaper)) return null;
-
   const rowIndex = parseSheetRowIndex(index, rows);
   if (rowIndex && rowMatchesPaperSlot(rows[rowIndex - 1], expectedPaper)) return rowIndex;
 
-  if (!hasAllPaperFields(expectedPaper)) return null;
   for (let i = 1; i < rows.length; i++) {
     if (rowMatchesPaper(rows[i], expectedPaper)) return i + 1;
   }
@@ -45,7 +41,7 @@ function resolveExpectedSheetRowIndex(index, rows = [], expectedPaper = {}) {
 }
 
 function paperMatchesExpectedSnapshot(existingPaper, expectedPaper) {
-  if (!existingPaper || !hasAllPaperFields(expectedPaper)) return false;
+  if (!existingPaper) return false;
   return rowMatchesPaper([
     existingPaper.course,
     existingPaper.year,
@@ -85,6 +81,15 @@ function isAdminSheetRow(paper = {}) {
   return paper.course && paper.year && paper.sem && paper.exam;
 }
 
+// Stricter than isAdminSheetRow: used only when importing rows from the sheet
+// back into Supabase (the "Fetch To PU-Site" restore), so incomplete rows
+// (e.g. blank name) already in the sheet don't get reintroduced into the
+// live database. The admin's live paper list intentionally stays lenient
+// (isAdminSheetRow) so already-broken rows remain visible and manageable.
+function isCompleteSheetRow(paper = {}) {
+  return Boolean(paper.course && paper.year && paper.sem && paper.exam && paper.name);
+}
+
 function parsePublishedSheetRows(text) {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}") + 1;
@@ -104,5 +109,6 @@ module.exports = {
   paperFromSheetRow,
   isPublicPaper,
   isAdminSheetRow,
+  isCompleteSheetRow,
   parsePublishedSheetRows
 };

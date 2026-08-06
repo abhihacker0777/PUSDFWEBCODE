@@ -7,6 +7,7 @@ import useAssistantSettings from "./useAssistantSettings";
 import useManagedAdmins from "./useManagedAdmins";
 import usePaperDashboard from "./usePaperDashboard";
 import useStudentQueries from "./useStudentQueries";
+import useQueryInsights from "./useQueryInsights";
 
 export default function useAdminPageController() {
   const session = useAdminSession();
@@ -18,6 +19,7 @@ export default function useAdminPageController() {
     authUser: session.authUser,
     canMonitor: permissions.canMonitor
   });
+  const queryInsights = useQueryInsights();
   const papers = usePaperDashboard({
     canCreatePapers: permissions.canCreatePapers,
     canEditPapers: permissions.canEditPapers,
@@ -110,6 +112,15 @@ export default function useAdminPageController() {
     handleBlockUser: assistant.handleBlockUser
   };
 
+  const insightsProps = {
+    insights: queryInsights.insights,
+    insightsWindowDays: queryInsights.insightsWindowDays,
+    insightsLoading: queryInsights.insightsLoading,
+    insightsError: queryInsights.insightsError,
+    fetchInsights: queryInsights.fetchInsights,
+    changeInsightsWindow: queryInsights.changeInsightsWindow
+  };
+
   const modalProps = {
     deleteConfirm: papers.deleteConfirm,
     setDeleteConfirm: papers.setDeleteConfirm,
@@ -136,8 +147,10 @@ export default function useAdminPageController() {
     sidebarProps: chrome.sidebarProps,
     headerProps: chrome.headerProps,
     dashboardProps,
+    bulkUploadProps: papers.bulkUploadProps,
     recentActionsProps,
     studentQueriesProps,
+    insightsProps,
     assistantSettingsProps: assistant.assistantSettingsProps,
     adminUsersPanelProps: managedAdmins.adminUsersPanelProps,
     modalProps

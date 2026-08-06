@@ -85,6 +85,12 @@ export default function useLoginController() {
         return;
       }
 
+      if (response.status === 403 && data.code === "ADMIN_IP_RESTRICTED") {
+        setError("Main admin access is restricted to specific networks, and this connection isn't one of them. Try again from an approved network, or contact whoever manages the allow-list.");
+        resetCaptcha();
+        return;
+      }
+
       if (data.success) {
         setRetrySeconds(0);
         setCaptchaRequired(false);

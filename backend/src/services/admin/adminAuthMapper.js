@@ -25,7 +25,8 @@ function isOwnerAdminRecord(record = {}) {
   );
 }
 
-function toPublicAdminUser(record = {}) {
+function toPublicAdminUser(record) {
+  record = record || {};
   const loginIdentifier = normalizeAuthIdentifier(record.login_identifier || record.loginIdentifier || "");
   const email = normalizeAuthIdentifier(record.email || "");
   const authEmail = normalizeAuthIdentifier(record.auth_email || record.authEmail || "");
@@ -51,6 +52,7 @@ function toPublicAdminUser(record = {}) {
 }
 
 function hasAdminPermission(admin, permission) {
+  if (!admin) return false;
   return toPublicAdminUser(admin).permissions.includes(permission);
 }
 

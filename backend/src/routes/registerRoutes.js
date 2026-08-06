@@ -5,6 +5,7 @@ const { createAdminUserRoutes } = require("./adminUserRoutes");
 const { createAssistantRoutes } = require("./assistantRoutes");
 const { createAuthRoutes } = require("./authRoutes");
 const { createPaperRoutes } = require("./paperRoutes");
+const { createWebhookRoutes } = require("./webhookRoutes");
 
 function registerRoutes(app, dependencies) {
   const {
@@ -24,15 +25,24 @@ function registerRoutes(app, dependencies) {
   app.use(createAuthRoutes({ verifyToken, requireOwnerAdminIp }));
   app.use(createAdminUserRoutes({ verifyToken, requireOwnerAdminIp, requireOwnerAdmin }));
 
+  app.use(createWebhookRoutes({
+    controllerDependencies: {
+      mirrorPaperToSheet: paper.mirrorPaperToSheet,
+      mirrorDeletePaperFromSheet: paper.mirrorDeletePaperFromSheet,
+      paperFromSupabaseRow: paper.paperFromSupabaseRow,
+      invalidatePapersCache: paper.invalidatePapersCache
+    }
+  }));
+
   app.use(createAdminLogRoutes({
     verifyToken,
     requireOwnerAdminIp,
     requirePermission,
     controllerDependencies: {
       appendAdminLogToSupabase: adminLogs.appendAdminLogToSupabase,
+      appendAdminLogToSheet: adminLogs.appendAdminLogToSheet,
       getAdminLogsFromSupabase: adminLogs.getAdminLogsFromSupabase,
-      getServiceSheets: google.getServiceSheets,
-      sheetCell: adminLogs.sheetCell,
+      getStudentQueryInsights: adminLogs.getStudentQueryInsights,
       supabaseRequest: supabase.supabaseRequest,
       supabaseSelectAll: supabase.supabaseSelectAll
     }
@@ -58,6 +68,8 @@ function registerRoutes(app, dependencies) {
     requireOwnerAdminIp,
     requirePermission,
     controllerDependencies: {
+      appendAdminLogToSupabase: adminLogs.appendAdminLogToSupabase,
+      appendAdminLogToSheet: adminLogs.appendAdminLogToSheet,
       deleteSupabasePaper: paper.deleteSupabasePaper,
       extractDriveFileId: drive.extractDriveFileId,
       fetchAdminPapersFromPublishedSheet: paper.fetchAdminPapersFromPublishedSheet,
@@ -67,6 +79,7 @@ function registerRoutes(app, dependencies) {
       getSheetRows: paper.getSheetRows,
       getSupabasePaperById: paper.getSupabasePaperById,
       hasAdminPermission,
+      hasAllPaperFields: paper.hasAllPaperFields,
       insertSupabasePaper: paper.insertSupabasePaper,
       invalidatePapersCache: paper.invalidatePapersCache,
       isAdminSheetRow: paper.isAdminSheetRow,

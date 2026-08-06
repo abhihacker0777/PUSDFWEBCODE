@@ -35,10 +35,11 @@ export const PaginationFooter = ({ total, currentPage, displayCount, setCurrentP
   );
 };
 
-export const CustomDropdown = ({ id, label, options, value, setValue, openDropdown, setOpenDropdown, disabled, customWidth, customHeight }) => {
+export const CustomDropdown = ({ id, label, options, value, setValue, openDropdown, setOpenDropdown, disabled, customWidth, customHeight, searchable }) => {
   const isOpen = openDropdown === id && !disabled; 
   const [isAdding, setIsAdding] = useState(false);
   const [draftValue, setDraftValue] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const commitDraftValue = () => {
     const nextValue = draftValue.trim().slice(0, 100);
@@ -51,6 +52,10 @@ export const CustomDropdown = ({ id, label, options, value, setValue, openDropdo
     setIsAdding(false);
     setDraftValue("");
   };
+
+  const visibleOptions = searchable && searchTerm.trim()
+    ? (options || []).filter((item) => String(item).toLowerCase().includes(searchTerm.trim().toLowerCase()))
+    : (options || []);
 
   if (isAdding) {
     return (
@@ -82,7 +87,7 @@ export const CustomDropdown = ({ id, label, options, value, setValue, openDropdo
     <div className="relative w-full">
       <button
         type="button" disabled={disabled}
-        onClick={(e) => { e.stopPropagation(); if (!disabled) setOpenDropdown(isOpen ? null : id); }}
+        onClick={(e) => { e.stopPropagation(); if (!disabled) { setSearchTerm(""); setOpenDropdown(isOpen ? null : id); } }}
         className={`w-full border rounded-lg px-4 py-2 text-base font-medium text-center shadow-sm transition-colors ${disabled ? "bg-white text-[#374151] cursor-not-allowed whitespace-nowrap" : value ? "bg-white border-[#ffc107] text-[#215ea0] truncate" : "bg-white border-[#ffc107] text-[#374151] hover:bg-gray-50 whitespace-nowrap"}`}
         title={value || label}
       >
@@ -90,8 +95,23 @@ export const CustomDropdown = ({ id, label, options, value, setValue, openDropdo
       </button>
       {isOpen && (
         <div className={`absolute left-0 top-full mt-1 bg-[#cbe0fe] rounded-lg shadow-2xl z-[9999] border border-blue-200 overflow-hidden ${customWidth ? customWidth : 'w-full'}`}>
+          {searchable && (
+            <div className="p-2 border-b border-blue-200/70" onClick={(e) => e.stopPropagation()}>
+              <input
+                autoFocus
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={`Search ${label.toLowerCase()}...`}
+                className="w-full border border-blue-300 rounded-md px-3 py-1.5 text-sm outline-none bg-white text-[#374151] placeholder:text-gray-400"
+              />
+            </div>
+          )}
           <div className={`${customHeight ? customHeight : 'max-h-[150px]'} overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] [&::-webkit-scrollbar-thumb]:rounded-full`}>
-            {(options || []).map((item, i) => (
+            {visibleOptions.length === 0 && (
+              <div className="px-4 py-3 text-sm text-gray-500 text-center">No matches</div>
+            )}
+            {visibleOptions.map((item, i) => (
               <button type="button" key={i} onClick={() => { if (String(item).startsWith("+ Add New")) { setDraftValue(""); setIsAdding(true); } else { setValue(item); } setOpenDropdown(null); }} className="w-full text-left px-4 py-3 hover:bg-blue-300 cursor-pointer text-sm md:text-base text-gray-800 transition-colors border-b border-blue-200/50 last:border-0" title={item}>
                 {item}
               </button>

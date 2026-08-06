@@ -19,7 +19,7 @@ const ROLE_PERMISSIONS = {
     "logs:write"
   ],
   editor: ["papers:read", "papers:update", "assistant:read", "assistant:reply:update"],
-  view: ["monitor:read"]
+  view: ["papers:read", "assistant:read", "monitor:read"]
 };
 
 function normalizeAdminRole(role) {

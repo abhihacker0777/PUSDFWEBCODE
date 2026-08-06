@@ -74,6 +74,9 @@ export const deleteCustomReply = (keyword) =>
 export const getStudentQueries = () =>
   fetch(`${BACKEND_URL}/admin/queries`, { credentials: "include", cache: "no-store" });
 
+export const getQueryInsights = (days = 30) =>
+  fetch(`${BACKEND_URL}/admin/queries/insights?days=${days}`, { credentials: "include", cache: "no-store" });
+
 export const getAdminUsers = () =>
   fetch(`${BACKEND_URL}/admin/users`, { credentials: "include", cache: "no-store" });
 

@@ -4,6 +4,7 @@ import { ADD_SEMESTER, ADD_SPEC } from "./adminConstants";
 import { cleanStatusMessage, goToLogin, isAdminSessionExpired, readApiResponse } from "./adminHelpers";
 import { createPaperActions } from "./paperActions";
 import { buildPaperOptions } from "./paperOptions";
+import useBulkPaperUpload from "./useBulkPaperUpload";
 
 export default function usePaperDashboard({
   canCreatePapers,
@@ -96,6 +97,17 @@ export default function usePaperDashboard({
     });
   }, [selectedPaperIndex]);
 
+  const bulkUpload = useBulkPaperUpload({
+    allPapers,
+    customSpecsByCourse,
+    customSemestersByYear,
+    rememberCustomSpec,
+    rememberCustomSemester,
+    canCreatePapers,
+    fetchPapers,
+    refreshLogs
+  });
+
   const dropdownData = useMemo(() => buildPaperOptions({
     allPapers,
     course,
@@ -152,6 +164,7 @@ export default function usePaperDashboard({
     syncConfirm,
     setSyncConfirm,
     executeSync: actions.executeSync,
+    bulkUploadProps: bulkUpload,
     paperActionProps: {
       setCourse,
       setYear,

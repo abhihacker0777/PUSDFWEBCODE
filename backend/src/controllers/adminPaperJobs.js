@@ -1,8 +1,37 @@
 const fs = require("fs");
-const { SHEET_ID, SHEET_WRITE_MODE } = require("../config/env");
+const { SHEET_ID, SHEET_WRITE_MODE, DISABLE_INLINE_SHEET_MIRROR } = require("../config/env");
 
 function removeUploadedFile(file) {
   if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+}
+
+class PaperConflictError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PaperConflictError";
+    this.code = "PAPER_CONFLICT";
+  }
+}
+
+class PaperNotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PaperNotFoundError";
+    this.code = "PAPER_NOT_FOUND";
+  }
+}
+
+// admin_logs.id is a plain bigint primary key with no auto-increment, so the
+// writer has to supply a unique value itself. Millisecond timestamp + a few
+// random digits keeps this comfortably within Number.isSafeInteger while
+// making same-millisecond collisions between two admin actions extremely
+// unlikely.
+function generateLogId() {
+  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+}
+
+function formatLogDate() {
+  return new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
 }
 
 function createAdminPaperJobs({
@@ -22,18 +51,53 @@ function createAdminPaperJobs({
   getSheetRows,
   resolveExpectedSheetRowIndex,
   deleteSupabasePaper,
-  mirrorDeletePaperFromSheet
+  mirrorDeletePaperFromSheet,
+  appendAdminLogToSupabase,
+  appendAdminLogToSheet
 }) {
-  async function runSupabaseUpload({ fileLink, driveFileId, index, paper, expectedPaper }) {
+  async function logPaperAction(status, index, paper, adminName) {
+    if (!paper) return;
+    const logData = {
+      id: generateLogId(),
+      index,
+      date: formatLogDate(),
+      status,
+      course: paper.course,
+      year: paper.year,
+      spec: paper.spec,
+      semester: paper.sem,
+      exam: paper.exam,
+      name: paper.name,
+      adminName
+    };
+
+    if (appendAdminLogToSupabase) {
+      try {
+        await appendAdminLogToSupabase(logData);
+      } catch (logErr) {
+        console.error("Admin log write failed:", logErr.message);
+      }
+    }
+
+    if (appendAdminLogToSheet) {
+      try {
+        await appendAdminLogToSheet(logData);
+      } catch (sheetLogErr) {
+        console.error("Admin log sheet backup failed:", sheetLogErr.message);
+      }
+    }
+  }
+
+  async function runSupabaseUpload({ fileLink, driveFileId, index, paper, expectedPaper, adminName }) {
     let savedPaper = null;
+    let logStatus = "Updated";
     const allPapers = await fetchSupabasePapers({ publicOnly: false });
 
     if (index) {
       const existingPaper = await getSupabasePaperById(index);
-      if (!existingPaper) return;
+      if (!existingPaper) throw new PaperNotFoundError("Paper Not Found");
       if (!paperMatchesExpectedSnapshot(existingPaper, expectedPaper)) {
-        console.warn("Rejected stale or mismatched paper update request.");
-        return;
+        throw new PaperConflictError("Paper changed. Refresh and try again.");
       }
 
       savedPaper = await updateSupabasePaper(index, paper, {
@@ -63,20 +127,25 @@ function createAdminPaperJobs({
           link: fileLink || "",
           driveFileId: driveFileId || ""
         });
+        logStatus = "Uploaded";
       }
     }
 
     invalidatePapersCache();
     const paperToMirror = savedPaper || { ...paper, link: fileLink || "", driveFileId: driveFileId || "" };
-    mirrorPaperToSheet(paperToMirror, index ? expectedPaper : null).catch(console.error);
+    if (!DISABLE_INLINE_SHEET_MIRROR) {
+      mirrorPaperToSheet(paperToMirror, index ? expectedPaper : null).catch(console.error);
+    }
+    await logPaperAction(logStatus, savedPaper?.id || index, paper, adminName);
+    return { paper: savedPaper || paperToMirror, status: logStatus };
   }
 
-  async function runSheetUpload({ fileLink, index, paper, expectedPaper }) {
+  async function runSheetUpload({ fileLink, index, paper, expectedPaper, adminName }) {
     const { sheets, rows } = await getSheetRows();
 
     if (index) {
       const rowIndex = resolveExpectedSheetRowIndex(index, rows, expectedPaper);
-      if (!rowIndex) return;
+      if (!rowIndex) throw new PaperConflictError("Paper changed. Refresh and try again.");
 
       await sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID,
@@ -85,10 +154,12 @@ function createAdminPaperJobs({
         requestBody: { values: [[paper.course, paper.year, paper.spec, paper.sem, paper.exam, paper.name, fileLink || rows[rowIndex - 1][6] || ""]] }
       });
       invalidatePapersCache();
-      return;
+      await logPaperAction("Updated", rowIndex, paper, adminName);
+      return { paper: { ...paper, link: fileLink || rows[rowIndex - 1][6] || "" }, status: "Updated" };
     }
 
     let found = false;
+    let foundRowIndex = null;
     const blankSlotExists = rows.some((row, i) => i > 0 && rowMatchesPaperSlot(row, paper) && rowHasBlankPaperData(row));
     const duplicateRowIndexes = [];
 
@@ -106,6 +177,7 @@ function createAdminPaperJobs({
           requestBody: { values: [[fileLink || row[6]]] }
         });
         found = true;
+        foundRowIndex = i + 1;
         break;
       }
     }
@@ -127,6 +199,7 @@ function createAdminPaperJobs({
             });
           }
           found = true;
+          foundRowIndex = i + 1;
           break;
         }
       }
@@ -141,9 +214,13 @@ function createAdminPaperJobs({
       });
     }
     invalidatePapersCache();
+    const logStatus = found ? "Updated" : "Uploaded";
+    await logPaperAction(logStatus, foundRowIndex, paper, adminName);
+    return { paper: { ...paper, link: fileLink || "" }, status: logStatus };
   }
 
-  async function runUploadPaperJob({ file, index, paper, expectedPaper }) {
+
+  async function runUploadPaperJob({ file, index, paper, expectedPaper, adminName }) {
     try {
       let fileLink = null;
       let driveFileId = null;
@@ -155,54 +232,51 @@ function createAdminPaperJobs({
       }
 
       if (isSupabaseConfigured()) {
-        await runSupabaseUpload({ fileLink, driveFileId, index, paper, expectedPaper });
-      } else {
-        await runSheetUpload({ fileLink, index, paper, expectedPaper });
+        return await runSupabaseUpload({ fileLink, driveFileId, index, paper, expectedPaper, adminName });
       }
-    } catch (backgroundErr) {
-      console.error("Background Upload failed:", backgroundErr.message);
+      return await runSheetUpload({ fileLink, index, paper, expectedPaper, adminName });
     } finally {
       removeUploadedFile(file);
     }
   }
 
-  async function runDeletePaperJob({ index, expectedPaper }) {
-    try {
-      if (isSupabaseConfigured()) {
-        const existingPaper = await getSupabasePaperById(index);
-        if (!existingPaper) return;
-        if (!paperMatchesExpectedSnapshot(existingPaper, expectedPaper)) {
-          console.warn("Rejected stale or mismatched paper delete request.");
-          return;
-        }
-
-        await deleteSupabasePaper(index);
-        mirrorDeletePaperFromSheet(expectedPaper).catch(console.error);
-        invalidatePapersCache();
-        return;
+  async function runDeletePaperJob({ index, expectedPaper, adminName }) {
+    if (isSupabaseConfigured()) {
+      const existingPaper = await getSupabasePaperById(index);
+      if (!existingPaper) throw new PaperNotFoundError("Paper Not Found");
+      if (!paperMatchesExpectedSnapshot(existingPaper, expectedPaper)) {
+        throw new PaperConflictError("Paper changed. Refresh and try again.");
       }
 
-      const { sheets, rows } = await getSheetRows();
-      const rowIndex = resolveExpectedSheetRowIndex(index, rows, expectedPaper);
-      if (!rowIndex) return;
-
-      const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
-      const sheetId = spreadsheet.data.sheets[0].properties.sheetId;
-
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: SHEET_ID,
-        requestBody: {
-          requests: [{
-            deleteDimension: {
-              range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex }
-            }
-          }]
-        }
-      });
+      await deleteSupabasePaper(index);
+      if (!DISABLE_INLINE_SHEET_MIRROR) {
+        mirrorDeletePaperFromSheet(expectedPaper).catch(console.error);
+      }
       invalidatePapersCache();
-    } catch (backgroundErr) {
-      console.error("Background Delete failed:", backgroundErr.message);
+      await logPaperAction("Deleted", index, expectedPaper, adminName);
+      return { status: "Deleted" };
     }
+
+    const { sheets, rows } = await getSheetRows();
+    const rowIndex = resolveExpectedSheetRowIndex(index, rows, expectedPaper);
+    if (!rowIndex) throw new PaperConflictError("Paper changed. Refresh and try again.");
+
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+    const sheetId = spreadsheet.data.sheets[0].properties.sheetId;
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex }
+          }
+        }]
+      }
+    });
+    invalidatePapersCache();
+    await logPaperAction("Deleted", rowIndex, expectedPaper, adminName);
+    return { status: "Deleted" };
   }
 
   return {
@@ -211,4 +285,4 @@ function createAdminPaperJobs({
   };
 }
 
-module.exports = { createAdminPaperJobs, removeUploadedFile };
+module.exports = { createAdminPaperJobs, removeUploadedFile, PaperConflictError, PaperNotFoundError, generateLogId, formatLogDate };

@@ -1,13 +1,12 @@
 const { normalizeText, sanitizeFreeText } = require("../utils/helpers");
-const { SHEET_ID, SHEET_WRITE_MODE } = require("../config/env");
 
 function createAdminLogController({
   getAdminLogsFromSupabase,
   supabaseSelectAll,
   appendAdminLogToSupabase,
-  getServiceSheets,
-  sheetCell,
-  supabaseRequest
+  appendAdminLogToSheet,
+  supabaseRequest,
+  getStudentQueryInsights
 }) {
   async function listLogs(req, res) {
     try {
@@ -38,6 +37,17 @@ function createAdminLogController({
     }
   }
 
+  async function getQueryInsights(req, res) {
+    try {
+      const requestedDays = Number(req.query.days);
+      const days = Number.isSafeInteger(requestedDays) && requestedDays > 0 && requestedDays <= 365 ? requestedDays : 30;
+      res.json(await getStudentQueryInsights({ days }));
+    } catch (err) {
+      console.error("Query insights fetch failed:", err.message);
+      res.status(500).json({ totalQueries: 0, statusCounts: {}, notFoundRate: 0, topNotFoundQuestions: [], topFoundPapers: [] });
+    }
+  }
+
   async function saveLog(req, res) {
     try {
       const id = Number(req.body.id);
@@ -56,31 +66,14 @@ function createAdminLogController({
         spec: normalizeText(req.body.spec, 100),
         semester: normalizeText(req.body.semester, 30),
         exam: normalizeText(req.body.exam, 30),
-        name: normalizeText(req.body.name, 160)
+        name: normalizeText(req.body.name, 160),
+        adminName: req.admin?.displayName
       };
 
       await appendAdminLogToSupabase(logData);
 
-      const sheetRowData = [
-        logData.id,
-        sheetCell(logData.date, 40),
-        sheetCell(logData.status, 30),
-        sheetCell(logData.course || "-", 60),
-        sheetCell(logData.year || "-", 30),
-        sheetCell(logData.spec || "-", 100),
-        sheetCell(logData.semester || "-", 30),
-        sheetCell(logData.exam || "-", 30),
-        sheetCell(logData.name || "-", 160)
-      ];
-
       try {
-        const sheets = await getServiceSheets();
-        await sheets.spreadsheets.values.append({
-          spreadsheetId: SHEET_ID,
-          range: "Logs!A:I",
-          valueInputOption: SHEET_WRITE_MODE,
-          requestBody: { values: [sheetRowData] }
-        });
+        await appendAdminLogToSheet(logData);
       } catch (sheetErr) {
         console.error("Sheet backup failed:", sheetErr.message);
       }
@@ -141,6 +134,7 @@ function createAdminLogController({
   return {
     listLogs,
     listStudentQueries,
+    getQueryInsights,
     saveLog,
     clearLogs,
     deleteLogs

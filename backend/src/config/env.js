@@ -58,6 +58,14 @@ const LOGIN_MAX_PROGRESSIVE_DELAY_MS = 4000;
 const REDIS_URL = process.env.REDIS_URL || "";
 const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET || "";
 const CAPTCHA_VERIFY_URL = process.env.CAPTCHA_VERIFY_URL;
+// Shared secret Supabase includes as a custom header on Database Webhook
+// calls (Database -> Webhooks in the Supabase dashboard). Leave unset to
+// keep the webhook endpoint disabled (it responds 503 to everything).
+const SUPABASE_WEBHOOK_SECRET = process.env.SUPABASE_WEBHOOK_SECRET || "";
+// Once the webhook is confirmed working, set this to "true" to stop also
+// mirroring inline during upload/delete - otherwise both paths run and you
+// get the row mirrored twice. Defaults to inline-only (current behavior).
+const DISABLE_INLINE_SHEET_MIRROR = String(process.env.DISABLE_INLINE_SHEET_MIRROR || "").toLowerCase() === "true";
 const ADMIN_ALLOWED_IPS = (process.env.ADMIN_ALLOWED_IPS || "")
   .split(",")
   .map((ip) => normalizeIp(ip))
@@ -194,5 +202,7 @@ module.exports = {
   REDIS_URL,
   CAPTCHA_SECRET,
   CAPTCHA_VERIFY_URL,
+  SUPABASE_WEBHOOK_SECRET,
+  DISABLE_INLINE_SHEET_MIRROR,
   ADMIN_ALLOWED_IPS
 };

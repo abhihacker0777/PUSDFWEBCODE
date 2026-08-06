@@ -51,7 +51,7 @@ const DashboardPage = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 overflow-visible">
               <CustomDropdown id="sem" label="Semester" options={semesters} value={semester} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[92px]" setValue={(val) => { setSemester(val); setExam(""); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
               <CustomDropdown id="exam" label="Exam" options={exams} value={exam} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[92px]" setValue={(val) => { setExam(val); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
-              <CustomDropdown id="paper" label="Select to Update" disabled={!exam} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[92px]" options={[...(canCreatePapers ? ["🆕 Create New"] : []), ...papers.map(p => p.name)]} value={paper} setValue={(val) => { if (val === "🆕 Create New") { setPaper("Paper Name ➡️"); setPaperName(""); setSelectedPaperIndex(null); } else { const sel = papers.find(p => p.name === val); setPaper(val); setPaperName(val); setSelectedPaperIndex(sel ? sel.index : null); } }} />
+              <CustomDropdown id="paper" label="Select to Update" searchable disabled={!exam} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[92px]" options={[...(canCreatePapers ? ["🆕 Create New"] : []), ...papers.map(p => p.name)]} value={paper} setValue={(val) => { if (val === "🆕 Create New") { setPaper("Paper Name ➡️"); setPaperName(""); setSelectedPaperIndex(null); } else { const sel = papers.find(p => p.name === val); setPaper(val); setPaperName(val); setSelectedPaperIndex(sel ? sel.index : null); } }} />
               <input type="text" placeholder="Paper Name" value={paperName} disabled={!paper} onChange={(e) => setPaperName(e.target.value)} className={`w-full border rounded-lg px-4 py-2 text-base font-medium shadow-sm outline-none transition-all placeholder:text-[#374151] ${!paper ? "bg-white cursor-not-allowed" : "bg-white border-[#ffc107]"} ${paperName ? "text-[#215ea0]" : "text-[#374151]"}`} />
             </div>
           </div>
@@ -68,7 +68,7 @@ const DashboardPage = ({
             {canDeletePapers && <button onClick={handleDelete} className="w-full sm:w-auto bg-[#E31E24] hover:bg-[#c11018] text-white px-6 py-2 rounded shadow-sm font-medium">🗑️ Delete</button>}
           </div>
           <div className="w-full lg:flex-1 flex items-center justify-center lg:justify-end order-3">
-             {canSyncPapers && <button onClick={handleSyncToWebsite} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded shadow-sm font-medium transition-colors">🔄 Fetch To PU-Site</button>}
+             {canSyncPapers && <button onClick={handleSyncToWebsite} className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded shadow-sm font-medium transition-colors" title="Deletes every paper in the live database and replaces it with whatever is currently in the Google Sheet backup.">⚠️ Restore From Sheet Backup</button>}
           </div>
         </div>
       </div>

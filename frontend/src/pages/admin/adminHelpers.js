@@ -25,7 +25,7 @@ export const readApiResponse = async (response) => {
   return { message: await response.text() };
 };
 
-export const isAdminSessionExpired = (response) => response.status === 401 || response.status === 403;
+export { isAdminSessionExpired } from "./adminResponseHelpers.js";
 export const goToLogin = () => {
   window.location.href = "/login";
 };

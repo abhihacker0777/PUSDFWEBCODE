@@ -7,6 +7,7 @@ const { sanitizePaperText } = require("../utils/helpers");
 const {
   getPaperPayload,
   getExpectedPaperPayload,
+  hasAllPaperFields,
   paperMatchesExpectedSnapshot,
   rowMatchesPaper,
   rowMatchesPaperSlot,
@@ -19,6 +20,7 @@ const {
 } = require("../models/paperModel");
 const { createPaperSheetService } = require("./papers/paperSheetService");
 const paperRepository = require("./papers/paperSupabaseRepository");
+const { paperFromSupabaseRow } = require("../models/papers/paperSupabaseRows");
 
 function createPaperService() {
   const sheetService = createPaperSheetService();
@@ -116,11 +118,13 @@ function createPaperService() {
     ...paperRepository,
     getPaperPayload,
     getExpectedPaperPayload,
+    hasAllPaperFields,
     paperMatchesExpectedSnapshot,
     rowMatchesPaper,
     rowMatchesPaperSlot,
     rowHasBlankPaperData,
     paperFromSheetRow,
+    paperFromSupabaseRow,
     isAdminSheetRow,
     resolveExpectedSheetRowIndex,
     invalidatePapersCache,

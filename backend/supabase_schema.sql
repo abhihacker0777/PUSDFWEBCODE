@@ -41,8 +41,12 @@ create table if not exists public.admin_logs (
   semester text,
   exam text,
   name text,
+  admin_name text,
   created_at timestamptz not null default now()
 );
+
+-- Run this on an existing database that already has admin_logs without the column:
+-- alter table public.admin_logs add column if not exists admin_name text;
 
 create index if not exists admin_logs_created_idx
   on public.admin_logs (created_at desc);

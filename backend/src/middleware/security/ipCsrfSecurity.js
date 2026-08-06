@@ -30,14 +30,20 @@ function getRetryAfterSeconds(req, windowMs) {
 }
 
 function getClientIp(req) {
+  // req.ip is trust-proxy aware (see app.set("trust proxy", ...) in
+  // appMiddleware.js) and correctly walks X-Forwarded-For from the trusted
+  // side, so a client can't get themselves treated as a different IP by
+  // simply sending their own X-Forwarded-For header. This must stay the
+  // primary source - do not reintroduce raw header parsing above it.
+  const trustedIp = normalizeIp(req.ip);
+  if (trustedIp) return trustedIp;
+
+  // Last-resort fallback only if Express couldn't resolve anything (should
+  // not normally happen once trust proxy is configured for the real
+  // deployment topology).
   const candidates = [
-    req.headers["x-vercel-forwarded-for"],
     req.headers["cf-connecting-ip"],
-    // Vercel forwards the original client IP in `x-vercel-forwarded-for` when proxying
-    req.headers["x-vercel-forwarded-for"],
-    req.headers["x-forwarded-for"],
     req.headers["x-real-ip"],
-    req.ip,
     req.socket?.remoteAddress
   ];
 

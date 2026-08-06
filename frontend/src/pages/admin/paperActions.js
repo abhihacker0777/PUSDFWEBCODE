@@ -18,6 +18,7 @@ export const createPaperActions = ({
   exam,
   paperName,
   selectedPaperIndex,
+  selectedPaper,
   file,
   listDeleteConfirm,
   rememberCustomSpec,
@@ -104,8 +105,8 @@ export const createPaperActions = ({
         sem: semester,
         exam,
         name: paperName.trim(),
-        url: payload.url || "",
-        index: payload.index || selectedPaperIndex || paperName.trim()
+        url: payload.paper?.link || "",
+        index: payload.paper?.id || selectedPaperIndex || paperName.trim()
       });
       clearPapersCache();
       notifyPapersUpdated();

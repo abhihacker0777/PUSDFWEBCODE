@@ -16,6 +16,7 @@ function createAdminLogRoutes({
 
   router.get("/logs", adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("monitor:read"), controller.listLogs);
   router.get("/admin/queries", adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("monitor:read"), controller.listStudentQueries);
+  router.get("/admin/queries/insights", adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("monitor:read"), controller.getQueryInsights);
   router.post("/logs", requireCsrf, adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("papers:update"), controller.saveLog);
   router.delete("/logs/clear", requireCsrf, adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("logs:write"), controller.clearLogs);
   router.post("/logs/delete", requireCsrf, adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("logs:write"), controller.deleteLogs);

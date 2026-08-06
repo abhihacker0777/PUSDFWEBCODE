@@ -1,6 +1,8 @@
 const {
   createAdminPaperJobs,
-  removeUploadedFile
+  removeUploadedFile,
+  PaperConflictError,
+  PaperNotFoundError
 } = require("./adminPaperJobs");
 
 function createAdminPaperController(dependencies) {
@@ -10,6 +12,7 @@ function createAdminPaperController(dependencies) {
     getPaperPayload,
     getExpectedPaperPayload,
     hasAdminPermission,
+    hasAllPaperFields,
     isSupabaseConfigured,
     getSupabasePaperById,
     paperMatchesExpectedSnapshot,
@@ -42,20 +45,36 @@ function createAdminPaperController(dependencies) {
           return res.status(403).send("File upload not permitted");
         }
 
+        if (!hasAllPaperFields(paper)) {
+          removeUploadedFile(req.file);
+          return res.status(400).send("Course, year, specialization, semester, exam and paper name are all required.");
+        }
+
         if (index && isSupabaseConfigured()) {
           const existingPaper = await getSupabasePaperById(index);
-          if (!existingPaper) return res.status(404).send("Paper Not Found");
+          if (!existingPaper) {
+            removeUploadedFile(req.file);
+            return res.status(404).send("Paper Not Found");
+          }
           if (!paperMatchesExpectedSnapshot(existingPaper, expectedPaper)) {
+            removeUploadedFile(req.file);
             return res.status(409).send("Paper changed. Refresh and try again.");
           }
         }
 
-        res.status(202).send("Background Processing Started");
-        jobs.runUploadPaperJob({ file: req.file, index, paper, expectedPaper });
-      } catch (validationErr) {
-        console.error("Upload validation failed:", validationErr.message);
-        res.status(400).send("Upload Error");
+        const result = await jobs.runUploadPaperJob({ file: req.file, index, paper, expectedPaper, adminName: req.admin?.displayName });
+        return res.status(200).json({
+          success: true,
+          message: result.status === "Uploaded" ? "Paper uploaded successfully." : "Paper updated successfully.",
+          status: result.status,
+          paper: result.paper
+        });
+      } catch (uploadErr) {
         removeUploadedFile(req.file);
+        if (uploadErr instanceof PaperConflictError) return res.status(409).send(uploadErr.message);
+        if (uploadErr instanceof PaperNotFoundError) return res.status(404).send(uploadErr.message);
+        console.error("Upload failed:", uploadErr.message);
+        return res.status(500).send("Upload failed. Please try again.");
       }
     });
   }
@@ -75,11 +94,13 @@ function createAdminPaperController(dependencies) {
         }
       }
 
-      res.status(202).send("Background Deletion Started");
-      jobs.runDeletePaperJob({ index, expectedPaper });
+      await jobs.runDeletePaperJob({ index, expectedPaper, adminName: req.admin?.displayName });
+      return res.status(200).json({ success: true, message: "Paper deleted successfully." });
     } catch (err) {
+      if (err instanceof PaperConflictError) return res.status(409).send(err.message);
+      if (err instanceof PaperNotFoundError) return res.status(404).send(err.message);
       console.error("Delete failed:", err.message);
-      res.status(500).send("Delete Failed");
+      return res.status(500).send("Delete Failed");
     }
   }
 

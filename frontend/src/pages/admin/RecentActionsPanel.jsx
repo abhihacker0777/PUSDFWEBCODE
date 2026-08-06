@@ -77,11 +77,12 @@ export default function RecentActionsPanel({
                         <th className="px-4 py-2 text-center text-gray-600 font-semibold">Exam</th> 
                         <th className="px-4 py-2 text-center text-gray-600 font-semibold">Date</th>
                         <th className="px-4 py-2 text-center text-gray-600 font-semibold">Status</th>
+                        <th className="px-4 py-2 text-center text-gray-600 font-semibold">Admin</th>
                         <th className="px-4 py-2 text-center text-gray-600 font-semibold rounded-tr-xl">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {filteredLogs.length === 0 && <tr><td colSpan="8" className="text-center py-8 text-gray-400">No Recent Actions Found.</td></tr>}
+                      {filteredLogs.length === 0 && <tr><td colSpan="9" className="text-center py-8 text-gray-400">No Recent Actions Found.</td></tr>}
                       {filteredLogs.slice((currentPage - 1) * displayCount, currentPage * displayCount).map((row, idx) => {
                         const isSelected = selected.has(row.id);
                         return (
@@ -93,6 +94,7 @@ export default function RecentActionsPanel({
                             <td className="px-4 py-2.5 text-center text-gray-500">{row.exam}</td>
                             <td className="px-4 py-2.5 text-center text-gray-500">{row.date}</td>
                             <td className="px-4 py-2.5 text-center"><span className={`inline-flex items-center justify-center rounded-full text-white text-xs font-semibold px-4 py-1 min-w-[96px] whitespace-nowrap ${row.status === "Deleted" ? "bg-red-500" : row.status === "Updated" ? "bg-blue-500" : "bg-green-500"}`}>{row.status}</span></td>
+                            <td className="px-4 py-2.5 text-center text-gray-500">{row.adminName || "-"}</td>
                             <td className="px-4 py-2.5 text-center">
                               {canEditPapers && row.status !== "Deleted" ? (
                                 <div className="relative inline-block">
