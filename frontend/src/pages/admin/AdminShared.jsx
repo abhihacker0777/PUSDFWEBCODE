@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import logo from "../../assets/puupdatelogo.png";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "./AdminIcons";
 import { ROLE_LABELS } from "./adminConstants";
@@ -36,10 +37,13 @@ export const PaginationFooter = ({ total, currentPage, displayCount, setCurrentP
 };
 
 export const CustomDropdown = ({ id, label, options, value, setValue, openDropdown, setOpenDropdown, disabled, customWidth, customHeight, searchable }) => {
-  const isOpen = openDropdown === id && !disabled; 
+  const isOpen = openDropdown === id && !disabled;
   const [isAdding, setIsAdding] = useState(false);
   const [draftValue, setDraftValue] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [menuPosition, setMenuPosition] = useState(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
 
   const commitDraftValue = () => {
     const nextValue = draftValue.trim().slice(0, 100);
@@ -56,6 +60,38 @@ export const CustomDropdown = ({ id, label, options, value, setValue, openDropdo
   const visibleOptions = searchable && searchTerm.trim()
     ? (options || []).filter((item) => String(item).toLowerCase().includes(searchTerm.trim().toLowerCase()))
     : (options || []);
+
+  useLayoutEffect(() => {
+    if (!isOpen || !triggerRef.current) return undefined;
+
+    const updatePosition = () => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      setMenuPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    };
+    updatePosition();
+
+    // Close on scroll anywhere except inside the menu's own option list
+    // (which needs to scroll internally without dismissing itself).
+    const handleScroll = (event) => {
+      if (menuRef.current && menuRef.current.contains(event.target)) return;
+      setOpenDropdown(null);
+    };
+    const handleOutsideClick = (event) => {
+      if (triggerRef.current && triggerRef.current.contains(event.target)) return;
+      if (menuRef.current && menuRef.current.contains(event.target)) return;
+      setOpenDropdown(null);
+    };
+
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", updatePosition);
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", updatePosition);
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isOpen, setOpenDropdown]);
 
   if (isAdding) {
     return (
@@ -86,6 +122,7 @@ export const CustomDropdown = ({ id, label, options, value, setValue, openDropdo
   return (
     <div className="relative w-full">
       <button
+        ref={triggerRef}
         type="button" disabled={disabled}
         onClick={(e) => { e.stopPropagation(); if (!disabled) { setSearchTerm(""); setOpenDropdown(isOpen ? null : id); } }}
         className={`w-full border rounded-lg px-4 py-2 text-base font-medium text-center shadow-sm transition-colors ${disabled ? "bg-white text-[#374151] cursor-not-allowed whitespace-nowrap" : value ? "bg-white border-[#ffc107] text-[#215ea0] truncate" : "bg-white border-[#ffc107] text-[#374151] hover:bg-gray-50 whitespace-nowrap"}`}
@@ -93,10 +130,15 @@ export const CustomDropdown = ({ id, label, options, value, setValue, openDropdo
       >
         {value || label}
       </button>
-      {isOpen && (
-        <div className={`absolute left-0 top-full mt-1 bg-[#cbe0fe] rounded-lg shadow-2xl z-[9999] border border-blue-200 overflow-hidden ${customWidth ? customWidth : 'w-full'}`}>
+      {isOpen && menuPosition && createPortal(
+        <div
+          ref={menuRef}
+          onClick={(e) => e.stopPropagation()}
+          style={{ position: "fixed", top: menuPosition.top, left: menuPosition.left, width: customWidth ? undefined : menuPosition.width }}
+          className={`bg-[#cbe0fe] rounded-lg shadow-2xl z-[9999] border border-blue-200 overflow-hidden ${customWidth || ""}`}
+        >
           {searchable && (
-            <div className="p-2 border-b border-blue-200/70" onClick={(e) => e.stopPropagation()}>
+            <div className="p-2 border-b border-blue-200/70">
               <input
                 autoFocus
                 type="text"
@@ -117,7 +159,8 @@ export const CustomDropdown = ({ id, label, options, value, setValue, openDropdo
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

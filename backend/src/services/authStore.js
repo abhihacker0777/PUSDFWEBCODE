@@ -155,6 +155,21 @@ async function authStoreDel(...keys) {
   await redisUrlPipeline([["DEL", ...keys]]);
 }
 
+// Lightweight liveness check for /health - a bare PING/PONG round trip,
+// nothing that touches real rate-limit or lockout keys.
+async function pingRedis(timeoutMs = 2000) {
+  if (!REDIS_URL) return { ok: false, error: "REDIS_URL not configured" };
+  try {
+    const result = await Promise.race([
+      redisUrlPipeline([["PING"]]),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Redis ping timed out")), timeoutMs))
+    ]);
+    return { ok: result?.[0] === "PONG" };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 module.exports = {
   isRedisUrlConfigured,
   authStoreKey,
@@ -162,5 +177,6 @@ module.exports = {
   authStoreGet,
   authStoreSet,
   authStoreTtl,
-  authStoreDel
+  authStoreDel,
+  pingRedis
 };

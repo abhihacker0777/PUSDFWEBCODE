@@ -1,6 +1,25 @@
 const fs = require("fs");
 const { SHEET_ID, SHEET_WRITE_MODE, DISABLE_INLINE_SHEET_MIRROR } = require("../config/env");
 
+// Thrown when the admin's expected snapshot of a paper no longer matches
+// what's actually stored (someone else changed/deleted it first) - the
+// controller maps this to HTTP 409.
+class PaperConflictError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PaperConflictError";
+  }
+}
+
+// Thrown when the paper id in the request doesn't exist at all - the
+// controller maps this to HTTP 404.
+class PaperNotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PaperNotFoundError";
+  }
+}
+
 function removeUploadedFile(file) {
   if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
 }
@@ -180,10 +199,15 @@ function createAdminPaperJobs({
       await deleteSupabasePaper(index);
       if (!DISABLE_INLINE_SHEET_MIRROR) {
         mirrorDeletePaperFromSheet(expectedPaper).catch(console.error);
-        invalidatePapersCache();
-        return;
       }
+      invalidatePapersCache();
+      return;
+    }
 
+    // Supabase-not-configured fallback: Sheet is the only store, so this
+    // path must run inline and propagate errors like runSheetUpload does
+    // above - it must NOT swallow PaperConflictError/PaperNotFoundError,
+    // or the controller would report "deleted" on a failed delete.
     const { sheets, rows } = await getSheetRows();
     const rowIndex = resolveExpectedSheetRowIndex(index, rows, expectedPaper);
     if (!rowIndex) throw new PaperConflictError("Paper changed. Refresh and try again.");
@@ -191,20 +215,17 @@ function createAdminPaperJobs({
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
     const sheetId = spreadsheet.data.sheets[0].properties.sheetId;
 
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: SHEET_ID,
-        requestBody: {
-          requests: [{
-            deleteDimension: {
-              range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex }
-            }
-          }]
-        }
-      });
-      invalidatePapersCache();
-    } catch (backgroundErr) {
-      console.error("Background Delete failed:", backgroundErr.message);
-    }
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex }
+          }
+        }]
+      }
+    });
+    invalidatePapersCache();
   }
 
   return {
@@ -213,4 +234,10 @@ function createAdminPaperJobs({
   };
 }
 
-module.exports = { createAdminPaperJobs, removeUploadedFile, PaperConflictError, PaperNotFoundError, generateLogId, formatLogDate };
+// NOTE: generateLogId/formatLogDate were exported here but never defined in
+// this file, and nothing else in the codebase imports them (confirmed via a
+// full-tree search) - dead leftovers from a prior refactor, removed. Also
+// worth knowing: runUploadPaperJob/runDeletePaperJob accept an `adminName`
+// parameter but never use it to write an audit log entry - if you intended
+// per-paper admin action logging here, that part isn't implemented.
+module.exports = { createAdminPaperJobs, removeUploadedFile, PaperConflictError, PaperNotFoundError };

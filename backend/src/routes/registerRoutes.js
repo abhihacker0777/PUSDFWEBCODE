@@ -4,6 +4,7 @@ const { createAdminSettingsRoutes } = require("./adminSettingsRoutes");
 const { createAdminUserRoutes } = require("./adminUserRoutes");
 const { createAssistantRoutes } = require("./assistantRoutes");
 const { createAuthRoutes } = require("./authRoutes");
+const { createHealthRoutes } = require("./healthRoutes");
 const { createPaperRoutes } = require("./paperRoutes");
 const { createWebhookRoutes } = require("./webhookRoutes");
 
@@ -23,6 +24,8 @@ function registerRoutes(app, dependencies) {
   const { requireOwnerAdminIp, hasAdminPermission } = auth;
 
   app.use(createAuthRoutes({ verifyToken, requireOwnerAdminIp }));
+
+  app.use(createHealthRoutes({ controllerDependencies: dependencies.health }));
   app.use(createAdminUserRoutes({ verifyToken, requireOwnerAdminIp, requireOwnerAdmin }));
 
   app.use(createWebhookRoutes({

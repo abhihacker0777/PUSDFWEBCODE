@@ -81,6 +81,22 @@ async function supabaseSelectAll(tableName, { select = "*", order = "", query = 
   return rows;
 }
 
+// Lightweight liveness check for /health - cheapest possible authenticated
+// read (1 row, 1 column) so it proves the service-role key and network path
+// both work without doing real work.
+async function pingSupabase(timeoutMs = 2000) {
+  if (!isSupabaseConfigured()) return { ok: false, error: "Supabase not configured" };
+  try {
+    await Promise.race([
+      supabaseRequest("papers", { query: "select=id&limit=1" }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Supabase ping timed out")), timeoutMs))
+    ]);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 module.exports = {
   isSupabaseConfigured,
   supabaseRequest,
@@ -90,5 +106,6 @@ module.exports = {
   toSupabasePaperRow,
   paperFromSupabaseRow,
   paperOptionFromSupabaseRow,
-  buildPaperOptions
+  buildPaperOptions,
+  pingSupabase
 };

@@ -2,8 +2,10 @@ const jwt = require("jsonwebtoken");
 const {
   isSupabaseConfigured,
   supabaseRequest,
-  supabaseSelectAll
+  supabaseSelectAll,
+  pingSupabase
 } = require("../services/supabaseService");
+const { isRedisUrlConfigured, pingRedis } = require("../services/authStore");
 const {
   findAdminAuthUser,
   getEnvAdminUser,
@@ -68,6 +70,12 @@ function createAppDependencies() {
       isSupabaseConfigured,
       supabaseRequest,
       supabaseSelectAll
+    },
+    health: {
+      pingRedis,
+      pingSupabase,
+      isRedisUrlConfigured,
+      isSupabaseConfigured
     },
     upload: createUploadMiddleware()
   };
