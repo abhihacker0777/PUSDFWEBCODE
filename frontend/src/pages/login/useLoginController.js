@@ -91,6 +91,23 @@ export default function useLoginController() {
         return;
       }
 
+      // BUG FIX: BAD_ORIGIN and CSRF_REQUIRED (and anything else with a
+      // code) used to fall into the generic "wrong password" branch below,
+      // which is actively misleading when the real problem is a CORS/env
+      // misconfiguration - someone could burn hours trying different
+      // passwords for a problem that has nothing to do with credentials.
+      if (response.status === 403 && data.code === "BAD_ORIGIN") {
+        setError("This site isn't recognized by the server (origin mismatch). This is a deployment config issue, not your credentials - contact whoever manages the backend.");
+        resetCaptcha();
+        return;
+      }
+
+      if (response.status === 403 && data.code === "CSRF_REQUIRED") {
+        setError("Your session security token couldn't be verified. Refresh the page and try again.");
+        resetCaptcha();
+        return;
+      }
+
       if (data.success) {
         setRetrySeconds(0);
         setCaptchaRequired(false);

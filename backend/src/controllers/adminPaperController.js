@@ -40,6 +40,16 @@ function createAdminPaperController(dependencies) {
           return res.status(403).send("New paper upload not permitted");
         }
 
+        // SECURITY FIX: editing an *existing* paper's metadata (index set,
+        // no file attached) hit neither check above, so any authenticated
+        // admin - including a "view" role with zero write permissions -
+        // could silently update any paper's data. papers:update is exactly
+        // what "editor" has and "view" doesn't, so this is the correct gate.
+        if (index && !hasAdminPermission(req.admin, "papers:update")) {
+          removeUploadedFile(req.file);
+          return res.status(403).send("Paper update not permitted");
+        }
+
         if (req.file && !hasAdminPermission(req.admin, "papers:file")) {
           removeUploadedFile(req.file);
           return res.status(403).send("File upload not permitted");

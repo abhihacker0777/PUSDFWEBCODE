@@ -3,7 +3,6 @@ const { sanitizePaperText, safePaperUrl } = require("../../utils/helpers");
 const { mergeAssistantQuery, parseAssistantQuery } = require("./assistantQueryParser");
 const {
   assistantTokenMatches,
-  compactSearchText,
   normalizeSearchText,
   sameSearchValue
 } = require("./assistantSearchText");
@@ -30,9 +29,7 @@ function scoreAssistantPaper(paper, parsedQuery) {
   if (parsedQuery.exam) score += 14;
 
   const text = assistantPaperText(paper);
-  const compactText = compactSearchText(text);
   const subjectText = normalizeSearchText([paper.spec, paper.specialization, paper.name].filter(Boolean).join(" "));
-  const compactSubjectText = compactSearchText(subjectText);
   const tokens = parsedQuery.tokens || [];
   const requiredTokens = parsedQuery.requiredTokens || [];
   const subjectTokens = parsedQuery.subjectTokens || [];
@@ -41,12 +38,12 @@ function scoreAssistantPaper(paper, parsedQuery) {
   let matchedSubjectTokens = 0;
 
   for (const token of tokens) {
-    if (assistantTokenMatches(text, compactText, token)) {
+    if (assistantTokenMatches(text, token)) {
       score += token.length > 3 ? 6 : 3;
       matchedTokens++;
       if (requiredTokens.includes(token)) matchedRequiredTokens++;
     }
-    if (subjectTokens.includes(token) && assistantTokenMatches(subjectText, compactSubjectText, token)) {
+    if (subjectTokens.includes(token) && assistantTokenMatches(subjectText, token)) {
       matchedSubjectTokens++;
     }
   }

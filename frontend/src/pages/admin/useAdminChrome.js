@@ -17,7 +17,13 @@ export default function useAdminChrome({
   hasNewStudentQueries,
   onLogout
 }) {
-  const [activeNav, setActiveNav] = useState("dashboard");
+  const [activeNav, setActiveNav] = useState(() => {
+    if (permissions.canEditPapers) return "dashboard";
+    if (permissions.canMonitor) return "paper";
+    if (permissions.canReadAssistant) return "assistant";
+    if (permissions.canManageAdmins) return "admins";
+    return "dashboard";
+  });
   const [showAllMenu, setShowAllMenu] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [showQueryFilter, setShowQueryFilter] = useState(false);

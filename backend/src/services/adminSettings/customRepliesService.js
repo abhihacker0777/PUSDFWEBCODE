@@ -6,7 +6,6 @@ const {
 } = require("../supabaseService");
 const {
   normalizeSearchText,
-  compactSearchText,
   getAssistantQueryTokens
 } = require("../assistantService");
 
@@ -21,13 +20,18 @@ function splitCustomReplyKeywords(keyword) {
 
 function customReplyKeywordMatches(question, keyword) {
   const normalizedQuestion = ` ${normalizeSearchText(question)} `;
-  const compactQuestion = compactSearchText(question);
   const normalizedKeyword = normalizeSearchText(keyword);
   if (!normalizedKeyword) return false;
 
   if (normalizedQuestion.includes(` ${normalizedKeyword} `)) return true;
-  if (compactQuestion.includes(compactSearchText(keyword))) return true;
 
+  // BUG FIX: this used to also check compactQuestion.includes(compact
+  // keyword) - a raw substring match on space-stripped text. For short
+  // trigger words like "hi" that matches almost anything ("this",
+  // "which", "shirt"...), causing the "hello" reply to fire on unrelated
+  // messages. The phrase match above and the all-tokens-present check
+  // below already handle real keyword variation safely with proper word
+  // boundaries, so the compact check was pure risk with no real benefit.
   const keywordTokens = getAssistantQueryTokens(keyword);
   if (keywordTokens.length === 0) return false;
   return keywordTokens.every((token) => normalizedQuestion.includes(` ${token} `));

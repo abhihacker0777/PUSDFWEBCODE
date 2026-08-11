@@ -24,7 +24,11 @@ const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_PAPERS_TABLE = process.env.SUPABASE_PAPERS_TABLE;
 const SUPABASE_ADMIN_USERS_TABLE = process.env.SUPABASE_ADMIN_USERS_TABLE;
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const SMTP_HOST = process.env.SMTP_HOST;
+const SMTP_PORT = Number(process.env.SMTP_PORT) || 587;
+const SMTP_SECURE = String(process.env.SMTP_SECURE || "").toLowerCase() === "true";
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
 const PASSWORD_RESET_FROM = process.env.PASSWORD_RESET_FROM;
 const PASSWORD_RESET_URL = process.env.PASSWORD_RESET_URL;
 const SARVAM_TIMEOUT_MS = 5000;
@@ -66,6 +70,16 @@ const SUPABASE_WEBHOOK_SECRET = process.env.SUPABASE_WEBHOOK_SECRET || "";
 // mirroring inline during upload/delete - otherwise both paths run and you
 // get the row mirrored twice. Defaults to inline-only (current behavior).
 const DISABLE_INLINE_SHEET_MIRROR = String(process.env.DISABLE_INLINE_SHEET_MIRROR || "").toLowerCase() === "true";
+// If frontend and backend share a parent domain (e.g. pyqp.poornima.edu.in and
+// api.poornima.edu.in, both under poornima.edu.in), set this to the shared
+// parent (".poornima.edu.in") so cookies are visible across both subdomains
+// as same-site - this is what actually avoids Safari/Chrome blocking the
+// cookie, not just setting SameSite=None. Leave unset if frontend and backend
+// are on genuinely unrelated domains (current Vercel + Render setup).
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || "";
+// Auto-switches to "lax" once COOKIE_DOMAIN is set (same-site subdomains
+// don't need None); explicit override available for edge cases.
+const COOKIE_SAME_SITE = process.env.COOKIE_SAME_SITE || (COOKIE_DOMAIN ? "lax" : "");
 const ADMIN_ALLOWED_IPS = (process.env.ADMIN_ALLOWED_IPS || "")
   .split(",")
   .map((ip) => normalizeIp(ip))
@@ -91,7 +105,9 @@ const missingEnv = [
   "REDIS_URL",
   "CAPTCHA_SECRET",
   "CAPTCHA_VERIFY_URL",
-  "RESEND_API_KEY",
+  "SMTP_HOST",
+  "SMTP_USER",
+  "SMTP_PASSWORD",
   "PASSWORD_RESET_FROM",
   "PASSWORD_RESET_URL",
   "ASSISTANT_EMAIL_DOMAIN",
@@ -168,7 +184,11 @@ module.exports = {
   SUPABASE_SERVICE_ROLE_KEY,
   SUPABASE_PAPERS_TABLE,
   SUPABASE_ADMIN_USERS_TABLE,
-  RESEND_API_KEY,
+  SMTP_HOST,
+  SMTP_PORT,
+  SMTP_SECURE,
+  SMTP_USER,
+  SMTP_PASSWORD,
   PASSWORD_RESET_FROM,
   PASSWORD_RESET_URL,
   SARVAM_TIMEOUT_MS,
@@ -204,5 +224,7 @@ module.exports = {
   CAPTCHA_VERIFY_URL,
   SUPABASE_WEBHOOK_SECRET,
   DISABLE_INLINE_SHEET_MIRROR,
+  COOKIE_DOMAIN,
+  COOKIE_SAME_SITE,
   ADMIN_ALLOWED_IPS
 };

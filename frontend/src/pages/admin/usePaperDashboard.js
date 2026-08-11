@@ -207,6 +207,7 @@ export default function usePaperDashboard({
       setUploadStatus,
       deleteStatus,
       canCreatePapers,
+      canEditPapers,
       canDeletePapers,
       canSyncPapers,
       canUploadFiles

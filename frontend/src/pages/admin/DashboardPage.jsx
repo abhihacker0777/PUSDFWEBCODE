@@ -1,7 +1,7 @@
 import { cleanStatusMessage, isErrorStatus } from "./adminHelpers";
 import { CustomDropdown } from "./AdminShared";
 const DashboardPage = ({
-  fileName, setFile, setFileName, courses, years, specs, semesters, exams, papers, course, setCourse, year, setYear, spec, setSpec, semester, setSemester, exam, setExam, paper, setPaper, paperName, setPaperName, handleUpload, handleDelete, handleSyncToWebsite, openDropdown, setOpenDropdown, setSelectedPaperIndex, fileError, setFileError, isLoading, uploadStatus, setUploadStatus, deleteStatus, canCreatePapers, canDeletePapers, canSyncPapers, canUploadFiles
+  fileName, setFile, setFileName, courses, years, specs, semesters, exams, papers, course, setCourse, year, setYear, spec, setSpec, semester, setSemester, exam, setExam, paper, setPaper, paperName, setPaperName, handleUpload, handleDelete, handleSyncToWebsite, openDropdown, setOpenDropdown, setSelectedPaperIndex, fileError, setFileError, isLoading, uploadStatus, setUploadStatus, deleteStatus, canCreatePapers, canEditPapers, canDeletePapers, canSyncPapers, canUploadFiles
 }) => (
   <div className="w-full">
     <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 w-full border relative">
@@ -64,7 +64,11 @@ const DashboardPage = ({
             {deleteStatus && !fileError && !uploadStatus && <span className="text-[14px] md:text-[15px] font-medium text-[#0d9488] tracking-wide"><span className={isErrorStatus(deleteStatus) ? "text-[#f43f5e] font-bold mr-1" : "text-[#22c55e] font-bold mr-1"}>{isErrorStatus(deleteStatus) ? "❌" : "✅"}</span>{cleanStatusMessage(deleteStatus)}</span>}
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-6 w-full lg:w-auto order-1 lg:order-2">
-            <button onClick={handleUpload} className="w-full sm:w-auto bg-[#05488B] hover:bg-[#215ea0] text-[#ffc107] px-6 py-2 rounded shadow-sm font-medium">{canCreatePapers ? "📤 Upload & Update" : "Update Data"}</button>
+            {/* BUG FIX: this button used to render for every role with no
+                permission gate at all - a "view" admin could click it and
+                the request would go through (the backend had no
+                papers:update check either - fixed separately). */}
+            {(canCreatePapers || canEditPapers) && <button onClick={handleUpload} className="w-full sm:w-auto bg-[#05488B] hover:bg-[#215ea0] text-[#ffc107] px-6 py-2 rounded shadow-sm font-medium">{canCreatePapers ? "📤 Upload & Update" : "Update Data"}</button>}
             {canDeletePapers && <button onClick={handleDelete} className="w-full sm:w-auto bg-[#E31E24] hover:bg-[#c11018] text-white px-6 py-2 rounded shadow-sm font-medium">🗑️ Delete</button>}
           </div>
           <div className="w-full lg:flex-1 flex items-center justify-center lg:justify-end order-3">

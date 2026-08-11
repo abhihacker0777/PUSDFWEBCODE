@@ -107,10 +107,22 @@ function getAssistantTokenVariants(token) {
   return [...variants].filter(Boolean);
 }
 
-function assistantTokenMatches(text, compactText, token) {
-  return getAssistantTokenVariants(token).some((variant) =>
-    text.includes(variant) || compactText.includes(variant)
-  );
+function assistantTokenMatches(text, token) {
+  // BUG FIX: this used to do a raw substring check across a space-stripped
+  // "compact" copy of the text, which matches across word boundaries -
+  // e.g. the token "gand" is a coincidental substring of "...ing and
+  // Prototyping..." once compacted, so garbage/inappropriate queries
+  // containing "gand" were matching real papers that just happen to
+  // contain the word "and" next to something ending in "g". Now requires
+  // an actual whole-word match, or the token being a clear prefix of a
+  // whole word (kept so basic stemming like "engineer" -> "engineering"
+  // still works) - never a mid-word fragment. The compact/no-space variant
+  // is gone entirely since it was the actual source of the bug.
+  const words = text.split(" ").filter(Boolean);
+  return getAssistantTokenVariants(token).some((variant) => {
+    if (!variant) return false;
+    return words.some((word) => word === variant || (variant.length >= 4 && word.startsWith(variant)));
+  });
 }
 
 module.exports = {

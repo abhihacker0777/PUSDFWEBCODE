@@ -100,6 +100,14 @@ function createAssistantController({
       let answer = null;
       let papers = [];
       let paperDataUnavailable = false;
+      // BUG FIX: aiProvider/aiUsed below used to be derived from
+      // `answer.results` (always a truthy array, even when empty) and a
+      // hardcoded `true` - meaning every single logged query claimed
+      // "sarvam" was used, even ones answered by a custom reply or by
+      // local-only parsing when SARVAM_API_KEY isn't set. Query Insights
+      // was showing meaningless AI-usage stats. Now tracks whether Sarvam
+      // actually ran and returned something.
+      let aiWasUsed = false;
 
       try {
         papers = await fetchPublicPapers();
@@ -135,6 +143,7 @@ function createAssistantController({
       } else {
         const aiQuery = await parseAssistantQueryWithSarvam(question, papers);
         answer = searchAssistantPapers(papers, question, aiQuery);
+        aiWasUsed = Boolean(aiQuery);
       }
 
       const topResult = answer.results[0] || null;
@@ -150,8 +159,8 @@ function createAssistantController({
         message: answer.message,
         resultCount: answer.results.length,
         topResult,
-        aiProvider: answer.results ? "sarvam" : "local",
-        aiUsed: true
+        aiProvider: aiWasUsed ? "sarvam" : "local",
+        aiUsed: aiWasUsed
       };
 
       saveAssistantRequestLog(logData);

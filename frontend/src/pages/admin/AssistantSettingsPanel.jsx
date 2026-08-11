@@ -2,6 +2,7 @@ import { PaginationFooter } from "./AdminShared";
 
 export default function AssistantSettingsPanel({
   canCreateReplies,
+  canEditAssistant,
   editingReplyKeyword,
   draftReplies,
   setDraftReplies,
@@ -18,7 +19,12 @@ export default function AssistantSettingsPanel({
   setReplyDisplayCount
 }) {
   return (<div className="flex flex-col gap-6 h-full">
-              {(canCreateReplies || editingReplyKeyword) && <div className="border border-gray-200 rounded-xl shadow-sm bg-white overflow-visible">
+              {/* BUG FIX: this used to show for any in-progress edit
+                  regardless of permission, so a "view" role admin (no
+                  assistant:reply:update) saw a fully live-looking edit form
+                  that would only fail once they hit Save. Gated to match
+                  what the backend actually allows. */}
+              {(canCreateReplies || (editingReplyKeyword && canEditAssistant)) && <div className="border border-gray-200 rounded-xl shadow-sm bg-white overflow-visible">
                  <div className="px-4 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
                    <h2 className="text-lg font-bold text-[#05488b]">{editingReplyKeyword && !canCreateReplies ? "Edit Custom AI Reply" : "Add Custom AI Reply"}</h2>
                  </div>
@@ -60,7 +66,9 @@ export default function AssistantSettingsPanel({
                           <td className="px-4 py-3 text-gray-600 italic">{r.reply}</td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              <button 
+                              {/* BUG FIX: this used to render for every role
+                                  with no permission check at all. */}
+                              {canEditAssistant && <button 
                                 onClick={() => {
                                   setDraftReplies([{ keyword: r.keyword, reply: r.reply }]);
                                   setEditingReplyKeyword(r.keyword);
@@ -70,7 +78,7 @@ export default function AssistantSettingsPanel({
                                 className="text-[#05488B] hover:text-[#043a70] font-bold px-4 py-1.5 bg-blue-50 hover:bg-blue-100 shadow-sm rounded-md transition-colors"
                               >
                                 Edit
-                              </button>
+                              </button>}
                               {canDeleteReplies && <button 
                                 onClick={() => handleDeleteReply(r.keyword)} 
                                 disabled={isLoading} 

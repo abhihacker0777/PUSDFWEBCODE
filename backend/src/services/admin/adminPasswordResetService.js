@@ -1,9 +1,14 @@
 const {
   PASSWORD_RESET_TOKEN_TTL_SECONDS,
-  RESEND_API_KEY,
+  SMTP_HOST,
+  SMTP_PORT,
+  SMTP_SECURE,
+  SMTP_USER,
+  SMTP_PASSWORD,
   PASSWORD_RESET_FROM,
   SUPABASE_ADMIN_USERS_TABLE
 } = require("../../config/env");
+const nodemailer = require("nodemailer");
 const {
   hashResetToken,
   createPasswordResetToken
@@ -78,21 +83,32 @@ async function updateAdminPasswordWithResetToken(token, password) {
   return true;
 }
 
+let cachedTransporter = null;
+
+function getSmtpTransporter() {
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASSWORD) return null;
+  if (!cachedTransporter) {
+    cachedTransporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_SECURE,
+      auth: { user: SMTP_USER, pass: SMTP_PASSWORD }
+    });
+  }
+  return cachedTransporter;
+}
+
 async function sendPasswordResetEmail(to, resetUrl) {
-  if (!RESEND_API_KEY || !PASSWORD_RESET_FROM) {
-    console.warn("Password reset email not sent: set RESEND_API_KEY and PASSWORD_RESET_FROM.");
+  const transporter = getSmtpTransporter();
+  if (!transporter || !PASSWORD_RESET_FROM) {
+    console.warn("Password reset email not sent: set SMTP_HOST, SMTP_USER, SMTP_PASSWORD, and PASSWORD_RESET_FROM.");
     return false;
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
+  try {
+    await transporter.sendMail({
       from: PASSWORD_RESET_FROM,
-      to: [to],
+      to,
       subject: "Reset your PYQP admin password",
       html: `
         <p>You requested a PYQP admin password reset.</p>
@@ -100,12 +116,9 @@ async function sendPasswordResetEmail(to, resetUrl) {
         <p>This link expires in 15 minutes. If you did not request this, ignore this email.</p>
       `,
       text: `Reset your PYQP admin password: ${resetUrl}\n\nThis link expires in 15 minutes. If you did not request this, ignore this email.`
-    })
-  });
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.message || `Resend returned ${response.status}`);
+    });
+  } catch (err) {
+    throw new Error(err.message || "SMTP send failed");
   }
 
   return true;

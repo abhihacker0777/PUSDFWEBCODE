@@ -33,6 +33,79 @@ const RankedList = ({ title, subtitle, items, emptyText, countLabel, renderLabel
   </div>
 );
 
+const STATUS_COLORS = {
+  found: "#22c55e",
+  not_found: "#f43f5e",
+  need_more: "#f59e0b",
+  info: "#05488B",
+  unavailable: "#9ca3af",
+  unknown: "#9ca3af"
+};
+
+const STATUS_LABELS = {
+  found: "Found",
+  not_found: "Not Found",
+  need_more: "Needs More Info",
+  info: "Info Reply",
+  unavailable: "Unavailable",
+  unknown: "Unknown"
+};
+
+const polarToCartesian = (cx, cy, r, angleDeg) => {
+  const angleRad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(angleRad), y: cy + r * Math.sin(angleRad) };
+};
+
+const describeArc = (cx, cy, r, startAngle, endAngle) => {
+  const start = polarToCartesian(cx, cy, r, endAngle);
+  const end = polarToCartesian(cx, cy, r, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y} Z`;
+};
+
+const StatusPieChart = ({ statusCounts }) => {
+  const entries = Object.entries(statusCounts || {}).filter(([, count]) => count > 0);
+  const total = entries.reduce((sum, [, count]) => sum + count, 0);
+
+  if (total === 0) {
+    return <p className="text-sm text-gray-400 text-center py-10">No data in this window yet.</p>;
+  }
+
+  let cumulativeAngle = 0;
+  const slices = entries.map(([status, count]) => {
+    const angle = (count / total) * 360;
+    const slice = { status, count, startAngle: cumulativeAngle, endAngle: cumulativeAngle + angle, color: STATUS_COLORS[status] || "#9ca3af" };
+    cumulativeAngle += angle;
+    return slice;
+  });
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
+      <svg viewBox="0 0 200 200" className="w-44 h-44 flex-shrink-0">
+        {slices.length === 1 ? (
+          <circle cx="100" cy="100" r="90" fill={slices[0].color} />
+        ) : (
+          slices.map((slice) => (
+            <path key={slice.status} d={describeArc(100, 100, 90, slice.startAngle, slice.endAngle)} fill={slice.color} stroke="white" strokeWidth="2" />
+          ))
+        )}
+        <circle cx="100" cy="100" r="52" fill="white" />
+        <text x="100" y="96" textAnchor="middle" className="fill-[#374151]" style={{ fontSize: "24px", fontWeight: 700 }}>{total}</text>
+        <text x="100" y="116" textAnchor="middle" className="fill-gray-400" style={{ fontSize: "11px" }}>Total Queries</text>
+      </svg>
+      <ul className="space-y-2">
+        {slices.map((slice) => (
+          <li key={slice.status} className="flex items-center gap-2 text-sm">
+            <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: slice.color }}></span>
+            <span className="text-gray-700 font-medium">{STATUS_LABELS[slice.status] || slice.status}</span>
+            <span className="text-gray-400 text-xs">({slice.count} &middot; {Math.round((slice.count / total) * 100)}%)</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 export default function QueryInsightsPanel({
   insights,
   insightsWindowDays,
@@ -84,6 +157,13 @@ export default function QueryInsightsPanel({
           countLabel="hits"
           renderLabel={(item) => item.paperName}
         />
+      </div>
+
+      <div className="mt-4 bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col items-center">
+        <h3 className="text-base font-bold text-[#374151] w-full text-center">📊 Query Status Breakdown</h3>
+        <div className="mt-3 w-full max-w-xl">
+          <StatusPieChart statusCounts={insights.statusCounts} />
+        </div>
       </div>
     </div>
   );

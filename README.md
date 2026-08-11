@@ -59,7 +59,7 @@ A Full-Stack Web Application Designed To Help Poornima University Students Easil
    *Create A `.env` File In The `frontend` Folder And Set `VITE_API_URL` To Your Backend Server URL. For Cloudflare Turnstile, set `VITE_TURNSTILE_SITE_KEY`; do not commit CAPTCHA keys to git.*
 
 ### Authentication Security
-Admin login now validates inputs on the server with Zod, verifies passwords through Supabase Auth, rate-limits login through Redis in production, locks accounts after repeated failures, checks Cloudflare Turnstile after repeated failures, uses CSRF tokens on state-changing admin requests, and returns generic credential errors. Use Redis with `REDIS_URL`. Password reset links are emailed through Resend when `RESEND_API_KEY` and `PASSWORD_RESET_FROM` are configured. The reset token itself is never stored, only its HMAC hash in Supabase; the new password is written to Supabase Auth.
+Admin login now validates inputs on the server with Zod, verifies passwords through Supabase Auth, rate-limits login through Redis in production, locks accounts after repeated failures, checks Cloudflare Turnstile after repeated failures, uses CSRF tokens on state-changing admin requests, and returns generic credential errors. Use Redis with `REDIS_URL`. Password reset links are emailed via SMTP (e.g. Google Workspace's relay) when `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, and `PASSWORD_RESET_FROM` are configured. The reset token itself is never stored, only its HMAC hash in Supabase; the new password is written to Supabase Auth.
 
 Set `ADMIN_ALLOWED_IPS` in `backend/.env` to restrict admin login and admin APIs to trusted IP addresses, for example `ADMIN_ALLOWED_IPS=127.0.0.1,203.0.113.10`.
 
