@@ -3,20 +3,13 @@ import { uploadBulkPapers } from './adminApi';
 
 export default function BulkUpload() {
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState(null);
 
-  // Common Batch Metadata (Applied to new selected files or applied all at once)
-  const [commonMetadata, setCommonMetadata] = useState({
-    course: '',
-    year: '',
-    specialization: '',
-    semester: '',
-    exam: '',
-  });
-
-  const fileInputRef = useRef(null);
+  // Refs for file inputs
+  const mainFileInputRef = useRef(null);
+  const cloneInputRef = useRef(null);
+  const [cloneSourceIndex, setCloneSourceIndex] = useState(null);
 
   // Options matching system constants
   const courses = ['BCA', 'B.Tech', 'MCA', 'PIHM', 'MVA', 'Ph.D'];
@@ -24,37 +17,63 @@ export default function BulkUpload() {
   const semesters = ['1 Sem', '2 Sem', '3 Sem', '4 Sem', '5 Sem', '6 Sem', '7 Sem', '8 Sem'];
   const exams = ['MSE', 'ESE'];
 
+  // Handle standard file selection (Empty defaults)
   const handleFileSelect = (files) => {
     const validFiles = Array.from(files).filter(
       (f) => f.type === 'application/pdf' || f.name.endsWith('.docx') || f.name.endsWith('.pdf')
     );
 
-    if (validFiles.length === 0) {
-      setMessage({ type: 'error', text: 'Please select valid PDF or DOCX files.' });
-      return;
-    }
+    if (validFiles.length === 0) return;
 
-    // Map selected files into queuing batch list with current common metadata defaults
     const newItems = validFiles.map((file) => ({
       file,
-      paperName: file.name.replace(/\.[^/.]+$/, ''), // Strip file extension for default paper name
-      course: commonMetadata.course,
-      year: commonMetadata.year,
-      specialization: commonMetadata.specialization,
-      semester: commonMetadata.semester,
-      exam: commonMetadata.exam,
+      paperName: file.name.replace(/\.[^/.]+$/, ''), // Strip file extension
+      course: '',
+      year: '',
+      specialization: '',
+      semester: '',
+      exam: '',
     }));
 
     setSelectedFiles((prev) => [...prev, ...newItems]);
     setMessage(null);
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files) {
-      handleFileSelect(e.dataTransfer.files);
-    }
+  // Trigger the hidden file input specifically for cloning a row
+  const triggerClone = (index) => {
+    setCloneSourceIndex(index);
+    cloneInputRef.current.click();
+  };
+
+  // Handle file selection when "+ Add Similar" is clicked
+  const handleCloneSelect = (files) => {
+    if (!files || files.length === 0 || cloneSourceIndex === null) return;
+
+    const sourceItem = selectedFiles[cloneSourceIndex];
+    const validFiles = Array.from(files).filter(
+      (f) => f.type === 'application/pdf' || f.name.endsWith('.docx') || f.name.endsWith('.pdf')
+    );
+
+    // Copy the dropdown settings from the source row
+    const newItems = validFiles.map((file) => ({
+      file,
+      paperName: file.name.replace(/\.[^/.]+$/, ''),
+      course: sourceItem.course,
+      year: sourceItem.year,
+      specialization: sourceItem.specialization,
+      semester: sourceItem.semester,
+      exam: sourceItem.exam,
+    }));
+
+    setSelectedFiles((prev) => {
+      const updated = [...prev];
+      // Insert the new cloned items right below the source item
+      updated.splice(cloneSourceIndex + 1, 0, ...newItems);
+      return updated;
+    });
+    
+    setCloneSourceIndex(null); // Reset
+    if (cloneInputRef.current) cloneInputRef.current.value = ""; // Clear input
   };
 
   const updateItemField = (index, field, value) => {
@@ -69,22 +88,6 @@ export default function BulkUpload() {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Bulk apply common batch defaults to all currently queued items
-  const applyCommonMetadataToAll = () => {
-    if (selectedFiles.length === 0) return;
-    setSelectedFiles((prev) =>
-      prev.map((item) => ({
-        ...item,
-        course: commonMetadata.course || item.course,
-        year: commonMetadata.year || item.year,
-        specialization: commonMetadata.specialization || item.specialization,
-        semester: commonMetadata.semester || item.semester,
-        exam: commonMetadata.exam || item.exam,
-      }))
-    );
-    setMessage({ type: 'success', text: 'Applied batch defaults to all queued papers.' });
-  };
-
   const handleBatchUpload = async () => {
     if (selectedFiles.length === 0) return;
 
@@ -94,7 +97,7 @@ export default function BulkUpload() {
       if (!f.course || !f.year || !f.semester || !f.exam || !f.paperName.trim()) {
         setMessage({
           type: 'error',
-          text: `Paper #${i + 1} (${f.file.name}) is missing required metadata (Course, Year, Sem, Exam, or Paper Name).`,
+          text: `Paper "${f.file.name}" is missing required metadata (Course, Year, Sem, Exam, or Paper Name).`,
         });
         return;
       }
@@ -123,20 +126,19 @@ export default function BulkUpload() {
     try {
       const response = await uploadBulkPapers(formData);
 
-      if (response.ok || response.status === 200 || response.status === 202) {
+      if (response.success) {
         setMessage({
           type: 'success',
-          text: `Bulk processing started for ${selectedFiles.length} paper(s)! Background jobs dispatched.`,
+          text: `Bulk processing started for ${selectedFiles.length} paper(s)! Check Recent Actions.`,
         });
         setSelectedFiles([]);
       } else {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Bulk upload failed');
+        throw new Error(response.message || 'Bulk upload failed');
       }
     } catch (err) {
       setMessage({
         type: 'error',
-        text: err.message || 'Bulk upload failed. Please check backend logs and try again.',
+        text: err.message || 'Bulk upload failed. Please try again.',
       });
     } finally {
       setIsUploading(false);
@@ -144,237 +146,189 @@ export default function BulkUpload() {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-      <h2 className="text-xl font-bold text-[#003875] mb-4">Bulk Paper Upload</h2>
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 min-h-[400px]">
+      
+      {/* Hidden File Inputs */}
+      <input
+        ref={mainFileInputRef}
+        type="file"
+        multiple
+        accept=".pdf,.docx"
+        onChange={(e) => { handleFileSelect(e.target.files); e.target.value = ""; }}
+        className="hidden"
+      />
+      <input
+        ref={cloneInputRef}
+        type="file"
+        multiple
+        accept=".pdf,.docx"
+        onChange={(e) => handleCloneSelect(e.target.files)}
+        className="hidden"
+      />
 
-      {/* Batch Default Settings Bar */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-            Batch Default Settings (Auto-fills new files & quick-applies to queue)
-          </span>
+      {/* Header & Main Action */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-bold text-[#003875]">Bulk Paper Upload</h2>
+        {selectedFiles.length > 0 && (
           <button
-            type="button"
-            onClick={applyCommonMetadataToAll}
-            className="text-xs font-semibold text-[#003875] hover:underline"
+            onClick={() => mainFileInputRef.current?.click()}
+            className="bg-slate-100 text-[#003875] font-bold px-4 py-2 rounded-lg text-sm border border-slate-300 hover:bg-slate-200 transition-colors"
           >
-            Apply Defaults to All
+            + Add New Blank Paper
           </button>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <select
-            value={commonMetadata.course}
-            onChange={(e) => setCommonMetadata({ ...commonMetadata, course: e.target.value })}
-            className="p-2 text-xs border rounded-lg bg-white"
-          >
-            <option value="">Select Course</option>
-            {courses.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-
-          <select
-            value={commonMetadata.year}
-            onChange={(e) => setCommonMetadata({ ...commonMetadata, year: e.target.value })}
-            className="p-2 text-xs border rounded-lg bg-white"
-          >
-            <option value="">Select Year</option>
-            {years.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-
-          <input
-            type="text"
-            placeholder="Specialization (Opt)"
-            value={commonMetadata.specialization}
-            onChange={(e) => setCommonMetadata({ ...commonMetadata, specialization: e.target.value })}
-            className="p-2 text-xs border rounded-lg bg-white"
-          />
-
-          <select
-            value={commonMetadata.semester}
-            onChange={(e) => setCommonMetadata({ ...commonMetadata, semester: e.target.value })}
-            className="p-2 text-xs border rounded-lg bg-white"
-          >
-            <option value="">Select Semester</option>
-            {semesters.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-
-          <select
-            value={commonMetadata.exam}
-            onChange={(e) => setCommonMetadata({ ...commonMetadata, exam: e.target.value })}
-            className="p-2 text-xs border rounded-lg bg-white"
-          >
-            <option value="">Select Exam</option>
-            {exams.map((ex) => (
-              <option key={ex} value={ex}>{ex}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Drag & Drop Target Zone */}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${
-          isDragging ? 'border-amber-400 bg-amber-50/40' : 'border-amber-300 bg-amber-50/10'
-        }`}
-      >
-        <div className="text-4xl mb-2">📁</div>
-        <p className="font-semibold text-slate-700 mb-1">
-          Drag & drop multiple PDF/DOCX files here
-        </p>
-        <p className="text-xs text-slate-400 mb-4">or click below to browse</p>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept=".pdf,.docx"
-          onChange={(e) => handleFileSelect(e.target.files)}
-          className="hidden"
-        />
-
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="bg-[#003875] text-amber-300 font-semibold px-6 py-2.5 rounded-lg text-sm hover:bg-[#002860] transition-colors shadow-sm"
-        >
-          📁 Choose Files
-        </button>
+        )}
       </div>
 
       {/* Notification Message */}
       {message && (
-        <div
-          className={`mt-4 p-3 rounded-lg text-sm font-medium ${
-            message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          }`}
-        >
+        <div className={`mb-6 p-4 rounded-xl text-sm font-bold ${ message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }`}>
           {message.text}
         </div>
       )}
 
-      {/* Queued Papers List */}
-      {selectedFiles.length > 0 ? (
-        <div className="mt-6">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-bold text-slate-700">
-              Selected Papers Queue ({selectedFiles.length})
+      {/* Initial Empty State (When no files are selected) */}
+      {selectedFiles.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
+          <div className="text-6xl mb-4">📂</div>
+          <h3 className="text-xl font-bold text-slate-700 mb-2">No Papers Selected</h3>
+          <p className="text-slate-500 mb-6 max-w-md">
+            Click below to select one or more PDF/DOCX files. You will be able to configure their details before uploading.
+          </p>
+          <button
+            onClick={() => mainFileInputRef.current?.click()}
+            className="bg-[#003875] text-amber-300 font-bold px-8 py-3 rounded-xl shadow-md hover:bg-[#002860] transition-colors text-lg"
+          >
+            Select Papers
+          </button>
+        </div>
+      ) : (
+        /* Queued Papers List (Only shows after papers are selected) */
+        <div className="mt-2">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
+              Files Ready to Configure ({selectedFiles.length})
             </h3>
-            <button
-              type="button"
-              onClick={() => setSelectedFiles([])}
-              className="text-xs text-red-600 hover:underline"
-            >
-              Clear Queue
+            <button onClick={() => setSelectedFiles([])} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline">
+              Clear All
             </button>
           </div>
 
-          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
             {selectedFiles.map((item, idx) => (
-              <div
-                key={idx}
-                className="border border-slate-200 rounded-xl p-3 bg-slate-50/60 flex flex-wrap gap-2 items-center justify-between"
-              >
-                {/* File Metadata Controls */}
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-2 flex-grow">
-                  <div className="col-span-2">
-                    <span className="text-[10px] text-slate-400 block font-mono truncate">
-                      #{idx + 1}: {item.file.name}
-                    </span>
+              <div key={idx} className="border-2 border-slate-200 rounded-xl p-4 bg-white shadow-sm hover:border-amber-300 transition-colors relative">
+                
+                {/* Row Header (Filename & Actions) */}
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 pb-3 border-b border-slate-100 gap-3">
+                  <span className="text-sm font-bold text-[#003875] truncate flex items-center gap-2">
+                    <span className="text-xl">📄</span> {item.file.name}
+                  </span>
+                  
+                  <div className="flex items-center gap-2">
+                    {/* The "Clone / Add Similar" Button */}
+                    <button
+                      type="button"
+                      onClick={() => triggerClone(idx)}
+                      className="flex items-center gap-1.5 bg-amber-100 text-amber-900 hover:bg-amber-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                      title="Select a new file and automatically apply these exact dropdown settings to it"
+                    >
+                      <span className="text-lg leading-none">+</span> Add Similar
+                    </button>
+                    
+                    {/* Delete Button */}
+                    <button
+                      type="button"
+                      onClick={() => removeItem(idx)}
+                      className="bg-red-50 text-red-500 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+
+                {/* Form Fields for this specific paper */}
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Paper Name</label>
                     <input
                       type="text"
                       value={item.paperName}
                       onChange={(e) => updateItemField(idx, 'paperName', e.target.value)}
-                      placeholder="Paper Name"
-                      className="p-1.5 text-xs border rounded w-full bg-white font-medium"
+                      placeholder="e.g. Computer Networks"
+                      className="p-2 text-sm border-2 border-slate-200 rounded-lg w-full bg-white font-semibold focus:border-[#003875] focus:outline-none transition-colors"
                     />
                   </div>
 
-                  <select
-                    value={item.course}
-                    onChange={(e) => updateItemField(idx, 'course', e.target.value)}
-                    className="p-1.5 text-xs border rounded bg-white"
-                  >
-                    <option value="">Course</option>
-                    {courses.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                  <div className="col-span-1">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Course</label>
+                    <select
+                      value={item.course}
+                      onChange={(e) => updateItemField(idx, 'course', e.target.value)}
+                      className="p-2 text-sm border-2 border-slate-200 rounded-lg w-full bg-white focus:border-[#003875] focus:outline-none"
+                    >
+                      <option value="">Course</option>
+                      {courses.map((c) => (<option key={c} value={c}>{c}</option>))}
+                    </select>
+                  </div>
 
-                  <select
-                    value={item.year}
-                    onChange={(e) => updateItemField(idx, 'year', e.target.value)}
-                    className="p-1.5 text-xs border rounded bg-white"
-                  >
-                    <option value="">Year</option>
-                    {years.map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
+                  <div className="col-span-1">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Year</label>
+                    <select
+                      value={item.year}
+                      onChange={(e) => updateItemField(idx, 'year', e.target.value)}
+                      className="p-2 text-sm border-2 border-slate-200 rounded-lg w-full bg-white focus:border-[#003875] focus:outline-none"
+                    >
+                      <option value="">Year</option>
+                      {years.map((y) => (<option key={y} value={y}>{y}</option>))}
+                    </select>
+                  </div>
 
-                  <select
-                    value={item.semester}
-                    onChange={(e) => updateItemField(idx, 'semester', e.target.value)}
-                    className="p-1.5 text-xs border rounded bg-white"
-                  >
-                    <option value="">Sem</option>
-                    {semesters.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                  <div className="col-span-1">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Semester</label>
+                    <select
+                      value={item.semester}
+                      onChange={(e) => updateItemField(idx, 'semester', e.target.value)}
+                      className="p-2 text-sm border-2 border-slate-200 rounded-lg w-full bg-white focus:border-[#003875] focus:outline-none"
+                    >
+                      <option value="">Sem</option>
+                      {semesters.map((s) => (<option key={s} value={s}>{s}</option>))}
+                    </select>
+                  </div>
 
-                  <select
-                    value={item.exam}
-                    onChange={(e) => updateItemField(idx, 'exam', e.target.value)}
-                    className="p-1.5 text-xs border rounded bg-white"
-                  >
-                    <option value="">Exam</option>
-                    {exams.map((ex) => (
-                      <option key={ex} value={ex}>{ex}</option>
-                    ))}
-                  </select>
+                  <div className="col-span-1">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Exam</label>
+                    <select
+                      value={item.exam}
+                      onChange={(e) => updateItemField(idx, 'exam', e.target.value)}
+                      className="p-2 text-sm border-2 border-slate-200 rounded-lg w-full bg-white focus:border-[#003875] focus:outline-none"
+                    >
+                      <option value="">Exam</option>
+                      {exams.map((ex) => (<option key={ex} value={ex}>{ex}</option>))}
+                    </select>
+                  </div>
                 </div>
-
-                {/* Remove Single File */}
-                <button
-                  type="button"
-                  onClick={() => removeItem(idx)}
-                  className="text-slate-400 hover:text-red-600 text-sm p-1 ml-2 transition-colors"
-                  title="Remove from batch"
-                >
-                  ✕
-                </button>
               </div>
             ))}
           </div>
 
           {/* Action Button */}
-          <div className="mt-6 flex justify-center">
+          <div className="mt-8 flex justify-center pt-6 border-t border-slate-200">
             <button
               type="button"
               disabled={isUploading}
               onClick={handleBatchUpload}
-              className="bg-[#003875] text-amber-300 hover:bg-[#002860] px-8 py-3 rounded-xl font-bold text-sm shadow-md transition-all disabled:opacity-50"
+              className="bg-[#003875] text-amber-300 hover:bg-[#002860] px-10 py-4 rounded-xl font-bold text-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
             >
-              {isUploading ? 'Uploading Batch...' : `🚀 Upload All (${selectedFiles.length} Papers)`}
+              {isUploading ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-amber-300 border-t-transparent rounded-full animate-spin"></span>
+                  Processing Background Upload...
+                </>
+              ) : (
+                `🚀 Upload ${selectedFiles.length} Paper${selectedFiles.length > 1 ? 's' : ''} to Database`
+              )}
             </button>
           </div>
         </div>
-      ) : (
-        <p className="text-center text-xs text-slate-400 mt-4">
-          No files selected yet. Drag & drop or choose files above.
-        </p>
       )}
     </div>
   );
