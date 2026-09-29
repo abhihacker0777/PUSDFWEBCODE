@@ -37,12 +37,17 @@ export default function useBulkPaperUpload({
   const [bulkSummary, setBulkSummary] = useState(null);
   const [bulkValidationError, setBulkValidationError] = useState("");
 
+<<<<<<< HEAD
   // DB Bulk Edit & Delete state
   const [dbSelectedIds, setDbSelectedIds] = useState(new Set());
   const [isDbActionLoading, setIsDbActionLoading] = useState(false);
   const [dbActionMessage, setDbActionMessage] = useState(null);
 
   const addBulkFiles = useCallback((fileList) => {
+=======
+  // UPDATED: Completely removes the 'lastRow' carry-over bug
+  const addBulkFiles = useCallback((fileList, sourceRowToClone = null) => {
+>>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
     const incoming = Array.from(fileList || []);
     if (incoming.length === 0) return;
 
@@ -50,12 +55,31 @@ export default function useBulkPaperUpload({
     const accepted = incoming.filter(isAcceptedFile);
 
     setBulkFiles((current) => {
+<<<<<<< HEAD
+=======
+      // 1. Default to completely blank fields
+      let fieldsToApply = emptyRowFields;
+
+      // 2. Only copy data IF the user specifically clicked "+ Add Similar"
+      if (sourceRowToClone) {
+        fieldsToApply = {
+          course: sourceRowToClone.course,
+          year: sourceRowToClone.year,
+          spec: sourceRowToClone.spec,
+          semester: sourceRowToClone.semester,
+          exam: sourceRowToClone.exam
+        };
+      } 
+      // NOTICE: No 'else' block here anymore! "+ Add More Papers" stays blank.
+
+>>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
       const newRows = accepted.map((file) => ({
         id: `bulk-${Date.now()}-${bulkFileIdCounter++}`,
         file,
         link: "",
         fileName: file.name,
         paperName: cleanFileNameToPaperName(file.name),
+<<<<<<< HEAD
         targets: [
           {
             id: `target-${Date.now()}-${bulkFileIdCounter++}`,
@@ -66,9 +90,22 @@ export default function useBulkPaperUpload({
             exam: ""
           }
         ],
+=======
+        ...fieldsToApply,
+>>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
         status: "pending",
         message: ""
       }));
+
+      // 3. Insert directly below the cloned row, or at the bottom if normal add
+      if (sourceRowToClone) {
+        const targetIndex = current.findIndex((row) => row.id === sourceRowToClone.id);
+        if (targetIndex !== -1) {
+          const updatedQueue = [...current];
+          updatedQueue.splice(targetIndex + 1, 0, ...newRows);
+          return updatedQueue;
+        }
+      }
 
       return [...current, ...newRows];
     });

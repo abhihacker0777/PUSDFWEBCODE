@@ -20,6 +20,25 @@ class PaperNotFoundError extends Error {
   }
 }
 
+// Thrown when the admin's expected snapshot of a paper no longer matches
+// what's actually stored (someone else changed/deleted it first) - the
+// controller maps this to HTTP 409.
+class PaperConflictError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PaperConflictError";
+  }
+}
+
+// Thrown when the paper id in the request doesn't exist at all - the
+// controller maps this to HTTP 404.
+class PaperNotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PaperNotFoundError";
+  }
+}
+
 function removeUploadedFile(file) {
   if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
 }
@@ -91,6 +110,12 @@ function createAdminPaperJobs({
     // (see supabaseWebhookController.js) - no inline call here anymore.
     // Single permanent path, not a toggleable fallback.
     const paperToMirror = savedPaper || { ...paper, link: fileLink || "", driveFileId: driveFileId || "" };
+<<<<<<< HEAD
+=======
+    if (!DISABLE_INLINE_SHEET_MIRROR) {
+      mirrorPaperToSheet(paperToMirror, index ? expectedPaper : null).catch(console.error);
+    }
+>>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
 
     // BUG FIX: this function never returned a value, so callers received
     // `undefined` and crashed on `result.status` on every single upload -
@@ -205,7 +230,13 @@ function createAdminPaperJobs({
       }
 
       await deleteSupabasePaper(index);
+<<<<<<< HEAD
       // Sheet mirroring is now handled exclusively by the Supabase webhook.
+=======
+      if (!DISABLE_INLINE_SHEET_MIRROR) {
+        mirrorDeletePaperFromSheet(expectedPaper).catch(console.error);
+      }
+>>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
       invalidatePapersCache();
       return;
     }
@@ -240,6 +271,16 @@ function createAdminPaperJobs({
   };
 }
 
+<<<<<<< HEAD
 const { generateLogId, formatLogDate } = require("../services/adminLogService");
 
 module.exports = { createAdminPaperJobs, removeUploadedFile, PaperConflictError, PaperNotFoundError, generateLogId, formatLogDate };
+=======
+// NOTE: generateLogId/formatLogDate were exported here but never defined in
+// this file, and nothing else in the codebase imports them (confirmed via a
+// full-tree search) - dead leftovers from a prior refactor, removed. Also
+// worth knowing: runUploadPaperJob/runDeletePaperJob accept an `adminName`
+// parameter but never use it to write an audit log entry - if you intended
+// per-paper admin action logging here, that part isn't implemented.
+module.exports = { createAdminPaperJobs, removeUploadedFile, PaperConflictError, PaperNotFoundError };
+>>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f

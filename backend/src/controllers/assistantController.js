@@ -144,6 +144,7 @@ function createAssistantController({
           message: "Paper database is temporarily unavailable. Please try again after some time."
         };
       } else {
+<<<<<<< HEAD
         const aiQuery = await parseAssistantQueryWithGemini(question, papers);
         if (aiQuery?.outOfScope) {
           answer = {
@@ -156,6 +157,11 @@ function createAssistantController({
           answer = searchAssistantPapers(papers, question, aiQuery);
           aiWasUsed = Boolean(aiQuery);
         }
+=======
+        const aiQuery = await parseAssistantQueryWithSarvam(question, papers);
+        answer = searchAssistantPapers(papers, question, aiQuery);
+        aiWasUsed = Boolean(aiQuery);
+>>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
       }
 
       const topResult = answer.results[0] || null;
@@ -172,7 +178,11 @@ function createAssistantController({
         message: answer.message,
         resultCount: answer.results.length,
         topResult,
+<<<<<<< HEAD
         aiProvider: aiProviderName,
+=======
+        aiProvider: aiWasUsed ? "sarvam" : "local",
+>>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
         aiUsed: aiWasUsed
       };
 

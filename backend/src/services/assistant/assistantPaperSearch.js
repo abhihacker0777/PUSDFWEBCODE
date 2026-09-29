@@ -29,7 +29,10 @@ function scoreAssistantPaper(paper, parsedQuery) {
   if (parsedQuery.exam) score += 14;
 
   const text = assistantPaperText(paper);
+<<<<<<< HEAD
   const paperNameText = normalizeSearchText(paper.name || "");
+=======
+>>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
   const subjectText = normalizeSearchText([paper.spec, paper.specialization, paper.name].filter(Boolean).join(" "));
   const tokens = parsedQuery.tokens || [];
   const requiredTokens = parsedQuery.requiredTokens || [];
@@ -44,6 +47,7 @@ function scoreAssistantPaper(paper, parsedQuery) {
       matchedTokens++;
       if (requiredTokens.includes(token)) matchedRequiredTokens++;
     }
+<<<<<<< HEAD
   }
 
   for (const token of subjectTokens) {
@@ -52,6 +56,9 @@ function scoreAssistantPaper(paper, parsedQuery) {
       matchedSubjectTokens++;
     } else if (assistantTokenMatches(subjectText, token)) {
       score += 10;
+=======
+    if (subjectTokens.includes(token) && assistantTokenMatches(subjectText, token)) {
+>>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
       matchedSubjectTokens++;
     }
   }

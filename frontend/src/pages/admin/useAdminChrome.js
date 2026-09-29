@@ -17,6 +17,7 @@ export default function useAdminChrome({
   hasNewStudentQueries,
   onLogout
 }) {
+<<<<<<< HEAD
   // BUG FIX: this used to be `useState(() => { if (permissions.x) return
   // ...; return "dashboard"; })`. useState's initializer only runs once,
   // on mount - but `permissions` is still all-false at that point (the
@@ -40,6 +41,15 @@ export default function useAdminChrome({
       setActiveNav(availableNavIds[0]);
     }
   }, [activeNav, permissions.canEditPapers, permissions.canMonitor, permissions.canReadAssistant, permissions.canManageAdmins]);
+=======
+  const [activeNav, setActiveNav] = useState(() => {
+    if (permissions.canEditPapers) return "dashboard";
+    if (permissions.canMonitor) return "paper";
+    if (permissions.canReadAssistant) return "assistant";
+    if (permissions.canManageAdmins) return "admins";
+    return "dashboard";
+  });
+>>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
   const [showAllMenu, setShowAllMenu] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [showQueryFilter, setShowQueryFilter] = useState(false);
