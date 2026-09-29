@@ -37,17 +37,12 @@ export default function useBulkPaperUpload({
   const [bulkSummary, setBulkSummary] = useState(null);
   const [bulkValidationError, setBulkValidationError] = useState("");
 
-<<<<<<< HEAD
   // DB Bulk Edit & Delete state
   const [dbSelectedIds, setDbSelectedIds] = useState(new Set());
   const [isDbActionLoading, setIsDbActionLoading] = useState(false);
   const [dbActionMessage, setDbActionMessage] = useState(null);
 
-  const addBulkFiles = useCallback((fileList) => {
-=======
-  // UPDATED: Completely removes the 'lastRow' carry-over bug
   const addBulkFiles = useCallback((fileList, sourceRowToClone = null) => {
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
     const incoming = Array.from(fileList || []);
     if (incoming.length === 0) return;
 
@@ -55,32 +50,30 @@ export default function useBulkPaperUpload({
     const accepted = incoming.filter(isAcceptedFile);
 
     setBulkFiles((current) => {
-<<<<<<< HEAD
-=======
-      // 1. Default to completely blank fields
-      let fieldsToApply = emptyRowFields;
-
-      // 2. Only copy data IF the user specifically clicked "+ Add Similar"
-      if (sourceRowToClone) {
-        fieldsToApply = {
-          course: sourceRowToClone.course,
-          year: sourceRowToClone.year,
-          spec: sourceRowToClone.spec,
-          semester: sourceRowToClone.semester,
-          exam: sourceRowToClone.exam
-        };
-      } 
-      // NOTICE: No 'else' block here anymore! "+ Add More Papers" stays blank.
-
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
-      const newRows = accepted.map((file) => ({
-        id: `bulk-${Date.now()}-${bulkFileIdCounter++}`,
-        file,
-        link: "",
-        fileName: file.name,
-        paperName: cleanFileNameToPaperName(file.name),
-<<<<<<< HEAD
-        targets: [
+      const getInitialTargets = () => {
+        if (sourceRowToClone && Array.isArray(sourceRowToClone.targets) && sourceRowToClone.targets.length > 0) {
+          return sourceRowToClone.targets.map((t) => ({
+            id: `target-${Date.now()}-${bulkFileIdCounter++}`,
+            course: t.course || "",
+            year: t.year || "",
+            spec: "",
+            semester: t.semester || "",
+            exam: t.exam || ""
+          }));
+        }
+        if (sourceRowToClone && sourceRowToClone.course) {
+          return [
+            {
+              id: `target-${Date.now()}-${bulkFileIdCounter++}`,
+              course: sourceRowToClone.course || "",
+              year: sourceRowToClone.year || "",
+              spec: "",
+              semester: sourceRowToClone.semester || "",
+              exam: sourceRowToClone.exam || ""
+            }
+          ];
+        }
+        return [
           {
             id: `target-${Date.now()}-${bulkFileIdCounter++}`,
             course: "",
@@ -89,10 +82,16 @@ export default function useBulkPaperUpload({
             semester: "",
             exam: ""
           }
-        ],
-=======
-        ...fieldsToApply,
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
+        ];
+      };
+
+      const newRows = accepted.map((file) => ({
+        id: `bulk-${Date.now()}-${bulkFileIdCounter++}`,
+        file,
+        link: "",
+        fileName: file.name,
+        paperName: cleanFileNameToPaperName(file.name),
+        targets: getInitialTargets(),
         status: "pending",
         message: ""
       }));

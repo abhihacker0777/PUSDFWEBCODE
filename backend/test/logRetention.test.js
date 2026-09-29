@@ -1,6 +1,6 @@
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
-const { generateLogId } = require("../src/controllers/adminPaperJobs");
+const { generateLogId } = require("../src/services/adminLogService");
 
 const ADMIN_LOG_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 

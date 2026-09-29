@@ -69,13 +69,10 @@ const CAPTCHA_VERIFY_URL = process.env.CAPTCHA_VERIFY_URL;
 // calls (Database -> Webhooks in the Supabase dashboard). Leave unset to
 // keep the webhook endpoint disabled (it responds 503 to everything).
 const SUPABASE_WEBHOOK_SECRET = process.env.SUPABASE_WEBHOOK_SECRET || "";
-<<<<<<< HEAD
-=======
 // Once the webhook is confirmed working, set this to "true" to stop also
 // mirroring inline during upload/delete - otherwise both paths run and you
 // get the row mirrored twice. Defaults to inline-only (current behavior).
 const DISABLE_INLINE_SHEET_MIRROR = String(process.env.DISABLE_INLINE_SHEET_MIRROR || "").toLowerCase() === "true";
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
 // If frontend and backend share a parent domain (e.g. pyqp.poornima.edu.in and
 // api.poornima.edu.in, both under poornima.edu.in), set this to the shared
 // parent (".poornima.edu.in") so cookies are visible across both subdomains
@@ -86,14 +83,7 @@ const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || "";
 // Auto-switches to "lax" once COOKIE_DOMAIN is set (same-site subdomains
 // don't need None); explicit override available for edge cases.
 const COOKIE_SAME_SITE = process.env.COOKIE_SAME_SITE || (COOKIE_DOMAIN ? "lax" : "");
-<<<<<<< HEAD
 const ADMIN_ALLOWED_IPS = [];
-=======
-const ADMIN_ALLOWED_IPS = (process.env.ADMIN_ALLOWED_IPS || "")
-  .split(",")
-  .map((ip) => normalizeIp(ip))
-  .filter(Boolean);
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
 
 const missingEnv = [
   "JWT_SECRET",
@@ -228,10 +218,7 @@ module.exports = {
   CAPTCHA_SECRET,
   CAPTCHA_VERIFY_URL,
   SUPABASE_WEBHOOK_SECRET,
-<<<<<<< HEAD
-=======
   DISABLE_INLINE_SHEET_MIRROR,
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
   COOKIE_DOMAIN,
   COOKIE_SAME_SITE,
   ADMIN_ALLOWED_IPS

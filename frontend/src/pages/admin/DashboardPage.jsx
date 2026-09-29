@@ -1,11 +1,7 @@
 import { cleanStatusMessage, isErrorStatus } from "./adminHelpers";
 import { CustomDropdown } from "./AdminShared";
 const DashboardPage = ({
-<<<<<<< HEAD
   fileName, setFile, setFileName, directLink, setDirectLink, courses, years, specs, semesters, exams, papers, course, setCourse, year, setYear, spec, setSpec, semester, setSemester, exam, setExam, paper, setPaper, paperName, setPaperName, handleUpload, handleDelete, handleSyncToWebsite, openDropdown, setOpenDropdown, setSelectedPaperIndex, fileError, setFileError, isLoading, uploadStatus, setUploadStatus, deleteStatus, canCreatePapers, canEditPapers, canDeletePapers, canSyncPapers, canUploadFiles
-=======
-  fileName, setFile, setFileName, courses, years, specs, semesters, exams, papers, course, setCourse, year, setYear, spec, setSpec, semester, setSemester, exam, setExam, paper, setPaper, paperName, setPaperName, handleUpload, handleDelete, handleSyncToWebsite, openDropdown, setOpenDropdown, setSelectedPaperIndex, fileError, setFileError, isLoading, uploadStatus, setUploadStatus, deleteStatus, canCreatePapers, canEditPapers, canDeletePapers, canSyncPapers, canUploadFiles
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
 }) => (
   <div className="w-full">
     <div className="bg-white rounded-xl shadow-md p-4 sm:p-5 w-full border relative">

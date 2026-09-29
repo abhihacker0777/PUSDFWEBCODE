@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import { useState, useRef, useMemo } from "react";
-=======
-import { useState, useRef } from "react";
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
 import { CustomDropdown } from "./AdminShared";
 
 const StatusBadge = ({ status, message }) => {
@@ -22,8 +18,6 @@ const StatusBadge = ({ status, message }) => {
   }
   return <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400">Pending</span>;
 };
-
-<<<<<<< HEAD
 const TargetDropdownRow = ({
   rowId,
   target,
@@ -52,33 +46,6 @@ const TargetDropdownRow = ({
             >
               ✕ Remove
             </button>
-=======
-const BulkPaperUploadRow = ({ row, options, onFieldChange, onRemove, onClone, openDropdown, setOpenDropdown }) => {
-  const locked = row.status === "uploading" || row.status === "success";
-
-  return (
-    <div className={`w-full rounded-xl border p-4 shadow-sm transition-colors ${row.status === "error" ? "border-[#f43f5e]/60 bg-[#fef2f2]" : row.status === "success" ? "border-[#22c55e]/50 bg-[#f0fdf4]" : "border-gray-200 bg-white"}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-gray-100 pb-3">
-        <span className="text-sm font-bold text-[#05488B] truncate" title={row.fileName}>📄 {row.fileName}</span>
-        
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <StatusBadge status={row.status} message={row.message} />
-          
-          {/* New "Add Similar" Clone Button */}
-          {!locked && (
-            <button 
-              type="button" 
-              onClick={() => onClone(row)} 
-              className="flex items-center gap-1 bg-[#fffdf5] text-[#b48600] border border-[#ffc107] hover:bg-[#ffc107] hover:text-[#05488B] px-2 py-1 rounded-md text-xs font-bold transition-colors"
-              title="Select a new file with these exact same settings"
-            >
-              <span className="text-sm leading-none">+</span> Add Similar
-            </button>
-          )}
-
-          {!locked && (
-            <button type="button" onClick={() => onRemove(row.id)} className="text-red-500 hover:text-red-700 text-sm font-bold ml-2" title="Remove from queue">❌</button>
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
           )}
         </div>
       )}
@@ -275,18 +242,12 @@ export default function BulkPaperUpload({
   executeBulkEdit
 }) {
   const [openDropdown, setOpenDropdown] = useState(null);
-<<<<<<< HEAD
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [pasteLinkUrl, setPasteLinkUrl] = useState("");
   const [showQuickApply, setShowQuickApply] = useState(false);
   const [quickFields, setQuickFields] = useState({ course: "", year: "", spec: "", semester: "", exam: "" });
-=======
-  
-  // Refs and state for the cloning feature
-  const mainInputRef = useRef(null);
   const cloneInputRef = useRef(null);
   const [cloneSourceRow, setCloneSourceRow] = useState(null);
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
 
   // DB Filter States
   const [dbSearch, setDbSearch] = useState("");
@@ -380,7 +341,6 @@ export default function BulkPaperUpload({
   };
 
   return (
-<<<<<<< HEAD
     <div className="w-full bg-white rounded-xl shadow-md p-4 sm:p-5 border relative">
       {/* Sub-Header Navigation: Bulk Upload | Bulk Edit | Bulk Delete */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-200">
@@ -445,18 +405,10 @@ export default function BulkPaperUpload({
                 🗑️ Remove Selected ({selectedQueueIds.size})
               </button>
             )}
-=======
-    <div className="w-full bg-white rounded-xl shadow-md p-4 sm:p-6 border relative">
-      
-      {/* Hidden Inputs */}
-      <input
-        ref={mainInputRef}
-        type="file"
-        multiple
-        className="hidden"
-        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        onChange={(e) => { addBulkFiles(e.target.files); e.target.value = ""; }}
-      />
+          </div>
+        )}
+      </div>
+
       <input
         ref={cloneInputRef}
         type="file"
@@ -465,55 +417,6 @@ export default function BulkPaperUpload({
         accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         onChange={handleCloneSelect}
       />
-
-      {/* 1. ONLY SHOW BIG BOX IF NO FILES SELECTED */}
-      {bulkFiles.length === 0 ? (
-        <div
-          {...bulkDragHandlers}
-          onClick={() => mainInputRef.current?.click()}
-          className={`w-full rounded-xl border-2 border-dashed p-8 sm:p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${bulkIsDragging ? "border-[#05488B] bg-[#eef5ff]" : "border-[#ffc107] bg-[#fffdf5] hover:bg-[#fffaf0]"}`}
-        >
-          <div className="text-4xl mb-3">📁</div>
-          <p className="text-base sm:text-lg font-semibold text-[#374151]">Drag &amp; drop multiple PDF/DOCX files here</p>
-          <p className="text-sm text-gray-500 mb-4">or click below to browse</p>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); mainInputRef.current?.click(); }}
-            className="bg-[#05488B] hover:bg-[#215ea0] text-[#ffc107] px-6 py-2 rounded-lg shadow font-medium"
-          >
-            📂 Choose Files
-          </button>
-        </div>
-      ) : (
-        /* 2. SHOW QUEUE AND SMALL "CHOOSE FILES" BUTTON ONCE FILES EXIST */
-        <>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 pb-2 border-b border-gray-200 gap-3">
-            <h3 className="text-base sm:text-lg font-bold text-[#374151]">
-              Selected Papers Queue ({bulkFiles.length})
-            </h3>
-            
-            <div className="flex items-center gap-3">
-              {/* New Small Button to add more blank files without the big box */}
-              <button
-                type="button"
-                onClick={() => mainInputRef.current?.click()}
-                className="bg-[#fffdf5] text-[#05488B] border border-[#ffc107] hover:bg-[#ffc107] px-4 py-1.5 rounded-lg text-sm font-bold transition-colors"
-              >
-                + Add More Papers
-              </button>
-
-              {!bulkIsUploading && (
-                <button type="button" onClick={clearBulkQueue} className="text-sm font-medium text-[#f43f5e] hover:text-[#c11018]">
-                  Clear Queue
-                </button>
-              )}
-            </div>
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
-          </div>
-        )}
-      </div>
-
-<<<<<<< HEAD
       {/* Hidden File Input for Bulk Upload */}
       <input
         ref={mainInputRef}
@@ -1048,50 +951,6 @@ export default function BulkPaperUpload({
               className="bg-[#E31E24] hover:bg-[#c11018] disabled:opacity-40 text-white font-bold text-xs px-4 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
             >
               {isDbActionLoading ? "Deleting..." : `🗑️ Delete Selected (${selectedDbPapersList.length})`}
-=======
-          {bulkValidationError && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 text-sm font-medium text-[#f43f5e] flex items-center gap-1.5">
-              ❌ {bulkValidationError}
-            </div>
-          )}
-
-          <div className="space-y-4 max-h-[520px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] [&::-webkit-scrollbar-thumb]:rounded-full">
-            {bulkFiles.map((row) => (
-              <BulkPaperUploadRow
-                key={row.id}
-                row={row}
-                options={bulkOptionsForRow(row)}
-                onFieldChange={updateBulkFileField}
-                onRemove={removeBulkFile}
-                onClone={triggerClone} // Pass the clone trigger function to the row
-                openDropdown={openDropdown}
-                setOpenDropdown={setOpenDropdown}
-              />
-            ))}
-          </div>
-
-          {bulkSummary && (
-            <div className={`mt-4 p-3 rounded-lg text-sm font-semibold flex items-center gap-1.5 ${bulkSummary.failed > 0 ? "bg-red-50 text-[#f43f5e]" : "bg-green-50 text-[#22c55e]"}`}>
-              {bulkSummary.failed > 0 ? "❌" : "✅"} {bulkSummary.succeeded} of {bulkSummary.total} paper{bulkSummary.total > 1 ? "s" : ""} uploaded successfully{bulkSummary.failed > 0 ? `, ${bulkSummary.failed} failed` : ""}.
-            </div>
-          )}
-
-          <div className="mt-6 flex justify-center pt-4 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={uploadAllBulkFiles}
-              disabled={bulkIsUploading}
-              className="w-full sm:w-auto bg-[#05488B] hover:bg-[#215ea0] disabled:opacity-60 disabled:cursor-not-allowed text-[#ffc107] px-10 py-3 rounded-xl shadow-md font-bold text-lg transition-colors flex items-center justify-center gap-2"
-            >
-              {bulkIsUploading ? (
-                <>
-                  <span className="w-5 h-5 border-2 border-[#ffc107] border-t-transparent rounded-full animate-spin"></span>
-                  Uploading...
-                </>
-              ) : (
-                `🚀 Upload All (${bulkFiles.length} Paper${bulkFiles.length > 1 ? "s" : ""})`
-              )}
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
             </button>
           </div>
 
@@ -1209,10 +1068,4 @@ export default function BulkPaperUpload({
       )}
     </div>
   );
-<<<<<<< HEAD
 }
-=======
-};
-
-export default BulkPaperUpload;
->>>>>>> 35a138c9e2a414e3bd0d583322bb8978930a579f
