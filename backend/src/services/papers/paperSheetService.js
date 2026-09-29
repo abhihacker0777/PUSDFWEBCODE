@@ -6,6 +6,7 @@ const {
 const { getServiceSheets } = require("../googleService");
 const {
   resolveExpectedSheetRowIndex,
+  rowMatchesPaper,
   rowMatchesPaperSlot,
   rowHasBlankPaperData,
   paperFromSheetRow,
@@ -52,6 +53,22 @@ function createPaperSheetService() {
         });
         return;
       }
+    }
+
+    // Check if exact paper already exists in sheet to avoid duplicate row appends
+    const existingRowIndex = rows.findIndex((row, i) => i > 0 && rowMatchesPaper(row, paper));
+    if (existingRowIndex > 0) {
+      const existingRow = rows[existingRowIndex];
+      const needsUpdate = rowValues.some((val, idx) => String(val || "").trim() !== String(existingRow[idx] || "").trim());
+      if (needsUpdate) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SHEET_ID,
+          range: `Sheet1!A${existingRowIndex + 1}:G${existingRowIndex + 1}`,
+          valueInputOption: SHEET_WRITE_MODE,
+          requestBody: { values: [rowValues] }
+        });
+      }
+      return;
     }
 
     // New paper: if a blank placeholder row already exists for this exact

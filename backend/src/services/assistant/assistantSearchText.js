@@ -17,6 +17,20 @@ const COURSE_QUERY_ALIASES = [
   { value: "Ph.D", terms: ["phd", "ph d", "ph.d", "doctorate"] }
 ];
 
+const SPEC_QUERY_ALIASES = [
+  { value: "ARTIFICIAL INTELLIGENCE AND DATA SCIENCE", terms: ["aids", "ai ds", "ai and ds", "ai & ds", "ai and data science", "ai & data science"] },
+  { value: "ARTIFICIAL INTELLIGENCE & MACHINE LEARNING", terms: ["aiml", "ai ml", "ai and ml", "ai & ml", "ai and machine learning", "ai & machine learning"] },
+  { value: "COMPUTER SCIENCE & ENGINEERING", terms: ["cse", "cs"] },
+  { value: "INFORMATION TECHNOLOGY", terms: ["it"] },
+  { value: "MECHANICAL ENGINEERING", terms: ["me", "mech"] },
+  { value: "CIVIL ENGINEERING", terms: ["ce", "civil"] },
+  { value: "ELECTRICAL ENGINEERING", terms: ["ee", "electrical"] },
+  { value: "ELECTRONICS & COMMUNICATION ENGINEERING", terms: ["ec", "ece"] },
+  { value: "CYBER SECURITY", terms: ["cyber", "cyber security", "cybersecurity", "cyber sec"] },
+  { value: "DATA SCIENCE", terms: ["data science", "ds"] },
+  { value: "CLOUD TECHNOLOGY", terms: ["cloud", "cloud computing"] }
+];
+
 function normalizeSearchText(value, maxLength = MAX_ASSISTANT_TEXT_LENGTH) {
   return normalizeText(value, maxLength)
     .toLowerCase()
@@ -84,6 +98,34 @@ function findKnownCourseInQuery(query, values) {
   return "";
 }
 
+function findKnownSpecInQuery(query, values) {
+  const directMatch = findKnownValueInQuery(query, values);
+  if (directMatch) return directMatch;
+
+  const availableSpecs = [...new Set(values || [])];
+  const normalizedQuery = ` ${normalizeSearchText(query)} `;
+  const compactQuery = compactSearchText(query);
+
+  for (const alias of SPEC_QUERY_ALIASES) {
+    const spec = availableSpecs.find((value) => sameSearchValue(value, alias.value) ||
+      compactSearchText(value) === compactSearchText(alias.value));
+    if (!spec) continue;
+
+    const terms = [alias.value, ...(alias.terms || [])];
+    if (terms.some((term) => {
+      const normalizedTerm = normalizeSearchText(term);
+      return normalizedTerm && (
+        normalizedQuery.includes(` ${normalizedTerm} `) ||
+        compactQuery.includes(compactSearchText(term))
+      );
+    })) {
+      return spec;
+    }
+  }
+
+  return "";
+}
+
 function getAssistantQueryTokens(query) {
   const ignored = new Set([
     "a", "an", "and", "are", "by", "find", "for", "from", "give", "i", "in", "is", "link",
@@ -107,14 +149,26 @@ function getAssistantTokenVariants(token) {
   return [...variants].filter(Boolean);
 }
 
-function assistantTokenMatches(text, compactText, token) {
-  return getAssistantTokenVariants(token).some((variant) =>
-    text.includes(variant) || compactText.includes(variant)
-  );
+function assistantTokenMatches(text, token) {
+  const normText = normalizeSearchText(text);
+  const normToken = normalizeSearchText(token, 40);
+  if (!normToken) return false;
+
+  if (` ${normText} `.includes(` ${normToken} `)) return true;
+
+  const compToken = compactSearchText(token);
+  if (compToken.length >= 3 && compactSearchText(text).includes(compToken)) return true;
+
+  const words = normText.split(" ").filter(Boolean);
+  return getAssistantTokenVariants(normToken).some((variant) => {
+    if (!variant) return false;
+    return words.some((word) => word === variant || (variant.length >= 4 && word.startsWith(variant)));
+  });
 }
 
 module.exports = {
   COURSE_QUERY_ALIASES,
+  SPEC_QUERY_ALIASES,
   normalizeSearchText,
   compactSearchText,
   sameSearchValue,
@@ -122,6 +176,7 @@ module.exports = {
   getUniquePaperValues,
   findKnownValueInQuery,
   findKnownCourseInQuery,
+  findKnownSpecInQuery,
   getAssistantQueryTokens,
   assistantTokenMatches
 };

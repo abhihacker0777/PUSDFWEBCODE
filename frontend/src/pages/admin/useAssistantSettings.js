@@ -112,6 +112,7 @@ export default function useAssistantSettings({
     handleUnblockUser,
     assistantSettingsProps: {
       canCreateReplies,
+      canEditAssistant,
       editingReplyKeyword,
       draftReplies,
       setDraftReplies,

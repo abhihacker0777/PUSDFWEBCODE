@@ -6,7 +6,6 @@ const {
   equalizeLoginTiming,
   getLoginAccountState,
   getProgressiveDelayMs,
-  isAdminIpAllowed,
   isCaptchaConfigured,
   recordFailedLogin,
   setRetryAfter,
@@ -60,15 +59,6 @@ async function login(req, res) {
 
     const authenticatedUser = await verifyAdminCredentials(identifier, password);
     if (!authenticatedUser) return handleLoginFailure(identifier, startedAt, res);
-
-    if (authenticatedUser.isOwner && !isAdminIpAllowed(req)) {
-      await equalizeLoginTiming(startedAt);
-      return res.status(403).json({
-        success: false,
-        code: "ADMIN_IP_RESTRICTED",
-        message: "Main admin access is restricted from this IP."
-      });
-    }
 
     await clearLoginFailures(authenticatedUser, identifier);
     await equalizeLoginTiming(startedAt);

@@ -5,7 +5,8 @@ const {
 } = require("./assistant/assistantSearchText");
 const {
   parseAssistantQuery,
-  parseAssistantQueryWithSarvam
+  parseAssistantQueryWithSarvam,
+  parseAssistantQueryWithGemini
 } = require("./assistant/assistantQueryParser");
 const {
   dedupePapers,
@@ -19,5 +20,6 @@ module.exports = {
   dedupePapers,
   parseAssistantQuery,
   parseAssistantQueryWithSarvam,
+  parseAssistantQueryWithGemini,
   searchAssistantPapers
 };

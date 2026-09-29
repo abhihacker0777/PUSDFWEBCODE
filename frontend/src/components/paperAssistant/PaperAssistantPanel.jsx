@@ -1,15 +1,21 @@
 import { FiRefreshCw, FiX } from "react-icons/fi";
 import puLogo from "../../assets/logo.png";
-import sarvamLogoSvg from "../../assets/pusarvamlogo.svg";
+import puGeminiFullLogo from "../../assets/pugeminifullogo.svg";
+import puGeminiLogo from "../../assets/pugeminilogo.svg";
 import PaperAssistantChat from "./PaperAssistantChat";
 import PaperAssistantSignin from "./PaperAssistantSignin";
 
 function PoweredFooter() {
   return (
-    <div className="pu-assistant-powered flex items-center justify-center gap-1 pb-2">
-      Powered By
-      <a href="https://www.sarvam.ai" target="_blank" rel="noopener noreferrer" className="inline-flex items-center">
-        <img src={sarvamLogoSvg} alt="Sarvam AI" className="h-3 inline-block ml-1 opacity-90 hover:opacity-100 transition-opacity cursor-pointer" />
+    <div className="pu-assistant-powered flex items-center justify-center gap-1.5 py-1">
+      <span className="text-[#1a1a1a] font-bold text-xs">Powered By</span>
+      <a
+        href="https://deepmind.google/technologies/gemini/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center"
+      >
+        <img src={puGeminiFullLogo} alt="Google Gemini" className="h-4 inline-block opacity-90 hover:opacity-100 transition-opacity cursor-pointer" />
       </a>
     </div>
   );

@@ -26,7 +26,7 @@ export const buildPaperOptions = ({
   customSemestersByYear
 }) => {
   const courses = appendAddOption(
-    orderBySequence(uniqueList([...allPapers.map((item) => item.course), ...courseSequence]), courseSequence),
+    uniqueList([...allPapers.map((item) => item.course), ...courseSequence]).sort((a, b) => a.localeCompare(b)),
     ADD_COURSE
   );
   const years = appendAddOption(

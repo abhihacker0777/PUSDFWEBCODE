@@ -25,6 +25,7 @@ export default function usePaperDashboard({
   const [selectedPaperIndex, setSelectedPaperIndex] = useState(null);
   const [fileName, setFileName] = useState("No file chosen");
   const [file, setFile] = useState(null);
+  const [directLink, setDirectLink] = useState("");
   const [fileError, setFileError] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [deleteStatus, setDeleteStatus] = useState("");
@@ -104,6 +105,8 @@ export default function usePaperDashboard({
     rememberCustomSpec,
     rememberCustomSemester,
     canCreatePapers,
+    canEditPapers,
+    canDeletePapers,
     fetchPapers,
     refreshLogs
   });
@@ -133,6 +136,8 @@ export default function usePaperDashboard({
     selectedPaperIndex,
     selectedPaper: allPapers.find(p => String(p.index) === String(selectedPaperIndex)) || null,
     file,
+    directLink,
+    setDirectLink,
     listDeleteConfirm,
     rememberCustomSpec,
     rememberCustomSemester,
@@ -179,6 +184,8 @@ export default function usePaperDashboard({
     dashboardProps: {
       file,
       fileName,
+      directLink,
+      setDirectLink,
       setFile,
       setFileName,
       ...dropdownData,
@@ -207,6 +214,7 @@ export default function usePaperDashboard({
       setUploadStatus,
       deleteStatus,
       canCreatePapers,
+      canEditPapers,
       canDeletePapers,
       canSyncPapers,
       canUploadFiles

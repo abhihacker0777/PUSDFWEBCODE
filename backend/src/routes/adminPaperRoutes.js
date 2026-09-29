@@ -16,6 +16,8 @@ function createAdminPaperRoutes({
 
   router.post("/upload", requireCsrf, adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("papers:update"), controller.uploadPaper);
   router.delete("/delete", requireCsrf, adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("papers:delete"), controller.deletePaper);
+  router.post("/bulk-delete", requireCsrf, adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("papers:delete"), controller.bulkDeletePapers);
+  router.post("/bulk-edit", requireCsrf, adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("papers:update"), controller.bulkEditPapers);
   router.get("/admin/papers", adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("papers:read"), controller.listAdminPapers);
   router.post("/sync", requireCsrf, adminMutationLimiter, verifyToken, requireOwnerAdminIp, requirePermission("papers:sync"), controller.syncPapers);
 

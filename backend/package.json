@@ -24,8 +24,11 @@
     "googleapis": "^173.0.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "mammoth": "^1.12.1",
     "multer": "^2.2.0",
     "node-fetch": "^3.3.2",
+    "nodemailer": "^9.0.5",
+    "pdf-parse": "^1.1.1",
     "uuid": "^14.0.0",
     "zod": "^4.4.3"
   },

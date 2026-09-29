@@ -22,6 +22,19 @@ function sheetRange(tabName, range) {
   return `'${safeTabName}'!${range}`;
 }
 
+// admin_logs.id is a bigint, generated here rather than left to a DB
+// sequence because the same id also has to go into the mirrored Sheets
+// "Logs" tab row - Date.now() * 1000 plus a small random offset keeps ids
+// roughly time-ordered (so DESC-by-id sorting works) while avoiding
+// collisions between two log writes in the same millisecond.
+function generateLogId() {
+  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+}
+
+function formatLogDate(date = new Date()) {
+  return date.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+}
+
 // Pure function: given raw student_queries rows, compute the insights
 // summary. Kept separate from the Supabase fetch so it can be tested with
 // plain arrays, no network access needed.
@@ -261,4 +274,4 @@ function createAdminLogService() {
   };
 }
 
-module.exports = { createAdminLogService, sheetCell, sheetRange, computeStudentQueryInsights };
+module.exports = { createAdminLogService, sheetCell, sheetRange, generateLogId, formatLogDate, computeStudentQueryInsights };

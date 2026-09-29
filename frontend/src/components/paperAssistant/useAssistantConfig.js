@@ -5,7 +5,8 @@ import { DEFAULT_DOMAIN } from "./assistantAuth";
 const DEFAULT_CONFIG = {
   googleClientId: "",
   emailDomain: DEFAULT_DOMAIN,
-  aiProvider: "sarvam",
+  aiProvider: "gemini",
+  geminiEnabled: false,
   sarvamEnabled: false
 };
 
@@ -20,7 +21,8 @@ export default function useAssistantConfig(setSignInError) {
         setConfig({
           googleClientId: data.googleClientId || "",
           emailDomain: data.emailDomain || DEFAULT_DOMAIN,
-          aiProvider: data.aiProvider || "sarvam",
+          aiProvider: data.aiProvider || "gemini",
+          geminiEnabled: Boolean(data.geminiEnabled ?? data.sarvamEnabled),
           sarvamEnabled: Boolean(data.sarvamEnabled)
         });
       })

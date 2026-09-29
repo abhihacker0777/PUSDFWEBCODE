@@ -20,7 +20,7 @@ export default function DashboardHome({ coverImg, bulkUploadProps, ...dashboardP
           onClick={() => setActiveTab("bulk")}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-colors ${activeTab === "bulk" ? "bg-white text-[#05488B] border-2 border-[#05488B]" : "bg-[#05488B] text-[#ffc107] hover:bg-[#215ea0]"}`}
         >
-          📦 Bulk Paper Upload
+          📦 Bulk Paper Operations
         </button>
       </div>
 
@@ -30,8 +30,8 @@ export default function DashboardHome({ coverImg, bulkUploadProps, ...dashboardP
         <BulkPaperUpload {...bulkUploadProps} />
       )}
 
-      <div className="mt-4 rounded-xl overflow-hidden shadow-md w-full flex-shrink-0">
-        <img src={coverImg} alt="Poornima University" className="w-full h-24 sm:h-32 md:h-auto md:aspect-[4/1] object-cover object-center transform transition-transform duration-700" />
+      <div className="mt-4 rounded-xl overflow-hidden shadow-sm w-full flex-shrink-0 border border-gray-200 bg-white">
+        <img src={coverImg} alt="Poornima University" className="w-full h-auto object-cover object-center transform transition-transform duration-700" />
       </div>
     </>
   );

@@ -21,6 +21,20 @@ export const deletePaper = (index, expected = {}) =>
     body: JSON.stringify({ index, ...expected })
   });
 
+export const bulkDeletePapersApi = (items) =>
+  csrfFetch(`${BACKEND_URL}/bulk-delete`, {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify({ items })
+  });
+
+export const bulkEditPapersApi = (items, updates) =>
+  csrfFetch(`${BACKEND_URL}/bulk-edit`, {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify({ items, updates })
+  });
+
 export const syncPapersToWebsite = () =>
   csrfFetch(`${BACKEND_URL}/sync`, { method: "POST" });
 

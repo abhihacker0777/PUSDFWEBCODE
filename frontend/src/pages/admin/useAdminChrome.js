@@ -17,7 +17,29 @@ export default function useAdminChrome({
   hasNewStudentQueries,
   onLogout
 }) {
+  // BUG FIX: this used to be `useState(() => { if (permissions.x) return
+  // ...; return "dashboard"; })`. useState's initializer only runs once,
+  // on mount - but `permissions` is still all-false at that point (the
+  // async /me session check hasn't resolved yet), so every condition
+  // failed and it locked in the "dashboard" fallback permanently, even
+  // for roles like "view" that have no dashboard access at all and never
+  // even see it as a nav option. Now it re-derives once permissions
+  // actually load, and redirects away from a tab the admin can't access.
   const [activeNav, setActiveNav] = useState("dashboard");
+
+  useEffect(() => {
+    const availableNavIds = [
+      permissions.canEditPapers && "dashboard",
+      permissions.canMonitor && "paper",
+      permissions.canMonitor && "queries",
+      permissions.canReadAssistant && "assistant",
+      permissions.canManageAdmins && "admins"
+    ].filter(Boolean);
+
+    if (availableNavIds.length > 0 && !availableNavIds.includes(activeNav)) {
+      setActiveNav(availableNavIds[0]);
+    }
+  }, [activeNav, permissions.canEditPapers, permissions.canMonitor, permissions.canReadAssistant, permissions.canManageAdmins]);
   const [showAllMenu, setShowAllMenu] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [showQueryFilter, setShowQueryFilter] = useState(false);

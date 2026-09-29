@@ -4,8 +4,10 @@ const { createAdminSettingsRoutes } = require("./adminSettingsRoutes");
 const { createAdminUserRoutes } = require("./adminUserRoutes");
 const { createAssistantRoutes } = require("./assistantRoutes");
 const { createAuthRoutes } = require("./authRoutes");
+const { createHealthRoutes } = require("./healthRoutes");
 const { createPaperRoutes } = require("./paperRoutes");
 const { createWebhookRoutes } = require("./webhookRoutes");
+const { generateLogId, formatLogDate } = require("../services/adminLogService");
 
 function registerRoutes(app, dependencies) {
   const {
@@ -23,6 +25,8 @@ function registerRoutes(app, dependencies) {
   const { requireOwnerAdminIp, hasAdminPermission } = auth;
 
   app.use(createAuthRoutes({ verifyToken, requireOwnerAdminIp }));
+
+  app.use(createHealthRoutes({ controllerDependencies: dependencies.health }));
   app.use(createAdminUserRoutes({ verifyToken, requireOwnerAdminIp, requireOwnerAdmin }));
 
   app.use(createWebhookRoutes({
@@ -68,6 +72,10 @@ function registerRoutes(app, dependencies) {
     requireOwnerAdminIp,
     requirePermission,
     controllerDependencies: {
+      appendAdminLogToSupabase: adminLogs.appendAdminLogToSupabase,
+      appendAdminLogToSheet: adminLogs.appendAdminLogToSheet,
+      generateLogId,
+      formatLogDate,
       deleteSupabasePaper: paper.deleteSupabasePaper,
       extractDriveFileId: drive.extractDriveFileId,
       fetchAdminPapersFromPublishedSheet: paper.fetchAdminPapersFromPublishedSheet,

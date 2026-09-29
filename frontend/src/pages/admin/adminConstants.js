@@ -1,4 +1,8 @@
-export const courseSequence = ["B.Arch", "B.Com", "B.Des", "B.Sc", "B.Tech", "BA", "BBA", "BCA", "BVA", "M.Plan", "M.Tech", "MA", "MBA", "MCA", "MPH", "MVA", "Ph.D", "PIHM"];
+export const courseSequence = [
+  "B.Arch", "B.Com", "B.Des", "B.Sc", "B.Tech", "BA", "BBA", "BCA", "BPH", "BVA",
+  "M.Des", "M.Plan", "M.Tech", "MA", "MBA", "MCA", "MHA", "MPH", "MVA",
+  "Ph.D", "PIHM"
+];
 export const yearSequence = ["1 Year", "2 Year", "3 Year", "4 Year", "5 Year"];
 export const semesterSequence = ["1 Sem", "2 Sem", "3 Sem", "4 Sem", "5 Sem", "6 Sem", "7 Sem", "8 Sem", "9 Sem", "10 Sem"];
 export const examSequence = ["MSE", "ESE"];

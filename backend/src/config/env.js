@@ -20,11 +20,18 @@ const ASSISTANT_REQUESTS_SHEET = process.env.ASSISTANT_REQUESTS_SHEET;
 const GOOGLE_SIGNIN_CLIENT_ID = process.env.GOOGLE_SIGNIN_CLIENT_ID;
 const SARVAM_API_KEY = process.env.SARVAM_API_KEY;
 const SARVAM_MODEL = process.env.SARVAM_MODEL;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_MODEL = (process.env.GEMINI_MODEL && !process.env.GEMINI_MODEL.includes("2.0") && !process.env.GEMINI_MODEL.includes("2.5")) ? process.env.GEMINI_MODEL : "gemini-flash-lite-latest";
+const GEMINI_TIMEOUT_MS = 10000;
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_PAPERS_TABLE = process.env.SUPABASE_PAPERS_TABLE;
 const SUPABASE_ADMIN_USERS_TABLE = process.env.SUPABASE_ADMIN_USERS_TABLE;
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const SMTP_HOST = process.env.SMTP_HOST;
+const SMTP_PORT = Number(process.env.SMTP_PORT) || 587;
+const SMTP_SECURE = String(process.env.SMTP_SECURE || "").toLowerCase() === "true";
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
 const PASSWORD_RESET_FROM = process.env.PASSWORD_RESET_FROM;
 const PASSWORD_RESET_URL = process.env.PASSWORD_RESET_URL;
 const SARVAM_TIMEOUT_MS = 5000;
@@ -62,14 +69,17 @@ const CAPTCHA_VERIFY_URL = process.env.CAPTCHA_VERIFY_URL;
 // calls (Database -> Webhooks in the Supabase dashboard). Leave unset to
 // keep the webhook endpoint disabled (it responds 503 to everything).
 const SUPABASE_WEBHOOK_SECRET = process.env.SUPABASE_WEBHOOK_SECRET || "";
-// Once the webhook is confirmed working, set this to "true" to stop also
-// mirroring inline during upload/delete - otherwise both paths run and you
-// get the row mirrored twice. Defaults to inline-only (current behavior).
-const DISABLE_INLINE_SHEET_MIRROR = String(process.env.DISABLE_INLINE_SHEET_MIRROR || "").toLowerCase() === "true";
-const ADMIN_ALLOWED_IPS = (process.env.ADMIN_ALLOWED_IPS || "")
-  .split(",")
-  .map((ip) => normalizeIp(ip))
-  .filter(Boolean);
+// If frontend and backend share a parent domain (e.g. pyqp.poornima.edu.in and
+// api.poornima.edu.in, both under poornima.edu.in), set this to the shared
+// parent (".poornima.edu.in") so cookies are visible across both subdomains
+// as same-site - this is what actually avoids Safari/Chrome blocking the
+// cookie, not just setting SameSite=None. Leave unset if frontend and backend
+// are on genuinely unrelated domains (current Vercel + Render setup).
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || "";
+// Auto-switches to "lax" once COOKIE_DOMAIN is set (same-site subdomains
+// don't need None); explicit override available for edge cases.
+const COOKIE_SAME_SITE = process.env.COOKIE_SAME_SITE || (COOKIE_DOMAIN ? "lax" : "");
+const ADMIN_ALLOWED_IPS = [];
 
 const missingEnv = [
   "JWT_SECRET",
@@ -91,14 +101,13 @@ const missingEnv = [
   "REDIS_URL",
   "CAPTCHA_SECRET",
   "CAPTCHA_VERIFY_URL",
-  "RESEND_API_KEY",
+  "SMTP_HOST",
+  "SMTP_USER",
+  "SMTP_PASSWORD",
   "PASSWORD_RESET_FROM",
   "PASSWORD_RESET_URL",
   "ASSISTANT_EMAIL_DOMAIN",
-  "ASSISTANT_REQUESTS_SHEET",
-  "SARVAM_API_KEY",
-  "SARVAM_MODEL",
-  "ADMIN_ALLOWED_IPS"
+  "ASSISTANT_REQUESTS_SHEET"
 ].filter((name) => !process.env[name]);
 
 if (!ADMIN_LOGIN_IDENTIFIER || !ADMIN_EMAIL_ADDRESS) {
@@ -112,11 +121,6 @@ if (missingEnv.length > 0) {
 
 if (SECRET.length < 32) {
   console.error("FATAL ERROR: JWT_SECRET must be at least 32 characters.");
-  process.exit(1);
-}
-
-if (ADMIN_ALLOWED_IPS.length === 0) {
-  console.error("FATAL ERROR: ADMIN_ALLOWED_IPS must contain at least one trusted main-admin IP.");
   process.exit(1);
 }
 
@@ -164,11 +168,18 @@ module.exports = {
   GOOGLE_SIGNIN_CLIENT_ID,
   SARVAM_API_KEY,
   SARVAM_MODEL,
+  GEMINI_API_KEY,
+  GEMINI_MODEL,
+  GEMINI_TIMEOUT_MS,
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
   SUPABASE_PAPERS_TABLE,
   SUPABASE_ADMIN_USERS_TABLE,
-  RESEND_API_KEY,
+  SMTP_HOST,
+  SMTP_PORT,
+  SMTP_SECURE,
+  SMTP_USER,
+  SMTP_PASSWORD,
   PASSWORD_RESET_FROM,
   PASSWORD_RESET_URL,
   SARVAM_TIMEOUT_MS,
@@ -203,6 +214,7 @@ module.exports = {
   CAPTCHA_SECRET,
   CAPTCHA_VERIFY_URL,
   SUPABASE_WEBHOOK_SECRET,
-  DISABLE_INLINE_SHEET_MIRROR,
+  COOKIE_DOMAIN,
+  COOKIE_SAME_SITE,
   ADMIN_ALLOWED_IPS
 };

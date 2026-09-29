@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { uploadPaper } from "./adminApi";
+import { uploadPaper, bulkDeletePapersApi, bulkEditPapersApi } from "./adminApi";
 import { cleanStatusMessage, clearPapersCache, notifyPapersUpdated, readApiResponse } from "./adminHelpers";
 import { buildPaperOptions } from "./paperOptions";
 
@@ -11,12 +11,11 @@ const isAcceptedFile = (file) => {
   return ACCEPTED_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
 };
 
-const cleanFileNameToPaperName = (fileName) => {
-  const withoutExtension = fileName.replace(/\.(pdf|docx)$/i, "");
+const cleanFileNameToPaperName = (name) => {
+  if (!name) return "";
+  const withoutExtension = String(name).replace(/\.(pdf|docx)$/i, "");
   return withoutExtension.trim().slice(0, 160);
 };
-
-const emptyRowFields = { course: "", year: "", spec: "", semester: "", exam: "" };
 
 export default function useBulkPaperUpload({
   allPapers,
@@ -25,14 +24,23 @@ export default function useBulkPaperUpload({
   rememberCustomSpec,
   rememberCustomSemester,
   canCreatePapers,
+  canEditPapers,
+  canDeletePapers,
   fetchPapers,
   refreshLogs
 }) {
+  const [bulkMode, setBulkMode] = useState("upload"); // "upload" | "edit" | "delete"
   const [bulkFiles, setBulkFiles] = useState([]);
+  const [selectedQueueIds, setSelectedQueueIds] = useState(new Set());
   const [bulkIsDragging, setBulkIsDragging] = useState(false);
   const [bulkIsUploading, setBulkIsUploading] = useState(false);
   const [bulkSummary, setBulkSummary] = useState(null);
   const [bulkValidationError, setBulkValidationError] = useState("");
+
+  // DB Bulk Edit & Delete state
+  const [dbSelectedIds, setDbSelectedIds] = useState(new Set());
+  const [isDbActionLoading, setIsDbActionLoading] = useState(false);
+  const [dbActionMessage, setDbActionMessage] = useState(null);
 
   const addBulkFiles = useCallback((fileList) => {
     const incoming = Array.from(fileList || []);
@@ -42,17 +50,22 @@ export default function useBulkPaperUpload({
     const accepted = incoming.filter(isAcceptedFile);
 
     setBulkFiles((current) => {
-      const lastRow = current[current.length - 1];
-      const carriedOverFields = lastRow
-        ? { course: lastRow.course, year: lastRow.year, spec: lastRow.spec, semester: lastRow.semester, exam: lastRow.exam }
-        : emptyRowFields;
-
       const newRows = accepted.map((file) => ({
         id: `bulk-${Date.now()}-${bulkFileIdCounter++}`,
         file,
+        link: "",
         fileName: file.name,
         paperName: cleanFileNameToPaperName(file.name),
-        ...carriedOverFields,
+        targets: [
+          {
+            id: `target-${Date.now()}-${bulkFileIdCounter++}`,
+            course: "",
+            year: "",
+            spec: "",
+            semester: "",
+            exam: ""
+          }
+        ],
         status: "pending",
         message: ""
       }));
@@ -66,6 +79,74 @@ export default function useBulkPaperUpload({
     setBulkSummary(null);
   }, []);
 
+  const addBulkLink = useCallback((url) => {
+    const cleanUrl = String(url || "").trim();
+    if (!cleanUrl) return;
+
+    let derivedName = "Paper Link";
+    try {
+      const parsed = new URL(cleanUrl);
+      const pathParts = parsed.pathname.split("/").filter(Boolean);
+      derivedName = pathParts[pathParts.length - 1] || "Paper Document";
+    } catch {
+      derivedName = "Paper Document";
+    }
+
+    setBulkFiles((current) => [
+      ...current,
+      {
+        id: `bulk-${Date.now()}-${bulkFileIdCounter++}`,
+        file: null,
+        link: cleanUrl,
+        fileName: derivedName,
+        paperName: cleanFileNameToPaperName(derivedName),
+        targets: [
+          {
+            id: `target-${Date.now()}-${bulkFileIdCounter++}`,
+            course: "",
+            year: "",
+            spec: "",
+            semester: "",
+            exam: ""
+          }
+        ],
+        status: "pending",
+        message: ""
+      }
+    ]);
+    setBulkSummary(null);
+  }, []);
+
+  const addTargetToRow = useCallback((rowId) => {
+    setBulkFiles((current) => current.map((row) => {
+      if (row.id !== rowId) return row;
+      const sourceTarget = [...row.targets].reverse().find((t) => t.course) || row.targets[row.targets.length - 1] || row.targets[0] || {};
+      const newTarget = {
+        id: `target-${Date.now()}-${bulkFileIdCounter++}`,
+        course: sourceTarget.course || "",
+        year: sourceTarget.year || "",
+        spec: "", // Leave specialization empty so admin can choose another specialization
+        semester: sourceTarget.semester || "",
+        exam: sourceTarget.exam || ""
+      };
+      return {
+        ...row,
+        targets: [...row.targets, newTarget]
+      };
+    }));
+  }, []);
+
+  const removeTargetFromRow = useCallback((rowId, targetId) => {
+    setBulkFiles((current) => current.map((row) => {
+      if (row.id !== rowId) return row;
+      if (row.targets.length <= 1) return row;
+      return {
+        ...row,
+        targets: row.targets.filter((t) => t.id !== targetId)
+      };
+    }));
+  }, []);
+
   const removeBulkFile = useCallback((id) => {
     setBulkFiles((current) => current.filter((row) => row.id !== id));
   }, []);
@@ -76,28 +157,37 @@ export default function useBulkPaperUpload({
     setBulkValidationError("");
   }, []);
 
-  const updateBulkFileField = useCallback((id, field, value) => {
+  const updateBulkFileField = useCallback((rowId, targetId, field, value) => {
     setBulkFiles((current) => current.map((row) => {
-      if (row.id !== id) return row;
-      const updated = { ...row, [field]: value };
-      // Cascading resets, matching the single-paper edit form's behavior.
-      if (field === "course") { updated.year = ""; updated.spec = ""; updated.semester = ""; updated.exam = ""; }
-      if (field === "year") { updated.semester = ""; updated.exam = ""; }
-      if (field === "spec") { updated.semester = ""; updated.exam = ""; }
-      if (field === "semester") { updated.exam = ""; }
-      if (field === "spec") rememberCustomSpec(updated.course, value);
-      if (field === "semester") rememberCustomSemester(updated.year, value);
-      return updated;
+      if (row.id !== rowId) return row;
+
+      if (field === "paperName") {
+        return { ...row, paperName: value };
+      }
+
+      const updatedTargets = row.targets.map((target) => {
+        if (target.id !== targetId) return target;
+        const updated = { ...target, [field]: value };
+        if (field === "course") { updated.year = ""; updated.spec = ""; updated.semester = ""; updated.exam = ""; }
+        if (field === "year") { updated.semester = ""; updated.exam = ""; }
+        // Do NOT wipe semester or exam when specialization is changed
+        if (field === "semester") { updated.exam = ""; }
+        if (field === "spec") rememberCustomSpec(updated.course, value);
+        if (field === "semester") rememberCustomSemester(updated.year, value);
+        return updated;
+      });
+
+      return { ...row, targets: updatedTargets };
     }));
   }, [rememberCustomSpec, rememberCustomSemester]);
 
-  const bulkOptionsForRow = useCallback((row) => buildPaperOptions({
+  const bulkOptionsForTarget = useCallback((target) => buildPaperOptions({
     allPapers,
-    course: row.course,
-    year: row.year,
-    spec: row.spec,
-    semester: row.semester,
-    exam: row.exam,
+    course: target.course,
+    year: target.year,
+    spec: target.spec,
+    semester: target.semester,
+    exam: target.exam,
     customSpecsByCourse,
     customSemestersByYear
   }), [allPapers, customSpecsByCourse, customSemestersByYear]);
@@ -105,11 +195,22 @@ export default function useBulkPaperUpload({
   const uploadAllBulkFiles = useCallback(async () => {
     if (!canCreatePapers || bulkFiles.length === 0 || bulkIsUploading) return;
 
-    const incompleteCount = bulkFiles.filter((row) =>
-      !row.course || !row.year || !row.spec || !row.semester || !row.exam || !row.paperName.trim()
-    ).length;
+    let incompleteCount = 0;
+    for (const row of bulkFiles) {
+      if (!row.paperName.trim()) {
+        incompleteCount += 1;
+        continue;
+      }
+      for (const target of row.targets) {
+        if (!target.course || !target.year || !target.spec || !target.semester || !target.exam) {
+          incompleteCount += 1;
+          break;
+        }
+      }
+    }
+
     if (incompleteCount > 0) {
-      setBulkValidationError(`Complete every field for all ${bulkFiles.length} papers before uploading (${incompleteCount} incomplete).`);
+      setBulkValidationError(`Complete all dropdowns and paper names for all papers before uploading.`);
       return;
     }
 
@@ -123,36 +224,57 @@ export default function useBulkPaperUpload({
     for (const row of bulkFiles) {
       setBulkFiles((current) => current.map((item) => (item.id === row.id ? { ...item, status: "uploading", message: "" } : item)));
 
-      try {
-        const formData = new FormData();
-        formData.append("file", row.file);
-        formData.append("course", row.course);
-        formData.append("year", row.year);
-        formData.append("spec", row.spec);
-        formData.append("sem", row.semester);
-        formData.append("exam", row.exam);
-        formData.append("name", row.paperName.trim());
+      let rowFailed = false;
+      let sharedFileLink = row.link || null;
 
-        const response = await uploadPaper(formData);
-        const payload = await readApiResponse(response);
+      for (let i = 0; i < row.targets.length; i += 1) {
+        const target = row.targets[i];
+        try {
+          const formData = new FormData();
+          if (i === 0 && row.file) {
+            formData.append("file", row.file);
+          } else if (sharedFileLink) {
+            formData.append("directLink", sharedFileLink);
+          }
 
-        if (!response.ok) {
-          failed += 1;
+          formData.append("course", target.course);
+          formData.append("year", target.year);
+          formData.append("spec", target.spec);
+          formData.append("sem", target.semester);
+          formData.append("exam", target.exam);
+          formData.append("name", row.paperName.trim());
+
+          const response = await uploadPaper(formData);
+          const payload = await readApiResponse(response);
+
+          if (!response.ok) {
+            rowFailed = true;
+            console.error("Bulk target upload failed:", payload.message);
+            setBulkFiles((current) => current.map((item) => (item.id === row.id
+              ? { ...item, status: "error", message: cleanStatusMessage(payload.message || "Upload failed") }
+              : item)));
+            break;
+          }
+
+          if (payload.paper?.link) {
+            sharedFileLink = payload.paper.link;
+          }
+        } catch (error) {
+          rowFailed = true;
+          console.error("Bulk upload target error:", error);
           setBulkFiles((current) => current.map((item) => (item.id === row.id
-            ? { ...item, status: "error", message: cleanStatusMessage(payload.message || "Upload failed") }
+            ? { ...item, status: "error", message: "Server connection failed" }
             : item)));
-          continue;
+          break;
         }
+      }
 
+      if (rowFailed) {
+        failed += 1;
+      } else {
         succeeded += 1;
         setBulkFiles((current) => current.map((item) => (item.id === row.id
-          ? { ...item, status: "success", message: "Uploaded" }
-          : item)));
-      } catch (error) {
-        failed += 1;
-        console.error("Bulk upload row failed:", error);
-        setBulkFiles((current) => current.map((item) => (item.id === row.id
-          ? { ...item, status: "error", message: "Server connection failed" }
+          ? { ...item, status: "success", message: `Uploaded (${row.targets.length} course${row.targets.length > 1 ? "s" : ""})` }
           : item)));
       }
     }
@@ -168,6 +290,138 @@ export default function useBulkPaperUpload({
     setBulkIsUploading(false);
   }, [bulkFiles, bulkIsUploading, canCreatePapers, fetchPapers, refreshLogs]);
 
+  // Queue Selection Actions
+  const toggleQueueItem = useCallback((id) => {
+    setSelectedQueueIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleAllQueueItems = useCallback(() => {
+    setSelectedQueueIds((prev) => {
+      if (prev.size === bulkFiles.length) return new Set();
+      return new Set(bulkFiles.map((f) => f.id));
+    });
+  }, [bulkFiles]);
+
+  const removeSelectedQueueItems = useCallback(() => {
+    setBulkFiles((prev) => prev.filter((f) => !selectedQueueIds.has(f.id)));
+    setSelectedQueueIds(new Set());
+  }, [selectedQueueIds]);
+
+  const applyToAllQueueItems = useCallback((fields) => {
+    setBulkFiles((prev) => prev.map((item) => {
+      if (selectedQueueIds.size > 0 && !selectedQueueIds.has(item.id)) return item;
+      return {
+        ...item,
+        targets: item.targets.map((t, idx) => {
+          if (idx === 0) {
+            return {
+              ...t,
+              course: fields.course !== undefined ? fields.course : t.course,
+              year: fields.year !== undefined ? fields.year : t.year,
+              spec: fields.spec !== undefined ? fields.spec : t.spec,
+              semester: fields.semester !== undefined ? fields.semester : t.semester,
+              exam: fields.exam !== undefined ? fields.exam : t.exam
+            };
+          }
+          return t;
+        })
+      };
+    }));
+  }, [selectedQueueIds]);
+
+  // DB Bulk Selection Actions
+  const toggleDbPaper = useCallback((id) => {
+    setDbSelectedIds((prev) => {
+      const next = new Set(prev);
+      const strId = String(id);
+      if (next.has(strId)) next.delete(strId);
+      else next.add(strId);
+      return next;
+    });
+  }, []);
+
+  const toggleAllDbPapers = useCallback((papersList) => {
+    setDbSelectedIds((prev) => {
+      const targetIds = (papersList || []).map((p) => String(p.index ?? p.id));
+      const allSelected = targetIds.length > 0 && targetIds.every((id) => prev.has(id));
+      if (allSelected) {
+        const next = new Set(prev);
+        targetIds.forEach((id) => next.delete(id));
+        return next;
+      }
+      return new Set([...prev, ...targetIds]);
+    });
+  }, []);
+
+  const clearDbSelection = useCallback(() => {
+    setDbSelectedIds(new Set());
+  }, []);
+
+  const executeBulkDelete = useCallback(async (papersToDelete) => {
+    if (!canDeletePapers || papersToDelete.length === 0) return;
+    setIsDbActionLoading(true);
+    setDbActionMessage(null);
+
+    try {
+      const items = papersToDelete.map((p) => ({
+        index: p.index ?? p.id,
+        expectedPaper: p
+      }));
+      const res = await bulkDeletePapersApi(items);
+      const data = await readApiResponse(res);
+
+      if (res.ok) {
+        clearPapersCache();
+        notifyPapersUpdated();
+        await fetchPapers();
+        await refreshLogs();
+        setDbSelectedIds(new Set());
+        setDbActionMessage({ type: "success", text: data.message || `Deleted ${papersToDelete.length} papers.` });
+      } else {
+        setDbActionMessage({ type: "error", text: data.message || "Failed to delete papers." });
+      }
+    } catch (err) {
+      setDbActionMessage({ type: "error", text: err.message || "Bulk delete failed." });
+    } finally {
+      setIsDbActionLoading(false);
+    }
+  }, [canDeletePapers, fetchPapers, refreshLogs]);
+
+  const executeBulkEdit = useCallback(async (papersToEdit, updates) => {
+    if (!canEditPapers || papersToEdit.length === 0) return;
+    setIsDbActionLoading(true);
+    setDbActionMessage(null);
+
+    try {
+      const items = papersToEdit.map((p) => ({
+        index: p.index ?? p.id,
+        ...p
+      }));
+      const res = await bulkEditPapersApi(items, updates);
+      const data = await readApiResponse(res);
+
+      if (res.ok) {
+        clearPapersCache();
+        notifyPapersUpdated();
+        await fetchPapers();
+        await refreshLogs();
+        setDbSelectedIds(new Set());
+        setDbActionMessage({ type: "success", text: data.message || `Updated ${papersToEdit.length} papers.` });
+      } else {
+        setDbActionMessage({ type: "error", text: data.message || "Failed to update papers." });
+      }
+    } catch (err) {
+      setDbActionMessage({ type: "error", text: err.message || "Bulk edit failed." });
+    } finally {
+      setIsDbActionLoading(false);
+    }
+  }, [canEditPapers, fetchPapers, refreshLogs]);
+
   const bulkDragHandlers = {
     onDragOver: (event) => { event.preventDefault(); setBulkIsDragging(true); },
     onDragLeave: (event) => { event.preventDefault(); setBulkIsDragging(false); },
@@ -179,18 +433,41 @@ export default function useBulkPaperUpload({
   };
 
   return {
+    bulkMode,
+    setBulkMode,
     bulkFiles,
+    selectedQueueIds,
+    toggleQueueItem,
+    toggleAllQueueItems,
+    removeSelectedQueueItems,
+    applyToAllQueueItems,
     bulkIsDragging,
     bulkIsUploading,
     bulkSummary,
     bulkValidationError,
     addBulkFiles,
+    addBulkLink,
+    addTargetToRow,
+    removeTargetFromRow,
     removeBulkFile,
     clearBulkQueue,
     updateBulkFileField,
-    bulkOptionsForRow,
+    bulkOptionsForTarget,
     uploadAllBulkFiles,
     bulkDragHandlers,
-    canCreatePapers
+    canCreatePapers,
+    canEditPapers,
+    canDeletePapers,
+    // Database Bulk Actions
+    allPapers,
+    dbSelectedIds,
+    toggleDbPaper,
+    toggleAllDbPapers,
+    clearDbSelection,
+    isDbActionLoading,
+    dbActionMessage,
+    setDbActionMessage,
+    executeBulkDelete,
+    executeBulkEdit
   };
 }

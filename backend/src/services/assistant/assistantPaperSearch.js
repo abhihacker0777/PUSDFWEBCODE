@@ -3,7 +3,6 @@ const { sanitizePaperText, safePaperUrl } = require("../../utils/helpers");
 const { mergeAssistantQuery, parseAssistantQuery } = require("./assistantQueryParser");
 const {
   assistantTokenMatches,
-  compactSearchText,
   normalizeSearchText,
   sameSearchValue
 } = require("./assistantSearchText");
@@ -30,9 +29,8 @@ function scoreAssistantPaper(paper, parsedQuery) {
   if (parsedQuery.exam) score += 14;
 
   const text = assistantPaperText(paper);
-  const compactText = compactSearchText(text);
+  const paperNameText = normalizeSearchText(paper.name || "");
   const subjectText = normalizeSearchText([paper.spec, paper.specialization, paper.name].filter(Boolean).join(" "));
-  const compactSubjectText = compactSearchText(subjectText);
   const tokens = parsedQuery.tokens || [];
   const requiredTokens = parsedQuery.requiredTokens || [];
   const subjectTokens = parsedQuery.subjectTokens || [];
@@ -41,12 +39,19 @@ function scoreAssistantPaper(paper, parsedQuery) {
   let matchedSubjectTokens = 0;
 
   for (const token of tokens) {
-    if (assistantTokenMatches(text, compactText, token)) {
+    if (assistantTokenMatches(text, token)) {
       score += token.length > 3 ? 6 : 3;
       matchedTokens++;
       if (requiredTokens.includes(token)) matchedRequiredTokens++;
     }
-    if (subjectTokens.includes(token) && assistantTokenMatches(subjectText, compactSubjectText, token)) {
+  }
+
+  for (const token of subjectTokens) {
+    if (assistantTokenMatches(paperNameText, token)) {
+      score += 25;
+      matchedSubjectTokens++;
+    } else if (assistantTokenMatches(subjectText, token)) {
+      score += 10;
       matchedSubjectTokens++;
     }
   }
@@ -143,6 +148,29 @@ function searchAssistantPapers(papers, question, aiQuery = null) {
     .map((item) => formatAssistantResult(item.paper));
 
   if (results.length === 0) {
+    if (parsedQuery.sem && (parsedQuery.subjectTokens || []).length > 0) {
+      const relaxedQuery = { ...parsedQuery, sem: "" };
+      const relaxedScored = (papers || [])
+        .map((paper) => ({ paper, score: scoreAssistantPaper(paper, relaxedQuery) }))
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score || a.paper.name.localeCompare(b.paper.name));
+
+      const relaxedResults = dedupeScoredAssistantPapers(relaxedScored)
+        .slice(0, ASSISTANT_MAX_RESULTS)
+        .map((item) => formatAssistantResult(item.paper));
+
+      if (relaxedResults.length > 0) {
+        const foundSems = [...new Set(relaxedResults.map((r) => r.sem).filter(Boolean))].join(", ");
+        return {
+          status: "found",
+          results: relaxedResults,
+          message: foundSems
+            ? `Not available in ${parsedQuery.sem}, but found in ${foundSems}. Here are the available papers:`
+            : "Not found in that semester, but found in other semester(s). Here are the matching papers:"
+        };
+      }
+    }
+
     return {
       status: "not_found",
       results,

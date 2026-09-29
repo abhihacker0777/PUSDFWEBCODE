@@ -1,5 +1,24 @@
 const fs = require("fs");
-const { SHEET_ID, SHEET_WRITE_MODE, DISABLE_INLINE_SHEET_MIRROR } = require("../config/env");
+const { SHEET_ID, SHEET_WRITE_MODE } = require("../config/env");
+
+// Thrown when the admin's expected snapshot of a paper no longer matches
+// what's actually stored (someone else changed/deleted it first) - the
+// controller maps this to HTTP 409.
+class PaperConflictError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PaperConflictError";
+  }
+}
+
+// Thrown when the paper id in the request doesn't exist at all - the
+// controller maps this to HTTP 404.
+class PaperNotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PaperNotFoundError";
+  }
+}
 
 function removeUploadedFile(file) {
   if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
@@ -68,8 +87,15 @@ function createAdminPaperJobs({
     }
 
     invalidatePapersCache();
+    // Sheet mirroring is now handled exclusively by the Supabase webhook
+    // (see supabaseWebhookController.js) - no inline call here anymore.
+    // Single permanent path, not a toggleable fallback.
     const paperToMirror = savedPaper || { ...paper, link: fileLink || "", driveFileId: driveFileId || "" };
-    mirrorPaperToSheet(paperToMirror, index ? expectedPaper : null).catch(console.error);
+
+    // BUG FIX: this function never returned a value, so callers received
+    // `undefined` and crashed on `result.status` on every single upload -
+    // regardless of whether Supabase itself succeeded.
+    return { status: logStatus, paper: paperToMirror };
   }
 
   async function runSheetUpload({ fileLink, index, paper, expectedPaper, adminName }) {
@@ -86,7 +112,7 @@ function createAdminPaperJobs({
         requestBody: { values: [[paper.course, paper.year, paper.spec, paper.sem, paper.exam, paper.name, fileLink || rows[rowIndex - 1][6] || ""]] }
       });
       invalidatePapersCache();
-      return;
+      return { status: "Updated", paper: { ...paper, link: fileLink || rows[rowIndex - 1][6] || "" } };
     }
 
     let found = false;
@@ -145,14 +171,15 @@ function createAdminPaperJobs({
       });
     }
     invalidatePapersCache();
+    return { status: found ? "Updated" : "Uploaded", paper: { ...paper, link: fileLink || "" } };
   }
 
 
 
-  async function runUploadPaperJob({ file, index, paper, expectedPaper, adminName }) {
+  async function runUploadPaperJob({ file, directLink, index, paper, expectedPaper, adminName }) {
     try {
-      let fileLink = null;
-      let driveFileId = null;
+      let fileLink = directLink || null;
+      let driveFileId = directLink ? extractDriveFileId(directLink) : null;
 
       if (file) {
         const uploadedDriveFile = await uploadFileToDrive(file);
@@ -178,12 +205,15 @@ function createAdminPaperJobs({
       }
 
       await deleteSupabasePaper(index);
-      if (!DISABLE_INLINE_SHEET_MIRROR) {
-        mirrorDeletePaperFromSheet(expectedPaper).catch(console.error);
-        invalidatePapersCache();
-        return;
-      }
+      // Sheet mirroring is now handled exclusively by the Supabase webhook.
+      invalidatePapersCache();
+      return;
+    }
 
+    // Supabase-not-configured fallback: Sheet is the only store, so this
+    // path must run inline and propagate errors like runSheetUpload does
+    // above - it must NOT swallow PaperConflictError/PaperNotFoundError,
+    // or the controller would report "deleted" on a failed delete.
     const { sheets, rows } = await getSheetRows();
     const rowIndex = resolveExpectedSheetRowIndex(index, rows, expectedPaper);
     if (!rowIndex) throw new PaperConflictError("Paper changed. Refresh and try again.");
@@ -191,20 +221,17 @@ function createAdminPaperJobs({
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
     const sheetId = spreadsheet.data.sheets[0].properties.sheetId;
 
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: SHEET_ID,
-        requestBody: {
-          requests: [{
-            deleteDimension: {
-              range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex }
-            }
-          }]
-        }
-      });
-      invalidatePapersCache();
-    } catch (backgroundErr) {
-      console.error("Background Delete failed:", backgroundErr.message);
-    }
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex }
+          }
+        }]
+      }
+    });
+    invalidatePapersCache();
   }
 
   return {
@@ -212,5 +239,7 @@ function createAdminPaperJobs({
     runDeletePaperJob
   };
 }
+
+const { generateLogId, formatLogDate } = require("../services/adminLogService");
 
 module.exports = { createAdminPaperJobs, removeUploadedFile, PaperConflictError, PaperNotFoundError, generateLogId, formatLogDate };

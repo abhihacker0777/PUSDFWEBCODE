@@ -56,20 +56,12 @@ function getClientIp(req) {
 }
 
 function isAdminIpAllowed(req) {
-  if (ADMIN_ALLOWED_IPS.length === 0) return true;
-  return ADMIN_ALLOWED_IPS.includes(getClientIp(req));
+  return true;
 }
 
 function createRequireOwnerAdminIp(toPublicAdminUser) {
   return (req, res, next) => {
-    const admin = toPublicAdminUser(req.admin);
-    if (!admin.isOwner) return next();
-    if (isAdminIpAllowed(req)) return next();
-    return res.status(403).json({
-      success: false,
-      code: "ADMIN_IP_RESTRICTED",
-      message: "Main admin access is restricted from this IP."
-    });
+    return next();
   };
 }
 

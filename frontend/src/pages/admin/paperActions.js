@@ -20,6 +20,8 @@ export const createPaperActions = ({
   selectedPaperIndex,
   selectedPaper,
   file,
+  directLink,
+  setDirectLink,
   listDeleteConfirm,
   rememberCustomSpec,
   rememberCustomSemester,
@@ -56,7 +58,7 @@ export const createPaperActions = ({
       setTimeout(() => setUploadStatus(""), 4000);
       return;
     }
-    if (canUploadFiles && !file && !selectedPaperIndex) {
+    if (canUploadFiles && !file && !directLink?.trim() && !selectedPaperIndex) {
       setFileError(true);
       setUploadStatus("");
       return;
@@ -71,6 +73,7 @@ export const createPaperActions = ({
     try {
       const formData = new FormData();
       if (file) formData.append("file", file);
+      if (directLink?.trim()) formData.append("directLink", directLink.trim());
       formData.append("course", course);
       formData.append("year", year);
       formData.append("spec", spec);
@@ -115,6 +118,7 @@ export const createPaperActions = ({
       setUploadStatus(cleanStatusMessage(payload.message || "Success: Data updated"));
       setFile(null);
       setFileName("No file chosen");
+      if (setDirectLink) setDirectLink("");
       const uploadInput = document.getElementById("fileUpload");
       if (uploadInput) uploadInput.value = "";
     } catch (error) {

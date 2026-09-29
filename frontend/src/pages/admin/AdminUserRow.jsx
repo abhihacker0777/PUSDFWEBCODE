@@ -74,7 +74,10 @@ export default function AdminUserRow({
             minLength={ADMIN_PASSWORD_MIN_LENGTH}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 pr-10 outline-none disabled:bg-transparent"
           />
-          {!isOwner && (
+          {/* BUG FIX: this used to show for every non-owner row regardless
+              of whether anything was typed - now only shows once there's
+              an actual draft password to reveal. */}
+          {!isOwner && draftPassword.length > 0 && (
             <button
               type="button"
               onClick={() => toggleDraftPassword(user.id)}
