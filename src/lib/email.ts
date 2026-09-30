@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587", 10);
@@ -6,11 +6,12 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
 const PASSWORD_RESET_FROM = process.env.PASSWORD_RESET_FROM || `PYQP Admin <${SMTP_USER}>`;
 
-let transporter: nodemailer.Transporter | null = null;
+let transporter: Transporter | null = null;
 
-function getEmailTransporter(): nodemailer.Transporter {
+function getEmailTransporter(): Transporter {
   if (!transporter) {
     transporter = nodemailer.createTransport({
+
       host: SMTP_HOST,
       port: SMTP_PORT,
       secure: SMTP_PORT === 465,
