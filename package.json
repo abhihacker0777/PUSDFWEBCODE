@@ -8,6 +8,11 @@
     "start": "next start --port 3000",
     "lint": "next lint"
   },
+  "allowScripts": {
+    "@google/genai": true,
+    "protobufjs": true
+  },
+
   "dependencies": {
     "@google/genai": "^2.24.0",
     "@supabase/ssr": "^0.5.2",
