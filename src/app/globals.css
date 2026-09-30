@@ -1,0 +1,20 @@
+@import "tailwindcss";
+@import "../styles/base.css";
+@import "../styles/assistant.css";
+@import "../styles/scrollbars.css";
+
+:root {
+  --primary: #05488B;
+  --primary-foreground: #ffffff;
+  --secondary: #ffc107;
+  --secondary-foreground: #05488B;
+  --accent: #E31E24;
+  --accent-foreground: #ffffff;
+  --background: #f3f8fc;
+  --foreground: #212529;
+}
+
+body {
+  background-color: #f3f8fc;
+  color: #212529;
+}

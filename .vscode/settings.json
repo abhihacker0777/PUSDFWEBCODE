@@ -1,0 +1,8 @@
+{
+    "snyk.advanced.autoSelectOrganization": true,
+    "sonarlint.connectedMode.project": {
+        "connectionId": "abhihacker0777",
+        "projectKey": "abhihacker0777_PUSDFWEBCODE"
+    },
+    "deepscan.enable": true
+}
