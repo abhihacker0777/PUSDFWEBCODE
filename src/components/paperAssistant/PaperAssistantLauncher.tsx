@@ -13,8 +13,11 @@ export default function PaperAssistantLauncher({ isOpen, onOpen }: Readonly<Pape
     <button
       type="button"
       onClick={onOpen}
-      className={`pu-assistant-launcher fixed bottom-5 right-5 z-40 flex flex-col items-center gap-2 ${isOpen ? "hidden" : ""}`}
+      className={`pu-assistant-launcher fixed bottom-6 right-6 z-40 flex flex-col items-center gap-2 transition-all duration-200 ${
+        isOpen ? "opacity-0 pointer-events-none scale-90" : "opacity-100 pointer-events-auto scale-100"
+      }`}
       aria-label="Open PU Assistant"
+      tabIndex={isOpen ? -1 : 0}
     >
       <span className="pu-assistant-float relative flex h-[64px] w-[64px] items-center justify-center rounded-full bg-white shadow-xl ring-1 ring-slate-900/10 p-2.5">
         <Image 

@@ -7,6 +7,15 @@
     max-height: 100dvh;
     border: 0;
     border-radius: 0;
+    transform-origin: center bottom;
+  }
+
+  .pu-assistant-panel.is-closed {
+    transform: translateY(100%);
+  }
+
+  .pu-assistant-panel.is-open {
+    transform: translateY(0);
   }
 
   .pu-assistant-header {

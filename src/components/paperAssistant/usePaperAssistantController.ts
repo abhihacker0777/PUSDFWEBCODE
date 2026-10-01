@@ -44,6 +44,9 @@ export default function usePaperAssistantController() {
 
   const clearAuth = useCallback(() => {
     clearStoredAuth();
+    if (googleButtonRef.current) {
+      googleButtonRef.current.innerHTML = "";
+    }
     if (typeof window !== "undefined") {
       (window as any).google?.accounts?.id?.disableAutoSelect?.();
     }
@@ -83,6 +86,9 @@ export default function usePaperAssistantController() {
 
   useEffect(() => {
     if (!isOpen || view !== "signin" || !config.googleClientId || !googleButtonRef.current) return undefined;
+
+    // Do not wipe and re-render if the button is already initialized
+    if (googleButtonRef.current.children.length > 0) return undefined;
 
     let disposed = false;
     googleButtonRef.current.innerHTML = "";

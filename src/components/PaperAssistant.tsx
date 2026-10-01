@@ -15,7 +15,7 @@ export default function PaperAssistant() {
         onOpen={assistant.openAssistant}
       />
 
-      {assistant.isOpen && <PaperAssistantPanel {...assistant} />}
+      <PaperAssistantPanel {...assistant} />
     </>
   );
 }

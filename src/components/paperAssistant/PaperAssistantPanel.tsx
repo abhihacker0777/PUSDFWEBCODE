@@ -40,6 +40,7 @@ interface PaperAssistantPanelProps {
   handleSubmit: (e?: React.FormEvent, directQuery?: string) => void;
   input: string;
   isLoading: boolean;
+  isOpen: boolean;
   isSigningIn: boolean;
   messages: AssistantMessageItem[];
   messagesRef: RefObject<HTMLDivElement | null>;
@@ -57,6 +58,7 @@ export default function PaperAssistantPanel({
   handleSubmit,
   input,
   isLoading,
+  isOpen,
   isSigningIn,
   messages,
   messagesRef,
@@ -65,7 +67,7 @@ export default function PaperAssistantPanel({
   view
 }: Readonly<PaperAssistantPanelProps>) {
   return (
-    <section className="pu-assistant-panel">
+    <section className={`pu-assistant-panel ${isOpen ? "is-open" : "is-closed"}`}>
       <header className="pu-assistant-header">
         <div className="pu-assistant-header-left">
           <Image src="/logo.png" alt="" className="pu-assistant-header-avatar" width={34} height={34} />
