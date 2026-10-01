@@ -60,27 +60,31 @@ async function fetchAllSupabasePapers(client: any): Promise<any[]> {
   return allRows;
 }
 
-export async function fetchPapersAction(): Promise<{ success: boolean; data: Paper[]; error?: string }> {
-  try {
-    const supabase = await createClient();
-    try {
-      const data = await fetchAllSupabasePapers(supabase);
-      if (data && data.length > 0) {
-        return { success: true, data: data.map(normalizeSupabasePaper) };
-      }
-    } catch {
-      // Fallback: try admin client
-    }
+let serverPapersCache: { data: Paper[]; expiresAt: number } | null = null;
 
+function invalidateServerPapersCache() {
+  serverPapersCache = null;
+}
+
+export async function fetchPapersAction(options?: { force?: boolean }): Promise<{ success: boolean; data: Paper[]; error?: string }> {
+  const now = Date.now();
+  if (!options?.force && serverPapersCache && serverPapersCache.expiresAt > now) {
+    return { success: true, data: serverPapersCache.data };
+  }
+
+  try {
     const adminClient = createAdminClient();
     const adminData = await fetchAllSupabasePapers(adminClient);
     if (adminData && adminData.length > 0) {
-      return { success: true, data: adminData.map(normalizeSupabasePaper) };
+      const normalized = adminData.map(normalizeSupabasePaper);
+      serverPapersCache = { data: normalized, expiresAt: now + 120_000 };
+      return { success: true, data: normalized };
     }
 
     // Secondary fallback: Google Sheets
     const sheetRows = await fetchPublicPapersFromSheet();
     if (sheetRows && sheetRows.length > 0) {
+      serverPapersCache = { data: sheetRows, expiresAt: now + 60_000 };
       return { success: true, data: sheetRows };
     }
 
@@ -90,6 +94,7 @@ export async function fetchPapersAction(): Promise<{ success: boolean; data: Pap
     try {
       const sheetRows = await fetchPublicPapersFromSheet();
       if (sheetRows && sheetRows.length > 0) {
+        serverPapersCache = { data: sheetRows, expiresAt: now + 60_000 };
         return { success: true, data: sheetRows };
       }
     } catch (sheetErr: any) {
@@ -200,6 +205,7 @@ export async function uploadPaperAction(formData: FormData) {
       drive_url: finalLink,
     }).catch((err) => console.error("Sheets mirror background error:", err));
 
+    invalidateServerPapersCache();
     return { success: true, data };
   } catch (error: any) {
     console.error("uploadPaperAction error:", error);
@@ -219,6 +225,7 @@ export async function bulkDeletePapersAction(ids: (string | number)[]) {
       .in("id", ids);
 
     if (error) throw error;
+    invalidateServerPapersCache();
     return { success: true, count: ids.length };
   } catch (error: any) {
     console.error("bulkDeletePapersAction error:", error);
@@ -256,6 +263,7 @@ export async function bulkEditPapersAction(
       .in("id", ids);
 
     if (error) throw error;
+    invalidateServerPapersCache();
     return { success: true, count: ids.length };
   } catch (error: any) {
     console.error("bulkEditPapersAction error:", error);
@@ -273,6 +281,7 @@ export async function deletePaperAction(id: string | number) {
       .eq("id", id);
 
     if (error) throw error;
+    invalidateServerPapersCache();
     return { success: true };
   } catch (error: any) {
     console.error("deletePaperAction error:", error);
