@@ -7,12 +7,11 @@ import { getSafeUrl } from "./assistantAuth";
 import { AssistantMessageItem } from "./useAssistantMessages";
 
 
-function AssistantResultLink({ paper, resultIndex }: { paper: any; resultIndex: number }) {
+function AssistantResultLink({ paper, resultIndex }: Readonly<{ paper: any; resultIndex: number }>) {
   const safeLink = getSafeUrl(paper.link);
 
   return (
     <a
-      key={`${paper.name || paper.title}-${resultIndex}`}
       href={safeLink || "#"}
       target="_blank"
       rel="noopener noreferrer"
@@ -35,15 +34,13 @@ function AssistantResultLink({ paper, resultIndex }: { paper: any; resultIndex: 
 
 function AssistantMessage({ 
   message, 
-  index
-}: { 
+  index: _index
+}: Readonly<{ 
   message: AssistantMessageItem; 
   index: number;
-}) {
+}>) {
   return (
     <div
-
-      key={`${message.role}-${index}`}
       className={`pu-assistant-message-row ${message.role === "user" ? "is-user" : "is-bot"}`}
     >
       {message.role !== "user" && (
@@ -122,7 +119,7 @@ export default function PaperAssistantChat({
   messagesRef,
   onInputChange,
   onSubmit
-}: PaperAssistantChatProps) {
+}: Readonly<PaperAssistantChatProps>) {
   return (
     <>
       <div ref={messagesRef} className="pu-assistant-pattern pu-assistant-chat-area">
@@ -140,7 +137,7 @@ export default function PaperAssistantChat({
         </div>
       </div>
 
-      <form onSubmit={(e) => onSubmit(e)} className="pu-assistant-input-bar">
+      <form onSubmit={onSubmit} className="pu-assistant-input-bar">
         <div className="pu-assistant-input-wrap">
           <input
             type="text"

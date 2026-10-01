@@ -7,23 +7,30 @@ export const getCsrfToken = async ({ force = false }: { force?: boolean } = {}):
   if (!force && csrfToken) return csrfToken;
   if (!force && csrfTokenPromise) return csrfTokenPromise;
 
-  csrfTokenPromise = fetch(`${BACKEND_URL}/csrf-token`, {
-    method: "GET",
-    cache: "no-store",
-    credentials: "include"
-  })
-    .then(async (response) => {
-      const data = await response.json().catch(() => ({}));
+  const fetchToken = async (): Promise<string> => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/csrf-token`, {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include"
+      });
+      let data: any = {};
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
       if (!response.ok || !data.csrfToken) {
         throw new Error(data.message || "CSRF token request failed");
       }
       csrfToken = data.csrfToken;
       return csrfToken;
-    })
-    .finally(() => {
+    } finally {
       csrfTokenPromise = null;
-    });
+    }
+  };
 
+  csrfTokenPromise = fetchToken();
   return csrfTokenPromise;
 };
 

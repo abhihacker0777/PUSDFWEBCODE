@@ -21,7 +21,7 @@ interface TelemetryChartsProps {
 
 const COLORS = ["#05488B", "#ffc107", "#E31E24", "#22c55e", "#8b5cf6", "#06b6d4"];
 
-export default function TelemetryCharts({ papers }: TelemetryChartsProps) {
+export default function TelemetryCharts({ papers }: Readonly<TelemetryChartsProps>) {
   // Papers breakdown by Course
   const courseData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -97,8 +97,8 @@ export default function TelemetryCharts({ papers }: TelemetryChartsProps) {
                 dataKey="value"
                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
               >
-                {examData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                {examData.map((item, index) => (
+                  <Cell key={`cell-${item.name}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />

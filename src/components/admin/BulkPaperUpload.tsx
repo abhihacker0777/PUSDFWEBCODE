@@ -6,7 +6,7 @@ const StatusBadge = ({ status, message }: { status?: string; message?: string })
     return (
       <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#05488B]">
         <span className="w-3 h-3 border-2 border-[#05488B] border-t-transparent rounded-full animate-spin"></span>
-        Uploading...
+        <span>Uploading...</span>
       </span>
     );
   }
@@ -17,6 +17,19 @@ const StatusBadge = ({ status, message }: { status?: string; message?: string })
     return <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#f43f5e]" title={message}>❌ {message || "Failed"}</span>;
   }
   return <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400">Pending</span>;
+};
+
+const getRowCardClass = (isSelected: boolean, status?: string) => {
+  if (isSelected) {
+    return "bg-amber-50/70 border-amber-400 shadow-sm";
+  }
+  if (status === "error") {
+    return "bg-red-50/50 border-red-200";
+  }
+  if (status === "success") {
+    return "bg-emerald-50/40 border-emerald-200";
+  }
+  return "bg-gray-50/60 border-gray-200 hover:border-gray-300";
 };
 const TargetDropdownRow = ({
   rowId,
@@ -126,9 +139,7 @@ const BulkPaperUploadRow = ({
   const locked = row.status === "uploading" || row.status === "success";
 
   return (
-    <div className={`p-3.5 rounded-xl border transition-all ${
-      isSelected ? "bg-amber-50/70 border-amber-400 shadow-sm" : row.status === "error" ? "bg-red-50/50 border-red-200" : row.status === "success" ? "bg-emerald-50/40 border-emerald-200" : "bg-gray-50/60 border-gray-200 hover:border-gray-300"
-    }`}>
+    <div className={`p-3.5 rounded-xl border transition-all ${getRowCardClass(isSelected, row.status)}`}>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pb-2.5 border-b border-gray-200">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <input
@@ -198,6 +209,192 @@ const BulkPaperUploadRow = ({
             setOpenDropdown={setOpenDropdown}
           />
         ))}
+      </div>
+    </div>
+  );
+};
+
+const BulkDbFilters = ({
+  prefix,
+  dbSearch,
+  setDbSearch,
+  dbCourseFilter,
+  setDbCourseFilter,
+  dbSemFilter,
+  setDbSemFilter,
+  dbExamFilter,
+  setDbExamFilter,
+  setDbPage,
+  uniqueCourses,
+  uniqueSemesters,
+  uniqueExams,
+  openDropdown,
+  setOpenDropdown,
+}: any) => {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
+      <input
+        type="text"
+        placeholder="🔍 Search paper name..."
+        value={dbSearch}
+        onChange={(e) => {
+          setDbSearch(e.target.value);
+          setDbPage(1);
+        }}
+        className="w-full bg-white border border-[#ffc107] rounded-lg px-3 py-2 text-xs md:text-sm font-medium outline-none text-[#215ea0] placeholder:text-[#374151] shadow-xs"
+      />
+      <CustomDropdown
+        id={`${prefix}-filter-course`}
+        label="All Courses"
+        options={["All Courses", ...uniqueCourses]}
+        value={dbCourseFilter || "All Courses"}
+        setValue={(val: string) => {
+          setDbCourseFilter(val === "All Courses" ? "" : val);
+          setDbPage(1);
+        }}
+        openDropdown={openDropdown}
+        setOpenDropdown={setOpenDropdown}
+        customHeight="max-h-[149px]"
+      />
+      <CustomDropdown
+        id={`${prefix}-filter-sem`}
+        label="All Semesters"
+        options={["All Semesters", ...uniqueSemesters]}
+        value={dbSemFilter || "All Semesters"}
+        setValue={(val: string) => {
+          setDbSemFilter(val === "All Semesters" ? "" : val);
+          setDbPage(1);
+        }}
+        openDropdown={openDropdown}
+        setOpenDropdown={setOpenDropdown}
+        customHeight="max-h-[149px]"
+      />
+      <CustomDropdown
+        id={`${prefix}-filter-exam`}
+        label="All Exams"
+        options={["All Exams", ...uniqueExams]}
+        value={dbExamFilter || "All Exams"}
+        setValue={(val: string) => {
+          setDbExamFilter(val === "All Exams" ? "" : val);
+          setDbPage(1);
+        }}
+        openDropdown={openDropdown}
+        setOpenDropdown={setOpenDropdown}
+        customHeight="max-h-[149px]"
+      />
+    </div>
+  );
+};
+
+const BulkPapersDbTable = ({
+  pagedDbPapers,
+  dbSelectedIds,
+  toggleAllDbPapers,
+  toggleDbPaper,
+  totalCount,
+  dbPage,
+  dbPageSize,
+  setDbPage,
+  accentColor = "accent-[#05488B]",
+  activeRowBg = "bg-amber-50",
+}: any) => {
+  const allSelected =
+    pagedDbPapers.length > 0 &&
+    pagedDbPapers.every((p: any) => dbSelectedIds.has(String(p.index ?? p.id)));
+
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden shadow-xs">
+      <div className="max-h-[340px] overflow-y-auto">
+        <table className="w-full text-xs text-left">
+          <thead className="bg-gray-100 text-gray-700 font-bold sticky top-0 z-10 border-b">
+            <tr>
+              <th className="p-2.5 w-10 text-center">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => toggleAllDbPapers(pagedDbPapers)}
+                  className={`w-4 h-4 rounded cursor-pointer ${accentColor}`}
+                />
+              </th>
+              <th className="p-2.5">Paper Name</th>
+              <th className="p-2.5">Course</th>
+              <th className="p-2.5">Specialization</th>
+              <th className="p-2.5">Sem</th>
+              <th className="p-2.5">Exam</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {pagedDbPapers.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-8 text-gray-400">
+                  No papers match your filters.
+                </td>
+              </tr>
+            ) : (
+              pagedDbPapers.map((paper: any) => {
+                const id = String(paper.index ?? paper.id);
+                const isChecked = dbSelectedIds.has(id);
+                return (
+                  <tr
+                    key={id}
+                    onClick={() => toggleDbPaper(id)}
+                    className={`cursor-pointer transition-colors ${
+                      isChecked ? activeRowBg : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <td
+                      className="p-2.5 text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleDbPaper(id)}
+                        className={`w-4 h-4 rounded cursor-pointer ${accentColor}`}
+                      />
+                    </td>
+                    <td className="p-2.5 font-semibold text-gray-800">
+                      {paper.name}
+                    </td>
+                    <td className="p-2.5 text-gray-600">{paper.course}</td>
+                    <td className="p-2.5 text-gray-600">
+                      {paper.spec || paper.specialization || "-"}
+                    </td>
+                    <td className="p-2.5 text-gray-600">
+                      {paper.sem || paper.semester || "-"}
+                    </td>
+                    <td className="p-2.5 text-gray-600">{paper.exam}</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="p-2 bg-gray-50 border-t flex items-center justify-between text-xs text-gray-500">
+        <span>
+          Showing {pagedDbPapers.length} of {totalCount} papers
+        </span>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            disabled={dbPage <= 1}
+            onClick={() => setDbPage((p: number) => Math.max(1, p - 1))}
+            className="px-2.5 py-1 bg-white border rounded disabled:opacity-40"
+          >
+            Prev
+          </button>
+          <span className="px-2 py-1 font-bold">Page {dbPage}</span>
+          <button
+            type="button"
+            disabled={dbPage * dbPageSize >= totalCount}
+            onClick={() => setDbPage((p: number) => p + 1)}
+            className="px-2.5 py-1 bg-white border rounded disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -287,7 +484,10 @@ export default function BulkPaperUpload({
     return allPapers.filter((p: any) => dbSelectedIds.has(String(p.index ?? p.id)));
   }, [allPapers, dbSelectedIds]);
 
-  const uniqueCourses = useMemo(() => [...new Set(allPapers.map((p: any) => p.course).filter(Boolean))].sort(), [allPapers]);
+  const uniqueCourses = useMemo(
+    () => [...new Set(allPapers.map((p: any) => p.course).filter(Boolean))].sort((a: any, b: any) => String(a).localeCompare(String(b))),
+    [allPapers]
+  );
   const uniqueSemesters = useMemo(() => [...new Set(allPapers.map((p: any) => p.sem || p.semester).filter(Boolean))], [allPapers]);
   const uniqueExams = useMemo(() => [...new Set(allPapers.map((p: any) => p.exam).filter(Boolean))], [allPapers]);
   const uniqueYears = ["1 Year", "2 Year", "3 Year", "4 Year", "5 Year"];
@@ -295,9 +495,11 @@ export default function BulkPaperUpload({
   const handleAddLinkSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (pasteLinkUrl.trim()) {
-      addBulkLink(pasteLinkUrl.trim());
-      setPasteLinkUrl("");
-      setShowLinkInput(false);
+      const added = addBulkLink(pasteLinkUrl.trim());
+      if (added) {
+        setPasteLinkUrl("");
+        setShowLinkInput(false);
+      }
     }
   };
 
@@ -322,12 +524,6 @@ export default function BulkPaperUpload({
     if (selectedDbPapersList.length === 0) return;
     executeBulkDelete(selectedDbPapersList);
     setShowDeleteConfirm(false);
-  };
-
-  // Trigger file picker for cloning
-  const triggerClone = (row: any) => {
-    setCloneSourceRow(row);
-    if (cloneInputRef.current) cloneInputRef.current.click();
   };
 
   // Handle files selected via the "Add Similar" button
@@ -434,6 +630,14 @@ export default function BulkPaperUpload({
             <div className="space-y-3">
               <div
                 {...bulkDragHandlers}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    mainInputRef.current?.click();
+                  }
+                }}
                 onClick={() => mainInputRef.current?.click()}
                 className={`w-full rounded-xl border-2 border-dashed p-6 sm:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${
                   bulkIsDragging ? "border-[#05488B] bg-[#eef5ff]" : "border-[#ffc107] bg-[#fffdf5] hover:bg-[#fffaf0]"
@@ -660,46 +864,23 @@ export default function BulkPaperUpload({
             </div>
           )}
 
-          {/* Filters Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
-            <input
-              type="text"
-              placeholder="🔍 Search paper name..."
-              value={dbSearch}
-              onChange={(e) => { setDbSearch(e.target.value); setDbPage(1); }}
-              className="w-full bg-white border border-[#ffc107] rounded-lg px-3 py-2 text-xs md:text-sm font-medium outline-none text-[#215ea0] placeholder:text-[#374151] shadow-xs"
-            />
-            <CustomDropdown
-              id="bulk-edit-filter-course"
-              label="All Courses"
-              options={["All Courses", ...uniqueCourses]}
-              value={dbCourseFilter || "All Courses"}
-              setValue={(val) => { setDbCourseFilter(val === "All Courses" ? "" : val); setDbPage(1); }}
-              openDropdown={openDropdown}
-              setOpenDropdown={setOpenDropdown}
-              customHeight="max-h-[149px]"
-            />
-            <CustomDropdown
-              id="bulk-edit-filter-sem"
-              label="All Semesters"
-              options={["All Semesters", ...uniqueSemesters]}
-              value={dbSemFilter || "All Semesters"}
-              setValue={(val) => { setDbSemFilter(val === "All Semesters" ? "" : val); setDbPage(1); }}
-              openDropdown={openDropdown}
-              setOpenDropdown={setOpenDropdown}
-              customHeight="max-h-[149px]"
-            />
-            <CustomDropdown
-              id="bulk-edit-filter-exam"
-              label="All Exams"
-              options={["All Exams", ...uniqueExams]}
-              value={dbExamFilter || "All Exams"}
-              setValue={(val) => { setDbExamFilter(val === "All Exams" ? "" : val); setDbPage(1); }}
-              openDropdown={openDropdown}
-              setOpenDropdown={setOpenDropdown}
-              customHeight="max-h-[149px]"
-            />
-          </div>
+          <BulkDbFilters
+            prefix="bulk-edit"
+            dbSearch={dbSearch}
+            setDbSearch={setDbSearch}
+            dbCourseFilter={dbCourseFilter}
+            setDbCourseFilter={setDbCourseFilter}
+            dbSemFilter={dbSemFilter}
+            setDbSemFilter={setDbSemFilter}
+            dbExamFilter={dbExamFilter}
+            setDbExamFilter={setDbExamFilter}
+            setDbPage={setDbPage}
+            uniqueCourses={uniqueCourses}
+            uniqueSemesters={uniqueSemesters}
+            uniqueExams={uniqueExams}
+            openDropdown={openDropdown}
+            setOpenDropdown={setOpenDropdown}
+          />
 
           {/* Bulk Edit Drawer if items are selected */}
           {selectedDbPapersList.length > 0 && (
@@ -715,7 +896,7 @@ export default function BulkPaperUpload({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW COURSE</label>
+                  <label htmlFor="bulk-edit-drawer-course" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW COURSE</label>
                   <CustomDropdown
                     id="bulk-edit-drawer-course"
                     label="(Keep Same)"
@@ -729,7 +910,7 @@ export default function BulkPaperUpload({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW YEAR</label>
+                  <label htmlFor="bulk-edit-drawer-year" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW YEAR</label>
                   <CustomDropdown
                     id="bulk-edit-drawer-year"
                     label="(Keep Same)"
@@ -743,8 +924,9 @@ export default function BulkPaperUpload({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW SPECIALIZATION</label>
+                  <label htmlFor="bulk-edit-drawer-spec" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW SPECIALIZATION</label>
                   <input
+                    id="bulk-edit-drawer-spec"
                     placeholder="(Keep Same)"
                     value={editUpdates.spec}
                     onChange={(e) => setEditUpdates({ ...editUpdates, spec: e.target.value })}
@@ -753,7 +935,7 @@ export default function BulkPaperUpload({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW SEMESTER</label>
+                  <label htmlFor="bulk-edit-drawer-sem" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW SEMESTER</label>
                   <CustomDropdown
                     id="bulk-edit-drawer-sem"
                     label="(Keep Same)"
@@ -767,7 +949,7 @@ export default function BulkPaperUpload({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW EXAM</label>
+                  <label htmlFor="bulk-edit-drawer-exam" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW EXAM</label>
                   <CustomDropdown
                     id="bulk-edit-drawer-exam"
                     label="(Keep Same)"
@@ -794,87 +976,18 @@ export default function BulkPaperUpload({
             </div>
           )}
 
-          {/* Papers Table */}
-          <div className="border border-gray-200 rounded-xl overflow-hidden shadow-xs">
-            <div className="max-h-[340px] overflow-y-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-gray-100 text-gray-700 font-bold sticky top-0 z-10 border-b">
-                  <tr>
-                    <th className="p-2.5 w-10 text-center">
-                      <input
-                        type="checkbox"
-                        checked={pagedDbPapers.length > 0 && pagedDbPapers.every((p: any) => dbSelectedIds.has(String(p.index ?? p.id)))}
-                        onChange={() => toggleAllDbPapers(pagedDbPapers)}
-                        className="w-4 h-4 rounded accent-[#05488B] cursor-pointer"
-                      />
-                    </th>
-                    <th className="p-2.5">Paper Name</th>
-                    <th className="p-2.5">Course</th>
-                    <th className="p-2.5">Specialization</th>
-                    <th className="p-2.5">Sem</th>
-                    <th className="p-2.5">Exam</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {pagedDbPapers.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-400">No papers match your filters.</td>
-                    </tr>
-                  ) : (
-                    pagedDbPapers.map((paper: any) => {
-                      const id = String(paper.index ?? paper.id);
-                      const isChecked = dbSelectedIds.has(id);
-                      return (
-                        <tr
-                          key={id}
-                          onClick={() => toggleDbPaper(id)}
-                          className={`cursor-pointer transition-colors ${isChecked ? "bg-amber-50" : "hover:bg-gray-50"}`}
-                        >
-                          <td className="p-2.5 text-center" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => toggleDbPaper(id)}
-                              className="w-4 h-4 rounded accent-[#05488B] cursor-pointer"
-                            />
-                          </td>
-                          <td className="p-2.5 font-semibold text-gray-800">{paper.name}</td>
-                          <td className="p-2.5 text-gray-600">{paper.course}</td>
-                          <td className="p-2.5 text-gray-600">{paper.spec || paper.specialization || "-"}</td>
-                          <td className="p-2.5 text-gray-600">{paper.sem || paper.semester || "-"}</td>
-                          <td className="p-2.5 text-gray-600">{paper.exam}</td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="p-2 bg-gray-50 border-t flex items-center justify-between text-xs text-gray-500">
-              <span>Showing {pagedDbPapers.length} of {filteredDbPapers.length} papers</span>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  disabled={dbPage <= 1}
-                  onClick={() => setDbPage((p) => Math.max(1, p - 1))}
-                  className="px-2.5 py-1 bg-white border rounded disabled:opacity-40"
-                >
-                  Prev
-                </button>
-                <span className="px-2 py-1 font-bold">Page {dbPage}</span>
-                <button
-                  type="button"
-                  disabled={dbPage * dbPageSize >= filteredDbPapers.length}
-                  onClick={() => setDbPage((p) => p + 1)}
-                  className="px-2.5 py-1 bg-white border rounded disabled:opacity-40"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
+          <BulkPapersDbTable
+            pagedDbPapers={pagedDbPapers}
+            dbSelectedIds={dbSelectedIds}
+            toggleAllDbPapers={toggleAllDbPapers}
+            toggleDbPaper={toggleDbPaper}
+            totalCount={filteredDbPapers.length}
+            dbPage={dbPage}
+            dbPageSize={dbPageSize}
+            setDbPage={setDbPage}
+            accentColor="accent-[#05488B]"
+            activeRowBg="bg-amber-50"
+          />
         </div>
       )}
 
@@ -890,46 +1003,23 @@ export default function BulkPaperUpload({
             </div>
           )}
 
-          {/* Filters Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
-            <input
-              type="text"
-              placeholder="🔍 Search paper name..."
-              value={dbSearch}
-              onChange={(e) => { setDbSearch(e.target.value); setDbPage(1); }}
-              className="w-full bg-white border border-[#ffc107] rounded-lg px-3 py-2 text-xs md:text-sm font-medium outline-none text-[#215ea0] placeholder:text-[#374151] shadow-xs"
-            />
-            <CustomDropdown
-              id="bulk-delete-filter-course"
-              label="All Courses"
-              options={["All Courses", ...uniqueCourses]}
-              value={dbCourseFilter || "All Courses"}
-              setValue={(val) => { setDbCourseFilter(val === "All Courses" ? "" : val); setDbPage(1); }}
-              openDropdown={openDropdown}
-              setOpenDropdown={setOpenDropdown}
-              customHeight="max-h-[149px]"
-            />
-            <CustomDropdown
-              id="bulk-delete-filter-sem"
-              label="All Semesters"
-              options={["All Semesters", ...uniqueSemesters]}
-              value={dbSemFilter || "All Semesters"}
-              setValue={(val) => { setDbSemFilter(val === "All Semesters" ? "" : val); setDbPage(1); }}
-              openDropdown={openDropdown}
-              setOpenDropdown={setOpenDropdown}
-              customHeight="max-h-[149px]"
-            />
-            <CustomDropdown
-              id="bulk-delete-filter-exam"
-              label="All Exams"
-              options={["All Exams", ...uniqueExams]}
-              value={dbExamFilter || "All Exams"}
-              setValue={(val) => { setDbExamFilter(val === "All Exams" ? "" : val); setDbPage(1); }}
-              openDropdown={openDropdown}
-              setOpenDropdown={setOpenDropdown}
-              customHeight="max-h-[149px]"
-            />
-          </div>
+          <BulkDbFilters
+            prefix="bulk-delete"
+            dbSearch={dbSearch}
+            setDbSearch={setDbSearch}
+            dbCourseFilter={dbCourseFilter}
+            setDbCourseFilter={setDbCourseFilter}
+            dbSemFilter={dbSemFilter}
+            setDbSemFilter={setDbSemFilter}
+            dbExamFilter={dbExamFilter}
+            setDbExamFilter={setDbExamFilter}
+            setDbPage={setDbPage}
+            uniqueCourses={uniqueCourses}
+            uniqueSemesters={uniqueSemesters}
+            uniqueExams={uniqueExams}
+            openDropdown={openDropdown}
+            setOpenDropdown={setOpenDropdown}
+          />
 
           {/* Bulk Delete Bar */}
           <div className="flex items-center justify-between p-3 bg-red-50/80 border border-red-200 rounded-xl">
@@ -954,87 +1044,18 @@ export default function BulkPaperUpload({
             </button>
           </div>
 
-          {/* Papers Table */}
-          <div className="border border-gray-200 rounded-xl overflow-hidden shadow-xs">
-            <div className="max-h-[340px] overflow-y-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-gray-100 text-gray-700 font-bold sticky top-0 z-10 border-b">
-                  <tr>
-                    <th className="p-2.5 w-10 text-center">
-                      <input
-                        type="checkbox"
-                        checked={pagedDbPapers.length > 0 && pagedDbPapers.every((p: any) => dbSelectedIds.has(String(p.index ?? p.id)))}
-                        onChange={() => toggleAllDbPapers(pagedDbPapers)}
-                        className="w-4 h-4 rounded accent-[#E31E24] cursor-pointer"
-                      />
-                    </th>
-                    <th className="p-2.5">Paper Name</th>
-                    <th className="p-2.5">Course</th>
-                    <th className="p-2.5">Specialization</th>
-                    <th className="p-2.5">Sem</th>
-                    <th className="p-2.5">Exam</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {pagedDbPapers.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-400">No papers match your filters.</td>
-                    </tr>
-                  ) : (
-                    pagedDbPapers.map((paper: any) => {
-                      const id = String(paper.index ?? paper.id);
-                      const isChecked = dbSelectedIds.has(id);
-                      return (
-                        <tr
-                          key={id}
-                          onClick={() => toggleDbPaper(id)}
-                          className={`cursor-pointer transition-colors ${isChecked ? "bg-red-50/70" : "hover:bg-gray-50"}`}
-                        >
-                          <td className="p-2.5 text-center" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => toggleDbPaper(id)}
-                              className="w-4 h-4 rounded accent-[#E31E24] cursor-pointer"
-                            />
-                          </td>
-                          <td className="p-2.5 font-semibold text-gray-800">{paper.name}</td>
-                          <td className="p-2.5 text-gray-600">{paper.course}</td>
-                          <td className="p-2.5 text-gray-600">{paper.spec || paper.specialization || "-"}</td>
-                          <td className="p-2.5 text-gray-600">{paper.sem || paper.semester || "-"}</td>
-                          <td className="p-2.5 text-gray-600">{paper.exam}</td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="p-2 bg-gray-50 border-t flex items-center justify-between text-xs text-gray-500">
-              <span>Showing {pagedDbPapers.length} of {filteredDbPapers.length} papers</span>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  disabled={dbPage <= 1}
-                  onClick={() => setDbPage((p) => Math.max(1, p - 1))}
-                  className="px-2.5 py-1 bg-white border rounded disabled:opacity-40"
-                >
-                  Prev
-                </button>
-                <span className="px-2 py-1 font-bold">Page {dbPage}</span>
-                <button
-                  type="button"
-                  disabled={dbPage * dbPageSize >= filteredDbPapers.length}
-                  onClick={() => setDbPage((p) => p + 1)}
-                  className="px-2.5 py-1 bg-white border rounded disabled:opacity-40"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
+          <BulkPapersDbTable
+            pagedDbPapers={pagedDbPapers}
+            dbSelectedIds={dbSelectedIds}
+            toggleAllDbPapers={toggleAllDbPapers}
+            toggleDbPaper={toggleDbPaper}
+            totalCount={filteredDbPapers.length}
+            dbPage={dbPage}
+            dbPageSize={dbPageSize}
+            setDbPage={setDbPage}
+            accentColor="accent-[#E31E24]"
+            activeRowBg="bg-red-50/70"
+          />
         </div>
       )}
 

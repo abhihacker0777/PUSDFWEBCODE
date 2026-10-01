@@ -22,7 +22,7 @@ export default function AdminUserCreateForm({
   openRoleMenu,
   setAdminForm,
   setOpenRoleMenu
-}: AdminUserCreateFormProps) {
+}: Readonly<AdminUserCreateFormProps>) {
   const [showCreatePassword, setShowCreatePassword] = useState(false);
 
   return (

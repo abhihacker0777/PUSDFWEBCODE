@@ -93,8 +93,7 @@ export default function BulkUpload() {
     if (selectedFiles.length === 0) return;
 
     // Validate metadata for every item in queue
-    for (let i = 0; i < selectedFiles.length; i++) {
-      const f = selectedFiles[i];
+    for (const f of selectedFiles) {
       if (!f.course || !f.year || !f.semester || !f.exam || !f.paperName.trim()) {
         setMessage({
           type: 'error',
@@ -107,21 +106,24 @@ export default function BulkUpload() {
     setIsUploading(true);
     setMessage(null);
 
-    let successCount = 0;
     try {
-      for (const item of selectedFiles) {
-        const formData = new FormData();
-        formData.append("file", item.file);
-        formData.append("course", item.course);
-        formData.append("year", item.year);
-        formData.append("spec", item.specialization || "");
-        formData.append("sem", item.semester);
-        formData.append("exam", item.exam);
-        formData.append("name", item.paperName.trim());
+      const uploadResults = await Promise.all(
+        selectedFiles.map(async (item) => {
+          const formData = new FormData();
+          formData.append("file", item.file);
+          formData.append("course", item.course);
+          formData.append("year", item.year);
+          formData.append("spec", item.specialization || "");
+          formData.append("sem", item.semester);
+          formData.append("exam", item.exam);
+          formData.append("name", item.paperName.trim());
 
-        const res = await uploadPaper(formData);
-        if (res.ok) successCount++;
-      }
+          const res = await uploadPaper(formData);
+          return res.ok;
+        })
+      );
+
+      const successCount = uploadResults.filter(Boolean).length;
 
       setMessage({
         type: 'success',
@@ -207,7 +209,7 @@ export default function BulkUpload() {
 
           <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
             {selectedFiles.map((item, idx) => (
-              <div key={idx} className="border-2 border-slate-200 rounded-xl p-4 bg-white shadow-sm hover:border-amber-300 transition-colors relative">
+              <div key={`${item.file.name}-${item.file.size}-${idx}`} className="border-2 border-slate-200 rounded-xl p-4 bg-white shadow-sm hover:border-amber-300 transition-colors relative">
                 
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 pb-3 border-b border-slate-100 gap-3">
                   <span className="text-sm font-bold text-[#003875] truncate flex items-center gap-2">
@@ -236,8 +238,9 @@ export default function BulkUpload() {
 
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                   <div className="col-span-1 md:col-span-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Paper Name</label>
+                    <label htmlFor={`paper-name-${idx}`} className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Paper Name</label>
                     <input
+                      id={`paper-name-${idx}`}
                       type="text"
                       value={item.paperName}
                       onChange={(e) => updateItemField(idx, 'paperName', e.target.value)}
@@ -247,8 +250,9 @@ export default function BulkUpload() {
                   </div>
 
                   <div className="col-span-1">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Course</label>
+                    <label htmlFor={`course-${idx}`} className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Course</label>
                     <select
+                      id={`course-${idx}`}
                       value={item.course}
                       onChange={(e) => updateItemField(idx, 'course', e.target.value)}
                       className="p-2 text-sm border-2 border-slate-200 rounded-lg w-full bg-white focus:border-[#003875] focus:outline-none"
@@ -259,8 +263,9 @@ export default function BulkUpload() {
                   </div>
 
                   <div className="col-span-1">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Year</label>
+                    <label htmlFor={`year-${idx}`} className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Year</label>
                     <select
+                      id={`year-${idx}`}
                       value={item.year}
                       onChange={(e) => updateItemField(idx, 'year', e.target.value)}
                       className="p-2 text-sm border-2 border-slate-200 rounded-lg w-full bg-white focus:border-[#003875] focus:outline-none"
@@ -271,8 +276,9 @@ export default function BulkUpload() {
                   </div>
 
                   <div className="col-span-1">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Semester</label>
+                    <label htmlFor={`semester-${idx}`} className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Semester</label>
                     <select
+                      id={`semester-${idx}`}
                       value={item.semester}
                       onChange={(e) => updateItemField(idx, 'semester', e.target.value)}
                       className="p-2 text-sm border-2 border-slate-200 rounded-lg w-full bg-white focus:border-[#003875] focus:outline-none"
@@ -283,8 +289,9 @@ export default function BulkUpload() {
                   </div>
 
                   <div className="col-span-1">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Exam</label>
+                    <label htmlFor={`exam-${idx}`} className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Exam</label>
                     <select
+                      id={`exam-${idx}`}
                       value={item.exam}
                       onChange={(e) => updateItemField(idx, 'exam', e.target.value)}
                       className="p-2 text-sm border-2 border-slate-200 rounded-lg w-full bg-white focus:border-[#003875] focus:outline-none"
@@ -308,10 +315,12 @@ export default function BulkUpload() {
               {isUploading ? (
                 <>
                   <span className="w-5 h-5 border-2 border-amber-300 border-t-transparent rounded-full animate-spin"></span>
-                  Processing Background Upload...
+                  <span>Processing Background Upload...</span>
                 </>
               ) : (
-                `🚀 Upload ${selectedFiles.length} Paper${selectedFiles.length > 1 ? 's' : ''} to Database`
+                selectedFiles.length > 1
+                  ? `🚀 Upload ${selectedFiles.length} Papers to Database`
+                  : `🚀 Upload ${selectedFiles.length} Paper to Database`
               )}
             </button>
           </div>

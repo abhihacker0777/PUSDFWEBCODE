@@ -100,6 +100,38 @@ export const createPaperActions = ({
       return;
     }
 
+    if (directLink?.trim()) {
+      const cleanUrl = directLink.trim();
+      let isValidDoc = false;
+      try {
+        const parsed = new URL(cleanUrl);
+        const host = parsed.hostname.toLowerCase();
+        const pathname = parsed.pathname.toLowerCase();
+        const isDriveDoc =
+          (host.includes("drive.google.com") || host.includes("docs.google.com")) &&
+          (pathname.includes("/file/d/") ||
+            pathname.includes("/document/d/") ||
+            pathname.includes("/open") ||
+            pathname.includes("/uc") ||
+            parsed.searchParams.has("id"));
+        const isDirectDoc =
+          pathname.endsWith(".pdf") ||
+          pathname.endsWith(".docx") ||
+          pathname.endsWith(".doc") ||
+          parsed.pathname.includes(".pdf") ||
+          parsed.pathname.includes(".docx");
+        isValidDoc = isDriveDoc || isDirectDoc;
+      } catch {
+        isValidDoc = false;
+      }
+
+      if (!isValidDoc) {
+        setUploadStatus("Error: Only .pdf, .docx or Google Drive links are allowed.");
+        setTimeout(() => setUploadStatus(""), 4000);
+        return;
+      }
+    }
+
     rememberCustomSpec(course, spec);
     rememberCustomSemester(year, semester);
     setFileError(false);

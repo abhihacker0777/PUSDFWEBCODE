@@ -18,7 +18,8 @@ export async function requestLogin({ captchaToken, password, username }: { captc
 }
 
 export async function requestPasswordReset(email: string) {
-  const response = await csrfFetch(`${BACKEND_URL}/password-reset`, {
+  const endpoint = BACKEND_URL ? `${BACKEND_URL}/password-reset` : "/api/auth/reset";
+  const response = await csrfFetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

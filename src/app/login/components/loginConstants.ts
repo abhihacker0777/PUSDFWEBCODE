@@ -1,5 +1,4 @@
-export const TURNSTILE_SITE_KEY =
-  (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_TURNSTILE_SITE_KEY) || "";
+export const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 export const GENERIC_LOGIN_ERROR = "Incorrect email or password.";
 
 export const formatRetryTime = (totalSeconds: number | string) => {

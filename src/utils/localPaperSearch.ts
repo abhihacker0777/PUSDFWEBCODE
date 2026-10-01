@@ -310,6 +310,205 @@ function normYear(year: any): string {
   return normalize(year);
 }
 
+const SEM_PATTERN_1 = /\b(10|[1-9])(?:st|nd|rd|th)?\s*(?:sem|semester)\b/;
+const SEM_PATTERN_2 = /\b(?:sem|semester)\s*(10|[1-9])\b/;
+
+function parseExam(normQuery: string): string | null {
+  if (/\b(mid|midterm|mid\s*term|mid\s*sem|mse|mte)\b/.test(normQuery)) {
+    return "MSE";
+  }
+  if (/\b(end|endterm|end\s*term|end\s*sem|final|ese|ete)\b/.test(normQuery)) {
+    return "ESE";
+  }
+  return null;
+}
+
+function parseCourse(normQuery: string): string | null {
+  for (const [alias, canonical] of Object.entries(COURSE_MAP)) {
+    const escaped = alias.replace(/\./g, String.raw`\.`);
+    const regex = new RegExp(String.raw`\b${escaped}\b`, "i");
+    if (regex.test(normQuery)) {
+      return canonical;
+    }
+  }
+  return null;
+}
+
+function detectSpec(normQuery: string): string | null {
+  for (const spec of KNOWN_SPECS) {
+    if (normQuery.includes(spec)) {
+      return spec;
+    }
+  }
+  return null;
+}
+
+interface QueryTokens {
+  searchTokens: string[];
+  subjectTokens: string[];
+}
+
+function extractTokens(
+  normQuery: string,
+  parsedSem: string | null,
+  parsedCourse: string | null,
+  detectedSpec: string | null
+): QueryTokens {
+  const rawTokens = normQuery.split(" ").filter(Boolean);
+  const searchTokens: string[] = [];
+  const subjectTokens: string[] = [];
+
+  for (const token of rawTokens) {
+    if (STOP_WORDS.has(token)) continue;
+    if (token === "sem" || token === "semester") continue;
+    if (token === parsedSem?.split(" ")[0]) continue;
+    if (token === "mse" || token === "ese" || token === "mte" || token === "ete") continue;
+    if (parsedCourse && normalize(parsedCourse).split(" ").includes(token)) continue;
+    searchTokens.push(token);
+
+    if (!detectedSpec?.split(" ").includes(token)) {
+      subjectTokens.push(token);
+    }
+  }
+
+  return { searchTokens, subjectTokens };
+}
+
+interface PaperMetadata {
+  normCourse: string;
+  normSpec: string;
+  normYear: string;
+  normSem: string;
+  normExam: string;
+  normName: string;
+  fullPaperText: string;
+}
+
+function getPaperMetadata(paper: LocalPaperItem): PaperMetadata {
+  const pCourse = String(paper.course ?? "");
+  const pYear = String(paper.year ?? "");
+  const pSpec = String(paper.spec ?? paper.specialization ?? "");
+  const pSem = String(paper.sem ?? paper.semester ?? "");
+  const pExam = String(paper.exam ?? "");
+  const pName = String(paper.name ?? paper.title ?? paper.subject ?? "");
+
+  const normName = normalize(pName);
+  const normSpec = normalize(pSpec);
+  const normCourse = normalize(pCourse);
+  const normSem = normalize(pSem);
+  const normExam = normalize(pExam);
+
+  return {
+    normCourse,
+    normSpec,
+    normYear: normYear(pYear),
+    normSem,
+    normExam,
+    normName,
+    fullPaperText: `${normCourse} ${normSpec} ${normYear(pYear)} ${normSem} ${normExam} ${normName}`,
+  };
+}
+
+function paperMatchesConstraints(
+  meta: PaperMetadata,
+  parsedCourse: string | null,
+  detectedSpec: string | null,
+  parsedSem: string | null,
+  parsedExam: string | null,
+  options?: LocalSearchOptions
+): boolean {
+  if (parsedCourse && meta.normCourse !== normalize(parsedCourse)) {
+    return false;
+  }
+
+  if (detectedSpec && !meta.normSpec.includes(detectedSpec)) {
+    const specWords = detectedSpec.split(" ");
+    if (!specWords.some((w) => meta.normSpec.includes(w))) {
+      return false;
+    }
+  }
+
+  if (!options?.relaxSemester && parsedSem && meta.normSem !== normalize(parsedSem)) {
+    return false;
+  }
+
+  if (!options?.relaxExam && parsedExam && meta.normExam !== normalize(parsedExam)) {
+    return false;
+  }
+
+  return true;
+}
+
+interface ScoreResult {
+  score: number;
+  nameMatchedCount: number;
+  totalTokensMatched: number;
+}
+
+function scoreTokens(searchTokens: string[], meta: PaperMetadata): ScoreResult {
+  let score = 0;
+  let nameMatchedCount = 0;
+  let totalTokensMatched = 0;
+
+  for (const token of searchTokens) {
+    const isNameMatch = meta.normName.includes(token);
+    const isSpecMatch = meta.normSpec.includes(token);
+    const isFullMatch = meta.fullPaperText.includes(token);
+
+    const syns = SUBJECT_SYNONYMS[token] || [];
+    const synNameMatch = syns.some((syn) => meta.normName.includes(normalize(syn)));
+    const synSpecMatch = syns.some((syn) => meta.normSpec.includes(normalize(syn)));
+
+    if (isNameMatch) {
+      score += 40;
+      nameMatchedCount++;
+      totalTokensMatched++;
+    } else if (synNameMatch) {
+      score += 35;
+      nameMatchedCount++;
+      totalTokensMatched++;
+    } else if (isSpecMatch || synSpecMatch) {
+      score += 15;
+      totalTokensMatched++;
+    } else if (isFullMatch) {
+      score += 5;
+      totalTokensMatched++;
+    }
+  }
+
+  return { score, nameMatchedCount, totalTokensMatched };
+}
+
+function evaluatePaperScore(
+  meta: PaperMetadata,
+  tokens: QueryTokens,
+  parsedCourse: string | null,
+  parsedSem: string | null,
+  parsedExam: string | null
+): number | null {
+  const { score: tokenScore, nameMatchedCount, totalTokensMatched } = scoreTokens(tokens.searchTokens, meta);
+
+  if (tokens.subjectTokens.length > 0 && nameMatchedCount === 0) {
+    return null;
+  }
+
+  if (tokens.searchTokens.length > 0 && totalTokensMatched === 0) {
+    return null;
+  }
+
+  let finalScore = tokenScore;
+
+  if (tokens.subjectTokens.length > 0 && meta.normName.includes(tokens.subjectTokens.join(" "))) {
+    finalScore += 70;
+  }
+
+  if (parsedCourse) finalScore += 20;
+  if (parsedSem && meta.normSem === normalize(parsedSem)) finalScore += 25;
+  if (parsedExam && meta.normExam === normalize(parsedExam)) finalScore += 15;
+
+  return finalScore;
+}
+
 export function searchLocalPapers(
   papers: LocalPaperItem[],
   rawQuery: string,
@@ -321,156 +520,23 @@ export function searchLocalPapers(
   const normQuery = normalize(query);
   if (!normQuery) return [];
 
-  // Extract explicit semester e.g. "1 sem", "1sem", "sem 1", "1st sem"
-  let parsedSem: string | null = null;
-  const semMatch = normQuery.match(/\b(10|[1-9])\s*(?:st|nd|rd|th)?\s*(?:sem|semester)\b/) ||
-    normQuery.match(/\b(?:sem|semester)\s*(10|[1-9])\b/);
-  if (semMatch) {
-    parsedSem = `${Number(semMatch[1])} Sem`;
-  }
-
-  // Extract explicit exam e.g. "mid term", "mse", "ese", "end term"
-  let parsedExam: string | null = null;
-  if (/\b(mid|midterm|mid\s*term|mid\s*sem|mse|mte)\b/.test(normQuery)) {
-    parsedExam = "MSE";
-  } else if (/\b(end|endterm|end\s*term|end\s*sem|final|ese|ete)\b/.test(normQuery)) {
-    parsedExam = "ESE";
-  }
-
-  // Extract explicit course e.g. "b tech", "btech", "bca"
-  let parsedCourse: string | null = null;
-  for (const [alias, canonical] of Object.entries(COURSE_MAP)) {
-    const regex = new RegExp(`\\b${alias.replace(/\./g, "\\.")}\\b`, "i");
-    if (regex.test(normQuery)) {
-      parsedCourse = canonical;
-      break;
-    }
-  }
-
-  // Extract detected specialization
-  let detectedSpec: string | null = null;
-  for (const spec of KNOWN_SPECS) {
-    if (normQuery.includes(spec)) {
-      detectedSpec = spec;
-      break;
-    }
-  }
-
-  // Extract tokens excluding stopwords and parsed course/sem/exam
-  const rawTokens = normQuery.split(" ").filter(Boolean);
-  const searchTokens: string[] = [];
-  const subjectTokens: string[] = [];
-
-  for (const token of rawTokens) {
-    if (STOP_WORDS.has(token)) continue;
-    if (token === "sem" || token === "semester") continue;
-    if (parsedSem && token === parsedSem.split(" ")[0]) continue;
-    if (token === "mse" || token === "ese" || token === "mte" || token === "ete") continue;
-    if (parsedCourse && normalize(parsedCourse).split(" ").includes(token)) continue;
-    searchTokens.push(token);
-
-    if (!detectedSpec || !detectedSpec.split(" ").includes(token)) {
-      subjectTokens.push(token);
-    }
-  }
+  const semMatch = SEM_PATTERN_1.exec(normQuery) ?? SEM_PATTERN_2.exec(normQuery);
+  const parsedSem = semMatch ? `${Number(semMatch[1])} Sem` : null;
+  const parsedExam = parseExam(normQuery);
+  const parsedCourse = parseCourse(normQuery);
+  const detectedSpec = detectSpec(normQuery);
+  const tokens = extractTokens(normQuery, parsedSem, parsedCourse, detectedSpec);
 
   const scoredPapers: LocalPaperItem[] = [];
 
   for (const paper of papers || []) {
-    const pCourse = String(paper.course || "");
-    const pYear = String(paper.year || "");
-    const pSpec = String(paper.spec || paper.specialization || "");
-    const pSem = String(paper.sem || paper.semester || "");
-    const pExam = String(paper.exam || "");
-    const pName = String(paper.name || paper.title || paper.subject || "");
-
-    const normName = normalize(pName);
-    const normSpec = normalize(pSpec);
-    const normCourse = normalize(pCourse);
-    const normSem = normalize(pSem);
-    const normExam = normalize(pExam);
-
-    const fullPaperText = `${normCourse} ${normSpec} ${normYear(pYear)} ${normSem} ${normExam} ${normName}`;
-
-    // Filter constraint: Course
-    if (parsedCourse) {
-      if (normCourse !== normalize(parsedCourse)) {
-        continue;
-      }
-    }
-
-    // Filter constraint: Specialization if detected
-    if (detectedSpec && !normSpec.includes(detectedSpec)) {
-      const specWords = detectedSpec.split(" ");
-      const matchesSpec = specWords.some((w) => normSpec.includes(w));
-      if (!matchesSpec) continue;
-    }
-
-    // Filter constraint: Semester
-    if (!options?.relaxSemester && parsedSem) {
-      if (normSem !== normalize(parsedSem)) {
-        continue;
-      }
-    }
-
-    // Filter constraint: Exam
-    if (!options?.relaxExam && parsedExam) {
-      if (normExam !== normalize(parsedExam)) {
-        continue;
-      }
-    }
-
-    let score = 0;
-    let nameMatchedCount = 0;
-    let totalTokensMatched = 0;
-
-    // Check query tokens against the paper text and name
-    for (const token of searchTokens) {
-      const isNameMatch = normName.includes(token);
-      const isSpecMatch = normSpec.includes(token);
-      const isFullMatch = fullPaperText.includes(token);
-
-      // Check synonym matches
-      const syns = SUBJECT_SYNONYMS[token] || [];
-      const synNameMatch = syns.some((syn) => normName.includes(normalize(syn)));
-      const synSpecMatch = syns.some((syn) => normSpec.includes(normalize(syn)));
-
-      if (isNameMatch) {
-        score += 40;
-        nameMatchedCount++;
-        totalTokensMatched++;
-      } else if (synNameMatch) {
-        score += 35;
-        nameMatchedCount++;
-        totalTokensMatched++;
-      } else if (isSpecMatch || synSpecMatch) {
-        score += 15;
-        totalTokensMatched++;
-      } else if (isFullMatch) {
-        score += 5;
-        totalTokensMatched++;
-      }
-    }
-
-    // CRITICAL: If subject tokens were present in the query, the paper MUST match at least one subject token in its name/title
-    if (subjectTokens.length > 0 && nameMatchedCount === 0) {
+    const meta = getPaperMetadata(paper);
+    if (!paperMatchesConstraints(meta, parsedCourse, detectedSpec, parsedSem, parsedExam, options)) {
       continue;
     }
 
-    // If query had search tokens but NONE matched anywhere, skip
-    if (searchTokens.length > 0 && totalTokensMatched === 0) {
-      continue;
-    }
-
-    // Exact phrase bonus in subject name
-    if (subjectTokens.length > 0 && normName.includes(subjectTokens.join(" "))) {
-      score += 70;
-    }
-
-    // Base match score if filtered by course/sem/exam
-    if (parsedCourse) score += 20;
-    if (parsedSem && normSem === normalize(parsedSem)) score += 25;
-    if (parsedExam && normExam === normalize(parsedExam)) score += 15;
+    const score = evaluatePaperScore(meta, tokens, parsedCourse, parsedSem, parsedExam);
+    if (score === null) continue;
 
     scoredPapers.push({
       ...paper,
@@ -478,7 +544,6 @@ export function searchLocalPapers(
     });
   }
 
-  // Sort by score descending, then alphabetically by paper name
   scoredPapers.sort((a, b) => {
     if ((b._score || 0) !== (a._score || 0)) return (b._score || 0) - (a._score || 0);
     const nameA = (a.name || a.title || "").toLowerCase();

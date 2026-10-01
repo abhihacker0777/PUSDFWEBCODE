@@ -86,10 +86,19 @@ export default function useStudentQueries({ authUser, canMonitor }: UseStudentQu
     setQueryCurrentPage(1);
   };
 
+const matchValue = (value: unknown, term: string): boolean => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "object") {
+    return JSON.stringify(value).toLowerCase().includes(term);
+  }
+  return String(value).toLowerCase().includes(term);
+};
+
   const groupedQueriesArray = useMemo(() => {
+    const term = querySearch.toLowerCase();
     const processedQueries = studentQueries
       .filter((query) =>
-        Object.values(query).some((value) => String(value || "").toLowerCase().includes(querySearch.toLowerCase()))
+        Object.values(query).some((value) => matchValue(value, term))
       )
       .sort((a, b) => querySortType === "old" ? new Date(a.date).getTime() - new Date(b.date).getTime() : new Date(b.date).getTime() - new Date(a.date).getTime());
 

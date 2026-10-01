@@ -3,10 +3,52 @@
 import { createClient, createAdminClient, getServiceRoleClient } from "@/lib/supabase/server";
 import { verifyTurnstileToken, equalizeLoginTiming } from "@/lib/security";
 import { sendPasswordResetEmail } from "@/lib/email";
-import crypto from "crypto";
+import {
+  getLoginAttempts,
+  getLockoutRemainingSeconds,
+  recordFailedLogin,
+  resetLoginAttempts
+} from "@/lib/redis";
+import crypto from "node:crypto";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "hackcanabhi@gmail.com";
 const PASSWORD_RESET_URL = process.env.PASSWORD_RESET_URL || "http://localhost:3000/reset-password";
+
+function extractCredentials(param1: FormData | string, param2?: string, param3?: string) {
+  if (typeof param1 === "string") {
+    return {
+      identifier: (param1 || "").trim(),
+      password: param2 || "",
+      captchaToken: param3 || ""
+    };
+  }
+  if (param1 && typeof (param1 as any).get === "function") {
+    const fd = param1 as FormData;
+    return {
+      identifier: ((fd.get("identifier") || fd.get("email") || fd.get("username")) as string || "").trim(),
+      password: (fd.get("password") as string || ""),
+      captchaToken: (fd.get("captchaToken") as string || "")
+    };
+  }
+  return { identifier: "", password: "", captchaToken: "" };
+}
+
+async function handleFailedLogin(cleanIdentifier: string, startedAt: number) {
+  const lockout = await recordFailedLogin(cleanIdentifier, 5, 900);
+  await equalizeLoginTiming(startedAt);
+  if (lockout.locked) {
+    return {
+      success: false,
+      message: "Too many failed login attempts. Account temporarily locked for 15 minutes.",
+      code: "RATE_LIMITED",
+      retryAfterSeconds: 900,
+    };
+  }
+  return {
+    success: false,
+    message: `Invalid credentials. (${lockout.remaining} attempt${lockout.remaining === 1 ? "" : "s"} remaining before temporary lockout.)`,
+  };
+}
 
 export async function loginAction(
   param1: FormData | string,
@@ -14,24 +56,11 @@ export async function loginAction(
   param3?: string
 ) {
   const startedAt = Date.now();
-  let identifier = "";
-  let password = "";
-  let captchaToken = "";
-
-  if (typeof param1 === "string") {
-    identifier = (param1 || "").trim();
-    password = param2 || "";
-    captchaToken = param3 || "";
-  } else if (param1 && typeof (param1 as any).get === "function") {
-    const fd = param1 as FormData;
-    identifier = ((fd.get("identifier") || fd.get("email") || fd.get("username")) as string || "").trim();
-    password = (fd.get("password") as string || "");
-    captchaToken = (fd.get("captchaToken") as string || "");
-  }
+  const { identifier, password, captchaToken } = extractCredentials(param1, param2, param3);
 
   // 1. Verify Turnstile Captcha
   const captchaOk = await verifyTurnstileToken(captchaToken);
-  if (!captchaOk && process.env.CAPTCHA_SECRET) {
+  if (!captchaOk && process.env.CAPTCHA_SECRET && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
     await equalizeLoginTiming(startedAt);
     return { success: false, message: "CAPTCHA verification failed. Please try again.", code: "CAPTCHA_REQUIRED" };
   }
@@ -41,14 +70,27 @@ export async function loginAction(
     return { success: false, message: "Please provide both identifier and password." };
   }
 
+  const cleanIdentifier = identifier.trim().toLowerCase();
+
+  // 2. Check if identifier is currently locked out
+  const currentAttempts = await getLoginAttempts(cleanIdentifier);
+  if (currentAttempts >= 5) {
+    const remainingSeconds = await getLockoutRemainingSeconds(cleanIdentifier);
+    await equalizeLoginTiming(startedAt);
+    return {
+      success: false,
+      message: "Too many failed login attempts. Account temporarily locked.",
+      code: "RATE_LIMITED",
+      retryAfterSeconds: remainingSeconds > 0 ? remainingSeconds : 900,
+    };
+  }
+
   try {
     const supabase = await createClient();
     const adminSupabase = createAdminClient();
 
-    // 2. Resolve login identifier (could be email or username)
-    const cleanIdentifier = identifier.trim().toLowerCase();
+    // 3. Resolve login identifier (could be email or username)
     let emailToAuth = identifier.trim();
-    let displayName = "Administrator";
 
     const { data: userRecord } = await adminSupabase
       .from("admin_users")
@@ -64,25 +106,24 @@ export async function loginAction(
       if (userRecord.email) {
         emailToAuth = userRecord.email;
       }
-      displayName = userRecord.display_name || displayName;
     } else if (!cleanIdentifier.includes("@")) {
-      // Username not found in admin_users
-      await equalizeLoginTiming(startedAt);
-      return { success: false, message: "Invalid credentials." };
+      return await handleFailedLogin(cleanIdentifier, startedAt);
     }
 
-    // 3. Authenticate with Supabase
+    // 4. Authenticate with Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: emailToAuth,
       password,
     });
 
     if (authError || !authData?.user) {
-      await equalizeLoginTiming(startedAt);
-      return { success: false, message: "Invalid credentials." };
+      return await handleFailedLogin(cleanIdentifier, startedAt);
     }
 
-    // 4. Verify account active state
+    // 5. Successful authentication - reset lockout counter
+    await resetLoginAttempts(cleanIdentifier);
+
+    // 6. Verify account active state
     const isSuperAdmin = emailToAuth.toLowerCase() === ADMIN_EMAIL.toLowerCase();
     if (!isSuperAdmin) {
       const { data: adminRecord } = await adminSupabase
@@ -91,7 +132,7 @@ export async function loginAction(
         .eq("email", emailToAuth)
         .single();
 
-      if (adminRecord && !adminRecord.is_active) {
+      if (!adminRecord?.is_active) {
         await supabase.auth.signOut();
         await equalizeLoginTiming(startedAt);
         return { success: false, message: "This administrative account has been deactivated." };
@@ -102,7 +143,7 @@ export async function loginAction(
     return { success: true, user: authData.user };
   } catch (error: any) {
     await equalizeLoginTiming(startedAt);
-    return { success: false, message: error.message || "An error occurred during authentication." };
+    return { success: false, message: error.message || "An error occurred during authentication.", code: "AUTH_ERROR" };
   }
 }
 

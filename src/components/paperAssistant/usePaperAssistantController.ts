@@ -16,7 +16,6 @@ import useAssistantConfig from "./useAssistantConfig";
 import useAssistantMessages from "./useAssistantMessages";
 
 export default function usePaperAssistantController() {
-  const [mounted, setMounted] = useState(false);
   const [auth, setAuth] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState<"signin" | "chat">("signin");
@@ -35,7 +34,6 @@ export default function usePaperAssistantController() {
 
   // Initialize auth from sessionStorage after mount to prevent hydration mismatch
   useEffect(() => {
-    setMounted(true);
     const saved = getStoredAuth();
     if (saved) {
       setAuth(saved);

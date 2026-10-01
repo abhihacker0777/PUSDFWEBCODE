@@ -8,7 +8,7 @@ interface PaperAssistantLauncherProps {
   onOpen: () => void;
 }
 
-export default function PaperAssistantLauncher({ isOpen, onOpen }: PaperAssistantLauncherProps) {
+export default function PaperAssistantLauncher({ isOpen, onOpen }: Readonly<PaperAssistantLauncherProps>) {
   return (
     <button
       type="button"

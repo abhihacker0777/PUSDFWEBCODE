@@ -90,17 +90,23 @@ export default function useAdminChrome({
   }, [authUser, adminUsers]);
 
   const savedDisplayName = matchingAdminUser?.displayName || authUser?.displayName || "";
-  const personalName = (savedDisplayName && savedDisplayName.toLowerCase() !== "admin" && savedDisplayName.toLowerCase() !== "administrator")
-    ? savedDisplayName
-    : (authUser?.displayName && authUser.displayName.toLowerCase() !== "admin"
-      ? authUser.displayName
-      : (authUser?.email || authUser?.loginIdentifier || "PU Central-Library"));
+  const isGeneric = (name: string) => {
+    const lower = name.toLowerCase();
+    return lower === "admin" || lower === "administrator";
+  };
+  let personalName = authUser?.email || authUser?.loginIdentifier || "PU Central-Library";
+  if (savedDisplayName && !isGeneric(savedDisplayName)) {
+    personalName = savedDisplayName;
+  } else if (authUser?.displayName && !isGeneric(authUser.displayName)) {
+    personalName = authUser.displayName;
+  }
 
   const isOwner = Boolean(authUser?.isOwner);
   const currentRole = authUser?.role ? String(authUser.role).toLowerCase() : "";
-  const loggedInRoleLabel = (!authUser || isOwner)
-    ? "Admin"
-    : (ROLE_LABELS[currentRole] || authUser?.role || "Admin");
+  let loggedInRoleLabel = "Admin";
+  if (authUser && !isOwner) {
+    loggedInRoleLabel = ROLE_LABELS[currentRole] || authUser?.role || "Admin";
+  }
 
   const loggedInLabel = showPersonalName ? personalName : "PU Central-Library";
 

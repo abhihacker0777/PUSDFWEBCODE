@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
+import crypto from "node:crypto";
 
-export async function GET() {
+export function GET() {
   const token = crypto.randomBytes(24).toString("hex");
   const response = NextResponse.json({ csrfToken: token });
   response.cookies.set("csrf_token", token, {

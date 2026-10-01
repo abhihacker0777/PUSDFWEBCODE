@@ -63,7 +63,7 @@ export default function PaperAssistantPanel({
   setInput,
   signInError,
   view
-}: PaperAssistantPanelProps) {
+}: Readonly<PaperAssistantPanelProps>) {
   return (
     <section className="pu-assistant-panel">
       <header className="pu-assistant-header">
@@ -72,7 +72,7 @@ export default function PaperAssistantPanel({
 
           <div className="min-w-0">
             <div className="pu-assistant-title">
-              PU-Exam Cell
+              <span className="pu-assistant-title-text">PU-Exam Cell</span>
               <span className={auth ? "is-connected" : "is-disconnected"} aria-hidden="true" />
             </div>
             <p className="pu-assistant-subtitle">

@@ -15,7 +15,7 @@ export default function PaperAssistantSignin({
   googleButtonRef,
   isSigningIn,
   signInError
-}: PaperAssistantSigninProps) {
+}: Readonly<PaperAssistantSigninProps>) {
   return (
     <div className="pu-assistant-pattern pu-assistant-choice-bg">
       <div className="pu-assistant-choice-shell text-center">

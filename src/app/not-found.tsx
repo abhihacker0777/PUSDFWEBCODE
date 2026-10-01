@@ -1,8 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import { FileQuestion, Home, ArrowLeft } from "lucide-react";
-
+import { FileQuestion, Home } from "lucide-react";
 
 export default function NotFound() {
   return (
@@ -22,21 +19,14 @@ export default function NotFound() {
           The requested page or question paper does not exist or may have been moved or removed from the archive.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="flex gap-3 justify-center">
           <Link
             href="/"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition shadow-lg shadow-red-600/25 active:scale-[0.98]"
+            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition shadow-lg shadow-red-600/25 active:scale-[0.98]"
           >
             <Home className="w-4 h-4" />
             Back to Home
           </Link>
-          <button
-            onClick={() => typeof window !== "undefined" && window.history.back()}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-slate-200 text-sm font-medium transition active:scale-[0.98]"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Go Back
-          </button>
         </div>
       </div>
 

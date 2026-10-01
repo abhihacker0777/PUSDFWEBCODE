@@ -24,7 +24,7 @@ interface PaperListProps {
   isSearchResult?: boolean;
 }
 
-export default function PaperList({ papers, isSearchResult = false }: PaperListProps) {
+export default function PaperList({ papers, isSearchResult = false }: Readonly<PaperListProps>) {
   // ⚡ OPTIMIZATION: O(N) complexity using a Set and useMemo.
   // This is infinitely faster than filter + findIndex.
   const uniquePapers = useMemo(() => {
@@ -72,7 +72,7 @@ export default function PaperList({ papers, isSearchResult = false }: PaperListP
       )}
 
       <div className="flex flex-col gap-3">
-        {uniquePapers.map((p) => {
+        {uniquePapers.map((p, idx) => {
           const safeLink = getSafeUrl(p.link);
           const paperDisplayName = p.name || p.title || p.subject || "Untitled Paper";
           const paperSem = p.sem || p.semester;
@@ -80,7 +80,7 @@ export default function PaperList({ papers, isSearchResult = false }: PaperListP
 
           return (
             <div 
-              key={`${p.course}-${paperDisplayName}-${p.index || p.link || Math.random()}`} 
+              key={`${p.course}-${paperDisplayName}-${p.index ?? p.link ?? idx}`} 
               className="bg-white p-4 border-l-[6px] border-[#ffca2c] rounded-lg shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3"
             >
               <span className="text-xl text-gray-400 shrink-0" role="img" aria-label="paper icon">

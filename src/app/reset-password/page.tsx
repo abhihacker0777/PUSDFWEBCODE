@@ -43,7 +43,8 @@ function ResetPasswordForm() {
 
     setIsLoading(true);
     try {
-      const response = await csrfFetch(`${BACKEND_URL}/password-reset/confirm`, {
+      const endpoint = BACKEND_URL ? `${BACKEND_URL}/password-reset/confirm` : "/api/auth/reset/confirm";
+      const response = await csrfFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

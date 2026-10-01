@@ -7,7 +7,7 @@ export interface StudentQueriesHomeProps {
   [key: string]: any;
 }
 
-export default function StudentQueriesHome({ insightsProps, ...studentQueriesProps }: StudentQueriesHomeProps) {
+export default function StudentQueriesHome({ insightsProps, ...studentQueriesProps }: Readonly<StudentQueriesHomeProps>) {
   const [activeTab, setActiveTab] = useState("queries");
   const [hasLoadedInsights, setHasLoadedInsights] = useState(false);
 

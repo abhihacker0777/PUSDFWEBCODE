@@ -1,6 +1,6 @@
 import { BACKEND_URL } from "./backendConfig";
+export { clearPaperCaches } from "./paperCache";
 import {
-  clearPaperCaches,
   getPapersUpdatedAt,
   normalizePaperOptions,
   normalizePapers,
@@ -15,8 +15,6 @@ import {
   NormalizedPaper,
   PaperOption
 } from "./paperCache";
-
-export { clearPaperCaches };
 
 export const fetchPapers = async ({ force = false }: { force?: boolean } = {}): Promise<NormalizedPaper[]> => {
   const cachedPapers = !force ? readPapersCache(false) : null;
@@ -87,7 +85,9 @@ export const searchPapers = async (filters: Record<string, any> = {}, { force = 
   if (filters.exam) params.set("exam", filters.exam);
 
   try {
-    const url = `${BACKEND_URL}/papers/search?${params.toString()}${force ? `&t=${Date.now()}` : ""}`;
+    const queryString = params.toString();
+    const cacheBuster = force ? `&t=${Date.now()}` : "";
+    const url = `${BACKEND_URL}/papers/search?${queryString}${cacheBuster}`;
     const response = await fetch(url, {
       method: "GET",
       cache: force ? "no-store" : "default",

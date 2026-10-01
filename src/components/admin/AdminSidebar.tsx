@@ -15,7 +15,7 @@ export interface AdminSidebarProps {
   newQueryGif?: any;
 }
 
-export default function AdminSidebar({ navItems, activeNav, setActiveNav, newQueryGif }: AdminSidebarProps) {
+export default function AdminSidebar({ navItems, activeNav, setActiveNav, newQueryGif }: Readonly<AdminSidebarProps>) {
   return (
     <aside className="w-full md:w-48 flex-shrink-0 flex flex-col items-stretch shadow-none md:shadow-lg pt-4 pb-4 md:pb-0 md:pt-4 z-20" style={{ backgroundColor: "#f5a623" }}>
       <PoornimaLogo />

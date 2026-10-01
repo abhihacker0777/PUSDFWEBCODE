@@ -63,8 +63,10 @@ export default function useAdminPageController() {
       }
     };
 
-    loadData();
-    const intervalId = setInterval(loadData, 30000);
+    void loadData();
+    const intervalId = setInterval(() => {
+      void loadData();
+    }, 30000);
     return () => clearInterval(intervalId);
   }, [
     fetchAdminUsers,

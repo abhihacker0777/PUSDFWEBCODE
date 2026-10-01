@@ -50,7 +50,7 @@ export default function LoginForm({
   updatePassword,
   updateUsername,
   username
-}: LoginFormProps) {
+}: Readonly<LoginFormProps>) {
   const loginDisabled = Boolean(isLoading || loginLocked || (captchaRequired && TURNSTILE_SITE_KEY && !captchaToken));
 
   return (

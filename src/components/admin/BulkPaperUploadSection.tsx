@@ -1,6 +1,4 @@
-"use client";
-
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef } from "react";
 import { Paper, PaperTargetMapping, BulkUploadQueueItem } from "@/types/paper";
 import { uploadPaperAction, bulkDeletePapersAction, bulkEditPapersAction } from "@/actions/paperActions";
 import {
@@ -11,7 +9,6 @@ import {
   CheckCircle,
   AlertCircle,
   FileText,
-  Copy,
   FolderPlus,
   Check,
 } from "lucide-react";
@@ -21,7 +18,20 @@ interface BulkPaperUploadSectionProps {
   onRefresh: () => void;
 }
 
-export default function BulkPaperUploadSection({ papers, onRefresh }: BulkPaperUploadSectionProps) {
+const uploadItemTarget = async (item: BulkUploadQueueItem, target: PaperTargetMapping) => {
+  const formData = new FormData();
+  if (item.file) formData.append("file", item.file);
+  if (item.link) formData.append("directLink", item.link);
+  formData.append("paperName", item.paperName);
+  formData.append("course", target.course);
+  formData.append("year", target.year);
+  formData.append("spec", target.spec);
+  formData.append("semester", target.semester);
+  formData.append("exam", target.exam);
+  return uploadPaperAction(formData);
+};
+
+export default function BulkPaperUploadSection({ papers, onRefresh }: Readonly<BulkPaperUploadSectionProps>) {
   const [activeTab, setActiveTab] = useState<"upload" | "edit" | "delete">("upload");
   const [queue, setQueue] = useState<BulkUploadQueueItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -44,7 +54,7 @@ export default function BulkPaperUploadSection({ papers, onRefresh }: BulkPaperU
     if (!files || files.length === 0) return;
 
     const newItems: BulkUploadQueueItem[] = Array.from(files).map((file) => ({
-      id: `queue-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: `queue-${Date.now()}-${crypto.randomUUID()}`,
       file,
       fileName: file.name,
       paperName: file.name.replace(/\.[^/.]+$/, "").replace(/[_-]+/g, " ").trim(),
@@ -71,7 +81,7 @@ export default function BulkPaperUploadSection({ papers, onRefresh }: BulkPaperU
       prev.map((item) => {
         if (item.id !== itemId) return item;
         const newTarget: PaperTargetMapping = {
-          id: `target-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          id: `target-${Date.now()}-${crypto.randomUUID()}`,
           course: sourceTarget.course,
           year: sourceTarget.year,
           spec: "", // Intentionally left blank as requested so admin can pick another branch
@@ -124,44 +134,54 @@ export default function BulkPaperUploadSection({ papers, onRefresh }: BulkPaperU
   const handleExecuteUpload = async () => {
     if (queue.length === 0 || isProcessing) return;
     setIsProcessing(true);
-    let successCount = 0;
-    let failCount = 0;
 
-    for (const item of queue) {
-      if (item.status === "success") continue;
+    const pendingItems = queue.filter((item) => item.status !== "success");
+    const results = await Promise.all(
+      pendingItems.map(async (item) => {
+        let allSuccess = true;
+        let lastError = "";
 
-      for (const target of item.targets) {
-        const formData = new FormData();
-        if (item.file) formData.append("file", item.file);
-        if (item.link) formData.append("directLink", item.link);
-        formData.append("paperName", item.paperName);
-        formData.append("course", target.course);
-        formData.append("year", target.year);
-        formData.append("spec", target.spec);
-        formData.append("semester", target.semester);
-        formData.append("exam", target.exam);
+        const targetResults = await Promise.all(
+          item.targets.map(async (target) => {
+            try {
+              const res = await uploadItemTarget(item, target);
+              if (!res.success) {
+                lastError = res.message || "Failed";
+                return false;
+              }
+              return true;
+            } catch {
+              lastError = "Failed";
+              return false;
+            }
+          })
+        );
 
-        try {
-          const res = await uploadPaperAction(formData);
-          if (res.success) {
-            successCount += 1;
-            setQueue((prev) =>
-              prev.map((q) => (q.id === item.id ? { ...q, status: "success" } : q))
-            );
-          } else {
-            failCount += 1;
-            setQueue((prev) =>
-              prev.map((q) => (q.id === item.id ? { ...q, status: "error", message: res.message } : q))
-            );
-          }
-        } catch {
-          failCount += 1;
-        }
-      }
-    }
+        allSuccess = targetResults.every(Boolean);
+        const successes = targetResults.filter(Boolean).length;
+        const failures = targetResults.length - successes;
+
+        setQueue((prev) =>
+          prev.map((q) =>
+            q.id === item.id
+              ? {
+                  ...q,
+                  status: allSuccess ? "success" : "error",
+                  message: allSuccess ? undefined : lastError,
+                }
+              : q
+          )
+        );
+
+        return { successes, failures };
+      })
+    );
+
+    const totalSuccess = results.reduce((acc, r) => acc + r.successes, 0);
+    const totalFail = results.reduce((acc, r) => acc + r.failures, 0);
 
     setIsProcessing(false);
-    setUploadMessage(`Upload finished: ${successCount} successful, ${failCount} failed.`);
+    setUploadMessage(`Upload finished: ${totalSuccess} successful, ${totalFail} failed.`);
     onRefresh();
   };
 
@@ -259,6 +279,14 @@ export default function BulkPaperUploadSection({ papers, onRefresh }: BulkPaperU
         <div>
           {/* Dropzone */}
           <div
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
             onClick={() => fileInputRef.current?.click()}
             className="border-2 border-dashed border-[#ffc107] bg-[#fffdf5] hover:bg-[#fffaf0] rounded-2xl p-8 text-center cursor-pointer transition-colors"
           >

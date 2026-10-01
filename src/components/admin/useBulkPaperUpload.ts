@@ -17,6 +17,63 @@ const cleanFileNameToPaperName = (name: string) => {
   return withoutExtension.trim().slice(0, 160);
 };
 
+const getRejectedFileErrorMessage = (rejectedCount: number) => {
+  if (rejectedCount <= 0) return "";
+  const suffix = rejectedCount > 1 ? "s" : "";
+  return `Skipped ${rejectedCount} file${suffix} - only .pdf and .docx are supported.`;
+};
+
+const validateBulkFiles = (files: any[]): boolean => {
+  for (const row of files) {
+    if (!row.paperName?.trim()) return false;
+    for (const target of row.targets) {
+      if (!target.course || !target.year || !target.spec || !target.semester || !target.exam) {
+        return false;
+      }
+    }
+  }
+  return true;
+};
+
+const uploadBulkRowTargets = async (row: any): Promise<{ success: boolean; message: string }> => {
+  let sharedFileLink = row.link || null;
+
+  for (let i = 0; i < row.targets.length; i += 1) {
+    const target = row.targets[i];
+    try {
+      const formData = new FormData();
+      if (i === 0 && row.file) {
+        formData.append("file", row.file);
+      } else if (sharedFileLink) {
+        formData.append("directLink", sharedFileLink);
+      }
+
+      formData.append("course", target.course);
+      formData.append("year", target.year);
+      formData.append("spec", target.spec);
+      formData.append("sem", target.semester);
+      formData.append("exam", target.exam);
+      formData.append("name", row.paperName.trim());
+
+      const response = await uploadPaper(formData);
+      const payload = await readApiResponse(response);
+
+      if (!response.ok) {
+        return { success: false, message: cleanStatusMessage(payload.message || "Upload failed") };
+      }
+
+      if (payload.paper?.link) {
+        sharedFileLink = payload.paper.link;
+      }
+    } catch {
+      return { success: false, message: "Server connection failed" };
+    }
+  }
+
+  const courseSuffix = row.targets.length > 1 ? "s" : "";
+  return { success: true, message: `Uploaded (${row.targets.length} course${courseSuffix})` };
+};
+
 export interface UseBulkPaperUploadParams {
   allPapers: any[];
   customSpecsByCourse: Record<string, string[]>;
@@ -74,11 +131,11 @@ export default function useBulkPaperUpload({
             exam: t.exam || ""
           }));
         }
-        if (sourceRowToClone && sourceRowToClone.course) {
+        if (sourceRowToClone?.course) {
           return [
             {
               id: `target-${Date.now()}-${bulkFileIdCounter++}`,
-              course: sourceRowToClone.course || "",
+              course: sourceRowToClone.course,
               year: sourceRowToClone.year || "",
               spec: "",
               semester: sourceRowToClone.semester || "",
@@ -122,25 +179,55 @@ export default function useBulkPaperUpload({
       return [...current, ...newRows];
     });
 
-    setBulkValidationError(rejected.length > 0
-      ? `Skipped ${rejected.length} file${rejected.length > 1 ? "s" : ""} - only .pdf and .docx are supported.`
-      : "");
+    setBulkValidationError(getRejectedFileErrorMessage(rejected.length));
     setBulkSummary(null);
   }, []);
 
-  const addBulkLink = useCallback((url: string) => {
+  const addBulkLink = useCallback((url: string): boolean => {
     const cleanUrl = String(url || "").trim();
-    if (!cleanUrl) return;
+    if (!cleanUrl) return false;
 
-    let derivedName = "Paper Link";
+    let isValidDoc = false;
+    let derivedName = "Paper Document";
+
     try {
       const parsed = new URL(cleanUrl);
-      const pathParts = parsed.pathname.split("/").filter(Boolean);
-      derivedName = pathParts[pathParts.length - 1] || "Paper Document";
+      const host = parsed.hostname.toLowerCase();
+      const pathname = parsed.pathname.toLowerCase();
+
+      const isDriveDoc =
+        (host.includes("drive.google.com") || host.includes("docs.google.com")) &&
+        (pathname.includes("/file/d/") ||
+          pathname.includes("/document/d/") ||
+          pathname.includes("/open") ||
+          pathname.includes("/uc") ||
+          parsed.searchParams.has("id"));
+
+      const isDirectDoc =
+        pathname.endsWith(".pdf") ||
+        pathname.endsWith(".docx") ||
+        pathname.endsWith(".doc") ||
+        parsed.pathname.includes(".pdf") ||
+        parsed.pathname.includes(".docx");
+
+      if (isDriveDoc || isDirectDoc) {
+        isValidDoc = true;
+        const pathParts = parsed.pathname.split("/").filter(Boolean);
+        const lastPart = pathParts.at(-1) || "Paper Document";
+        derivedName = decodeURIComponent(lastPart);
+      }
     } catch {
-      derivedName = "Paper Document";
+      isValidDoc = false;
     }
 
+    if (!isValidDoc) {
+      setBulkValidationError(
+        "Invalid document link! Only direct .pdf, .docx or Google Drive document links are accepted. (Website pages like /admin cannot be uploaded)."
+      );
+      return false;
+    }
+
+    setBulkValidationError("");
     setBulkFiles((current) => [
       ...current,
       {
@@ -164,6 +251,7 @@ export default function useBulkPaperUpload({
       }
     ]);
     setBulkSummary(null);
+    return true;
   }, []);
 
   const addTargetToRow = useCallback((rowId: any) => {
@@ -244,22 +332,8 @@ export default function useBulkPaperUpload({
   const uploadAllBulkFiles = useCallback(async () => {
     if (!canCreatePapers || bulkFiles.length === 0 || bulkIsUploading) return;
 
-    let incompleteCount = 0;
-    for (const row of bulkFiles) {
-      if (!row.paperName.trim()) {
-        incompleteCount += 1;
-        continue;
-      }
-      for (const target of row.targets) {
-        if (!target.course || !target.year || !target.spec || !target.semester || !target.exam) {
-          incompleteCount += 1;
-          break;
-        }
-      }
-    }
-
-    if (incompleteCount > 0) {
-      setBulkValidationError(`Complete all dropdowns and paper names for all papers before uploading.`);
+    if (!validateBulkFiles(bulkFiles)) {
+      setBulkValidationError("Complete all dropdowns and paper names for all papers before uploading.");
       return;
     }
 
@@ -271,60 +345,21 @@ export default function useBulkPaperUpload({
     let failed = 0;
 
     for (const row of bulkFiles) {
-      setBulkFiles((current) => current.map((item) => (item.id === row.id ? { ...item, status: "uploading", message: "" } : item)));
+      setBulkFiles((current) =>
+        current.map((item) => (item.id === row.id ? { ...item, status: "uploading", message: "" } : item))
+      );
 
-      let rowFailed = false;
-      let sharedFileLink = row.link || null;
-
-      for (let i = 0; i < row.targets.length; i += 1) {
-        const target = row.targets[i];
-        try {
-          const formData = new FormData();
-          if (i === 0 && row.file) {
-            formData.append("file", row.file);
-          } else if (sharedFileLink) {
-            formData.append("directLink", sharedFileLink);
-          }
-
-          formData.append("course", target.course);
-          formData.append("year", target.year);
-          formData.append("spec", target.spec);
-          formData.append("sem", target.semester);
-          formData.append("exam", target.exam);
-          formData.append("name", row.paperName.trim());
-
-          const response = await uploadPaper(formData);
-          const payload = await readApiResponse(response);
-
-          if (!response.ok) {
-            rowFailed = true;
-            console.error("Bulk target upload failed:", payload.message);
-            setBulkFiles((current) => current.map((item) => (item.id === row.id
-              ? { ...item, status: "error", message: cleanStatusMessage(payload.message || "Upload failed") }
-              : item)));
-            break;
-          }
-
-          if (payload.paper?.link) {
-            sharedFileLink = payload.paper.link;
-          }
-        } catch (error) {
-          rowFailed = true;
-          console.error("Bulk upload target error:", error);
-          setBulkFiles((current) => current.map((item) => (item.id === row.id
-            ? { ...item, status: "error", message: "Server connection failed" }
-            : item)));
-          break;
-        }
-      }
-
-      if (rowFailed) {
-        failed += 1;
-      } else {
+      const result = await uploadBulkRowTargets(row);
+      if (result.success) {
         succeeded += 1;
-        setBulkFiles((current) => current.map((item) => (item.id === row.id
-          ? { ...item, status: "success", message: `Uploaded (${row.targets.length} course${row.targets.length > 1 ? "s" : ""})` }
-          : item)));
+        setBulkFiles((current) =>
+          current.map((item) => (item.id === row.id ? { ...item, status: "success", message: result.message } : item))
+        );
+      } else {
+        failed += 1;
+        setBulkFiles((current) =>
+          current.map((item) => (item.id === row.id ? { ...item, status: "error", message: result.message } : item))
+        );
       }
     }
 

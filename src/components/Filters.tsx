@@ -32,7 +32,7 @@ export default function Filters({
   handleSelect,
   searchQuery = "",
   setSearchQuery,
-}: FiltersProps) {
+}: Readonly<FiltersProps>) {
   const scrollbarStyles =
     "flex flex-nowrap gap-[15px] overflow-x-auto py-[10px] pr-10 w-full [&::-webkit-scrollbar]:h-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] [&::-webkit-scrollbar-thumb]:rounded-[20px] hover:[&::-webkit-scrollbar-thumb]:bg-[#05488B] active:[&::-webkit-scrollbar-thumb]:bg-[#05488B]";
 
@@ -70,8 +70,7 @@ export default function Filters({
           e.g. 'mt-1' (higher), 'mt-6' (lower), or exact pixels like 'mt-[20px]'.
         */}
         <div
-          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mt-1 sm:mt-5 ${isSearching ? "mb-1" : "mb-1"
-            }`}
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mt-1 sm:mt-5 mb-1"
         >
           {!isSearching && (
             <h3 className="order-2 sm:order-1 font-bold text-gray-800 text-lg">

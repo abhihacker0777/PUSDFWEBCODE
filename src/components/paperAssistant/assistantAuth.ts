@@ -94,7 +94,7 @@ export const getTimeGreeting = (name?: string): string => {
 };
 
 export const buildInitialMessages = (user?: any) => {
-  const studentName = user?.name || (user?.email ? user.email.split("@")[0].replace(/[0-9]+/g, " ").trim() : "");
+  const studentName = user?.name || (user?.email ? user.email.split("@")[0].replace(/\d+/g, " ").trim() : "");
   const formattedName = studentName
     ? studentName.split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")
     : "";

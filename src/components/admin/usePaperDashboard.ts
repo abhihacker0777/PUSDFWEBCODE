@@ -60,7 +60,12 @@ export default function usePaperDashboard({
       }
       if (response.ok) {
         const raw = await response.json();
-        const papersList = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+        let papersList: any[] = [];
+        if (Array.isArray(raw)) {
+          papersList = raw;
+        } else if (Array.isArray(raw?.data)) {
+          papersList = raw.data;
+        }
         setAllPapers(papersList);
         return true;
       }

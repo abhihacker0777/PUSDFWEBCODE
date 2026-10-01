@@ -35,11 +35,12 @@ const PAPERS_CACHE_TTL_MS = 5 * 60 * 1000;
 const PAPER_OPTIONS_CACHE_TTL_MS = 10 * 60 * 1000;
 
 export const normalizePapers = (data: any): NormalizedPaper[] => {
-  const items: any[] = Array.isArray(data)
-    ? data
-    : Array.isArray(data?.data)
-    ? data.data
-    : [];
+  let items: any[] = [];
+  if (Array.isArray(data)) {
+    items = data;
+  } else if (Array.isArray(data?.data)) {
+    items = data.data;
+  }
 
   return items
     .map(item => {
@@ -50,7 +51,7 @@ export const normalizePapers = (data: any): NormalizedPaper[] => {
 
       return {
         ...item,
-        id: item.index || item.id || Math.random().toString(),
+        id: item.index || item.id || (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${item.course || "paper"}`),
         name,
         title: name,
         subject: name,

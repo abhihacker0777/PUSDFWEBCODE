@@ -19,7 +19,7 @@ export default function AdminUsersTable({
   adminUsers,
   visibleDraftPasswordIds,
   ...rowProps
-}: AdminUsersTableProps) {
+}: Readonly<AdminUsersTableProps>) {
   return (
     <div className="border border-gray-200 rounded-xl shadow-sm bg-white">
       <div className="px-4 py-4 border-b border-gray-100 bg-white rounded-t-xl">

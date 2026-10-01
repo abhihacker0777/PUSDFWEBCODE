@@ -57,16 +57,83 @@ export interface CustomDropdownProps {
   customWidth?: string;
   customHeight?: string;
   searchable?: boolean;
+  topOffset?: number;
 }
 
-export const CustomDropdown: React.FC<CustomDropdownProps> = ({ id, label, options, value, setValue, openDropdown, setOpenDropdown, disabled, customWidth, customHeight, searchable }) => {
+function useDropdownPosition(
+  isOpen: boolean,
+  triggerRef: React.RefObject<HTMLButtonElement | null>,
+  menuRef: React.RefObject<HTMLDivElement | null>,
+  onClose: () => void,
+  topOffset = 4
+) {
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setMenuPosition((prev) => (prev ? null : prev));
+      return undefined;
+    }
+    if (!triggerRef.current) return undefined;
+
+    const updatePosition = () => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const nextPos = { top: rect.bottom + topOffset, left: rect.left, width: rect.width };
+      setMenuPosition((prev) => {
+        if (
+          prev &&
+          Math.abs(prev.top - nextPos.top) < 0.5 &&
+          Math.abs(prev.left - nextPos.left) < 0.5 &&
+          Math.abs(prev.width - nextPos.width) < 0.5
+        ) {
+          return prev;
+        }
+        return nextPos;
+      });
+    };
+    updatePosition();
+
+    const handleScroll = (event: any) => {
+      if (menuRef.current?.contains(event.target)) return;
+      onCloseRef.current();
+    };
+    const handleOutsideClick = (event: any) => {
+      if (triggerRef.current?.contains(event.target)) return;
+      if (menuRef.current?.contains(event.target)) return;
+      onCloseRef.current();
+    };
+
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", updatePosition);
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", updatePosition);
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isOpen, topOffset]);
+
+  return menuPosition;
+}
+
+export const CustomDropdown: React.FC<CustomDropdownProps> = ({ id, label, options, value, setValue, openDropdown, setOpenDropdown, disabled, customWidth, customHeight, searchable, topOffset }) => {
   const isOpen = openDropdown === id && !disabled;
   const [isAdding, setIsAdding] = useState(false);
   const [draftValue, setDraftValue] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const menuPosition = useDropdownPosition(
+    isOpen,
+    triggerRef,
+    menuRef,
+    () => setOpenDropdown(null),
+    typeof topOffset === "number" ? topOffset : 4
+  );
 
   const commitDraftValue = () => {
     const nextValue = draftValue.trim().slice(0, 100);
@@ -84,41 +151,10 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ id, label, optio
     ? (options || []).filter((item) => String(item).toLowerCase().includes(searchTerm.trim().toLowerCase()))
     : (options || []);
 
-  useLayoutEffect(() => {
-    if (!isOpen || !triggerRef.current) return undefined;
-
-    const updatePosition = () => {
-      if (!triggerRef.current) return;
-      const rect = triggerRef.current.getBoundingClientRect();
-      setMenuPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    };
-    updatePosition();
-
-    const handleScroll = (event: any) => {
-      if (menuRef.current && menuRef.current.contains(event.target)) return;
-      setOpenDropdown(null);
-    };
-    const handleOutsideClick = (event: any) => {
-      if (triggerRef.current && triggerRef.current.contains(event.target)) return;
-      if (menuRef.current && menuRef.current.contains(event.target)) return;
-      setOpenDropdown(null);
-    };
-
-    window.addEventListener("scroll", handleScroll, true);
-    window.addEventListener("resize", updatePosition);
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      window.removeEventListener("scroll", handleScroll, true);
-      window.removeEventListener("resize", updatePosition);
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, [isOpen, setOpenDropdown]);
-
   if (isAdding) {
     return (
-      <div className="relative w-full" onClick={(e) => e.stopPropagation()}>
+      <div className="relative w-full">
         <input
-          autoFocus
           type="text"
           value={draftValue}
           onChange={(e) => setDraftValue(e.target.value)}
@@ -140,13 +176,20 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ id, label, optio
     );
   }
 
+  let buttonStateClass = "bg-white border-[#ffc107] text-[#374151] hover:bg-gray-50 whitespace-nowrap";
+  if (disabled) {
+    buttonStateClass = "bg-white text-[#374151] cursor-not-allowed whitespace-nowrap";
+  } else if (value) {
+    buttonStateClass = "bg-white border-[#ffc107] text-[#215ea0] truncate";
+  }
+
   return (
     <div className="relative w-full">
       <button
         ref={triggerRef}
         type="button" disabled={disabled}
         onClick={(e) => { e.stopPropagation(); if (!disabled) { setSearchTerm(""); setOpenDropdown(isOpen ? null : id); } }}
-        className={`w-full border rounded-lg px-4 py-2 text-base font-medium text-center shadow-sm transition-colors ${disabled ? "bg-white text-[#374151] cursor-not-allowed whitespace-nowrap" : value ? "bg-white border-[#ffc107] text-[#215ea0] truncate" : "bg-white border-[#ffc107] text-[#374151] hover:bg-gray-50 whitespace-nowrap"}`}
+        className={`w-full border rounded-lg px-4 py-2 text-base font-medium text-center shadow-sm transition-colors ${buttonStateClass}`}
         title={value || label}
       >
         {value || label}
@@ -154,14 +197,15 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ id, label, optio
       {isOpen && menuPosition && typeof document !== "undefined" && createPortal(
         <div
           ref={menuRef}
-          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="false"
+          onKeyDown={(e) => { if (e.key === "Escape") setOpenDropdown(null); }}
           style={{ position: "fixed", top: menuPosition.top, left: menuPosition.left, width: customWidth ? undefined : menuPosition.width }}
           className={`bg-[#cbe0fe] rounded-lg shadow-2xl z-[9999] border border-blue-200 overflow-hidden ${customWidth || ""}`}
         >
           {searchable && (
             <div className="p-2 border-b border-blue-200/70">
               <input
-                autoFocus
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -170,12 +214,12 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ id, label, optio
               />
             </div>
           )}
-          <div className={`${customHeight ? customHeight : 'max-h-[150px]'} overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] [&::-webkit-scrollbar-thumb]:rounded-full`}>
+          <div className={`${customHeight || 'max-h-[150px]'} overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] [&::-webkit-scrollbar-thumb]:rounded-full`}>
             {visibleOptions.length === 0 && (
               <div className="px-4 py-3 text-sm text-gray-500 text-center">No matches</div>
             )}
-            {visibleOptions.map((item, i) => (
-              <button type="button" key={i} onClick={() => { if (String(item).startsWith("+ Add New")) { setDraftValue(""); setIsAdding(true); } else { setValue(item); } setOpenDropdown(null); }} className="w-full text-left px-4 py-3 hover:bg-blue-300 cursor-pointer text-sm md:text-base text-gray-800 transition-colors border-b border-blue-200/50 last:border-0" title={item}>
+            {visibleOptions.map((item) => (
+              <button type="button" key={String(item)} onClick={() => { if (String(item).startsWith("+ Add New")) { setDraftValue(""); setIsAdding(true); } else { setValue(item); } setOpenDropdown(null); }} className="w-full text-left px-4 py-3 hover:bg-blue-300 cursor-pointer text-sm md:text-base text-gray-800 transition-colors border-b border-blue-200/50 last:border-0" title={item}>
                 {item}
               </button>
             ))}
@@ -201,42 +245,19 @@ export const RoleDropdown: React.FC<RoleDropdownProps> = ({ id, value, onChange,
   const isOpen = openRoleMenu === id && !disabled;
   const valKey = String(value || "").toLowerCase();
   const currentLabel = ROLE_LABELS[valKey] || (value ? (value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()) : "View");
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  useLayoutEffect(() => {
-    if (!isOpen || !triggerRef.current) return undefined;
-
-    const updatePosition = () => {
-      if (!triggerRef.current) return;
-      const rect = triggerRef.current.getBoundingClientRect();
-      setMenuPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    };
-    updatePosition();
-
-    const handleScroll = (event: any) => {
-      if (menuRef.current && menuRef.current.contains(event.target)) return;
-      setOpenRoleMenu("");
-    };
-    const handleOutsideClick = (event: any) => {
-      if (triggerRef.current && triggerRef.current.contains(event.target)) return;
-      if (menuRef.current && menuRef.current.contains(event.target)) return;
-      setOpenRoleMenu("");
-    };
-
-    window.addEventListener("scroll", handleScroll, true);
-    window.addEventListener("resize", updatePosition);
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      window.removeEventListener("scroll", handleScroll, true);
-      window.removeEventListener("resize", updatePosition);
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, [isOpen, setOpenRoleMenu]);
+  const menuPosition = useDropdownPosition(
+    isOpen,
+    triggerRef,
+    menuRef,
+    () => setOpenRoleMenu(""),
+    4
+  );
 
   return (
-    <div className={`relative ${className}`} onClick={(event) => event.stopPropagation()}>
+    <div className={`relative ${className}`}>
       <button
         ref={triggerRef}
         type="button"
@@ -250,7 +271,9 @@ export const RoleDropdown: React.FC<RoleDropdownProps> = ({ id, value, onChange,
       {isOpen && menuPosition && typeof document !== "undefined" && createPortal(
         <div
           ref={menuRef}
-          onClick={(event) => event.stopPropagation()}
+          role="dialog"
+          aria-modal="false"
+          onKeyDown={(e) => { if (e.key === "Escape") setOpenRoleMenu(""); }}
           style={{ position: "fixed", top: menuPosition.top, left: menuPosition.left, width: menuPosition.width }}
           className="bg-[#cbe0fe] rounded-lg shadow-2xl z-[9999] border border-blue-200 overflow-hidden"
         >

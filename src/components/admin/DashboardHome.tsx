@@ -8,7 +8,7 @@ export interface DashboardHomeProps {
   [key: string]: any;
 }
 
-export default function DashboardHome({ coverImg, bulkUploadProps, ...dashboardProps }: DashboardHomeProps) {
+export default function DashboardHome({ coverImg, bulkUploadProps, ...dashboardProps }: Readonly<DashboardHomeProps>) {
   const [activeTab, setActiveTab] = useState<"edit" | "bulk">("edit");
 
   return (

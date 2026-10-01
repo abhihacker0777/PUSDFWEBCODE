@@ -35,6 +35,25 @@ export default function HomePage() {
     exam: null
   });
 
+function tryReadCachedPapers(): PaperItem[] | null {
+  if (typeof sessionStorage === "undefined") return null;
+  const cached = sessionStorage.getItem("papersCache");
+  if (!cached) return null;
+  try {
+    const cachedAt = Number(sessionStorage.getItem("papersCacheTime") || 0);
+    const updatedAt = Number(localStorage.getItem("papers.updated") || 0);
+    if (!updatedAt || cachedAt >= updatedAt) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    sessionStorage.removeItem("papersCache");
+  }
+  return null;
+}
+
   useEffect(() => {
     let disposed = false;
 
@@ -43,23 +62,10 @@ export default function HomePage() {
         clearPaperCaches();
         setIsLoading(true);
       } else {
-        if (typeof sessionStorage !== "undefined") {
-          const cached = sessionStorage.getItem("papersCache");
-          if (cached) {
-            try {
-              const cachedAt = Number(sessionStorage.getItem("papersCacheTime") || 0);
-              const updatedAt = Number(localStorage.getItem("papers.updated") || 0);
-              if (!updatedAt || cachedAt >= updatedAt) {
-                const parsed = JSON.parse(cached);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                  setPapersData(parsed);
-                  setIsLoading(false);
-                }
-              }
-            } catch {
-              sessionStorage.removeItem("papersCache");
-            }
-          }
+        const cached = tryReadCachedPapers();
+        if (cached) {
+          setPapersData(cached);
+          setIsLoading(false);
         }
       }
 
@@ -78,10 +84,10 @@ export default function HomePage() {
 
     const refreshFromAdminUpdate = () => {
       setSelected({ course: null, year: null, specialization: null, sem: null, exam: null });
-      load({ force: true });
+      void load({ force: true });
     };
 
-    load();
+    void load();
 
     const handleStorage = (event: StorageEvent) => {
       if (event.key === "papers.updated") refreshFromAdminUpdate();
@@ -178,7 +184,7 @@ export default function HomePage() {
       const timeStr = (p as any).updated_at || (p as any).created_at;
       if (timeStr) {
         const t = new Date(timeStr).getTime();
-        if (!isNaN(t) && t > maxTime) maxTime = t;
+        if (!Number.isNaN(t) && t > maxTime) maxTime = t;
       }
     }
     if (!maxTime) return "";
@@ -191,48 +197,60 @@ export default function HomePage() {
 
   const availableCourses = ordered(unique("course"), courseSequence);
 
+  const renderFilterContent = () => {
+    if (isLoading && papersData.length === 0) {
+      return (
+        <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm py-7 flex justify-center items-center mt-4">
+          <div
+            className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mr-3"
+            style={{
+              animation: "spin 1s linear infinite, colorChange 2s linear infinite"
+            }}
+          ></div>
+
+          <style>{`
+            @keyframes colorChange {
+              0% { border-color: #05488B; border-top-color: transparent; }
+              50% { border-color: #ffc107; border-top-color: transparent; }
+              100% { border-color: #05488B; border-top-color: transparent; }
+            }
+          `}</style>
+
+          <p className="text-black font-serif">Loading...</p>
+        </div>
+      );
+    }
+
+    if (papersData.length === 0) {
+      return (
+        <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm py-6 flex flex-col justify-center items-center mt-10 animate-fade-in">
+          <p className="text-sm font-serif text-[#212529] mb-1">No Papers Available</p>
+          <span className="text-lg font-playfair text-[#4b5563] tracking-tight">Please Check Back Later.</span>
+        </div>
+      );
+    }
+
+    return (
+      <Filters
+        courses={availableCourses}
+        years={years}
+        specs={specs}
+        sems={sems}
+        exams={exams}
+        selected={selected}
+        handleSelect={handleSelect}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+      />
+    );
+  };
+
   return (
     <div className="w-full min-h-screen bg-[#f3f8fc]">
       <Navbar lastUpdated={lastUpdated} />
 
       <main className="max-w-[1600px] mx-auto px-4 md:px-10 py-6">
-        {isLoading && papersData.length === 0 ? (
-          <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm py-7 flex justify-center items-center mt-4">
-            <div
-              className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mr-3"
-              style={{
-                animation: "spin 1s linear infinite, colorChange 2s linear infinite"
-              }}
-            ></div>
-
-            <style>{`
-              @keyframes colorChange {
-                0% { border-color: #05488B; border-top-color: transparent; }
-                50% { border-color: #ffc107; border-top-color: transparent; }
-                100% { border-color: #05488B; border-top-color: transparent; }
-              }
-            `}</style>
-
-            <p className="text-black font-serif">Loading...</p>
-          </div>
-        ) : papersData.length === 0 ? (
-          <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm py-6 flex flex-col justify-center items-center mt-10 animate-fade-in">
-            <p className="text-sm font-serif text-[#212529] mb-1">No Papers Available</p>
-            <span className="text-lg font-playfair text-[#4b5563] tracking-tight">Please Check Back Later.</span>
-          </div>
-        ) : (
-          <Filters
-            courses={availableCourses}
-            years={years}
-            specs={specs}
-            sems={sems}
-            exams={exams}
-            selected={selected}
-            handleSelect={handleSelect}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-          />
-        )}
+        {renderFilterContent()}
 
         {searchQuery.trim() ? (
           <div className="mt-4">

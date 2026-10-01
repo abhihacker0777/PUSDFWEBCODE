@@ -15,6 +15,39 @@ const coverImg = "/pucoverlogo.webp";
 const newQueryGif = "/punew.gif";
 
 
+function renderActivePanel(
+  activeNav: string,
+  permissions: any,
+  props: {
+    dashboardProps: any;
+    bulkUploadProps: any;
+    coverImg: string;
+    recentActionsProps: any;
+    studentQueriesProps: any;
+    newQueryGif: string;
+    insightsProps: any;
+    assistantSettingsProps: any;
+    adminUsersPanelProps: any;
+  }
+) {
+  if (activeNav === "dashboard" && permissions.canEditPapers) {
+    return <DashboardHome {...props.dashboardProps} bulkUploadProps={props.bulkUploadProps} coverImg={props.coverImg} />;
+  }
+  if (activeNav === "paper" && permissions.canMonitor) {
+    return <RecentActionsPanel {...props.recentActionsProps} />;
+  }
+  if (activeNav === "queries" && permissions.canMonitor) {
+    return <StudentQueriesHome {...props.studentQueriesProps} newQueryGif={props.newQueryGif} insightsProps={props.insightsProps} />;
+  }
+  if (activeNav === "assistant" && permissions.canReadAssistant) {
+    return <AssistantSettingsPanel {...props.assistantSettingsProps} />;
+  }
+  if (activeNav === "admins" && permissions.canManageAdmins) {
+    return <AdminUsersPanel {...props.adminUsersPanelProps} />;
+  }
+  return null;
+}
+
 export default function AdminPage() {
   const {
     activeNav,
@@ -35,21 +68,21 @@ export default function AdminPage() {
     <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-white" style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
       <AdminSidebar {...sidebarProps} newQueryGif={newQueryGif} />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         <AdminHeader {...headerProps} />
 
-        <main className="flex-1 overflow-auto px-3 sm:px-5 py-4 bg-gray-100 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track] [&::-webkit-scrollbar-thumb]:bg-[#ffc107] hover:[&::-webkit-scrollbar-thumb]:bg-[#05488B] [&::-webkit-scrollbar-thumb]:rounded-full flex flex-col">
-          {activeNav === "dashboard" && permissions.canEditPapers ? (
-            <DashboardHome {...dashboardProps} bulkUploadProps={bulkUploadProps} coverImg={coverImg} />
-          ) : activeNav === "paper" && permissions.canMonitor ? (
-            <RecentActionsPanel {...recentActionsProps} />
-          ) : activeNav === "queries" && permissions.canMonitor ? (
-            <StudentQueriesHome {...studentQueriesProps} newQueryGif={newQueryGif} insightsProps={insightsProps} />
-          ) : activeNav === "assistant" && permissions.canReadAssistant ? (
-            <AssistantSettingsPanel {...assistantSettingsProps} />
-          ) : activeNav === "admins" && permissions.canManageAdmins ? (
-            <AdminUsersPanel {...adminUsersPanelProps} />
-          ) : null}
+        <main className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 bg-gray-100 min-h-0 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] hover:[&::-webkit-scrollbar-thumb]:bg-[#05488B] [&::-webkit-scrollbar-thumb]:rounded-full">
+          {renderActivePanel(activeNav, permissions, {
+            dashboardProps,
+            bulkUploadProps,
+            coverImg,
+            recentActionsProps,
+            studentQueriesProps,
+            newQueryGif,
+            insightsProps,
+            assistantSettingsProps,
+            adminUsersPanelProps,
+          })}
         </main>
       </div>
 

@@ -62,10 +62,19 @@ export async function GET() {
       .or(`email.ilike.${userEmail},login_identifier.ilike.${userEmail}`)
       .maybeSingle();
 
-    const roleClean = String(admin?.role || "").toLowerCase();
-    const role = isOwner ? "Full" : (roleClean === "full" ? "Full" : roleClean === "editor" ? "Editor" : "View");
+    const roleClean = String(admin?.role || "").toLowerCase().trim();
+    let role = "View";
+    if (isOwner || roleClean === "full") {
+      role = "Full";
+    } else if (roleClean === "editor") {
+      role = "Editor";
+    }
 
-    const resolvedDisplayName = admin?.display_name || (isOwner ? (process.env.ADMIN_DISPLAY_NAME || "PU Central-Library") : (user.email?.split("@")[0] || "Admin"));
+    let defaultName = user.email?.split("@")[0] || "Admin";
+    if (isOwner) {
+      defaultName = process.env.ADMIN_DISPLAY_NAME || "PU Central-Library";
+    }
+    const resolvedDisplayName = admin?.display_name || defaultName;
 
     const permissions = getRolePermissions(role, isOwner);
 

@@ -19,6 +19,41 @@ async function verifyCanManageAdmins() {
   return { authorized: true, user };
 }
 
+function formatRole(role?: string, isOwner = false): "Full" | "Editor" | "View" {
+  if (isOwner) return "Full";
+  const r = String(role || "").toLowerCase();
+  if (r === "full") return "Full";
+  if (r === "editor") return "Editor";
+  return "View";
+}
+
+function normalizeRoleDb(role?: string): "full" | "editor" | "view" {
+  const r = String(role || "").toLowerCase();
+  if (r === "full") return "full";
+  if (r === "editor") return "editor";
+  return "view";
+}
+
+function getAdminPermissionsList(role: string, isOwner = false): string[] {
+  if (isOwner || role === "Full") {
+    return [
+      "papers:create", "papers:update", "papers:delete", "papers:file", "papers:sync",
+      "assistant:read", "assistant:block", "assistant:reply:create", "assistant:reply:update", "assistant:reply:delete",
+      "monitor:read", "logs:write", "admins:manage"
+    ];
+  }
+  if (role === "Editor") {
+    return ["papers:create", "papers:update", "papers:file", "assistant:read"];
+  }
+  return [];
+}
+
+function resolveAdminDisplayName(u: any, isOwner: boolean): string {
+  if (u.display_name) return u.display_name;
+  if (isOwner) return process.env.ADMIN_DISPLAY_NAME || "PU Central-Library";
+  return u.email || "Admin";
+}
+
 export async function GET() {
   try {
     const authCheck = await verifyCanManageAdmins();
@@ -44,25 +79,18 @@ export async function GET() {
     const users = rows.map((u: any) => {
       const email = (u.email || u.login_identifier || "").toLowerCase().trim();
       const isOwner = Boolean(adminEmail && email === adminEmail);
-      const roleStr = String(u.role || "").toLowerCase();
-      const role = isOwner ? "Full" : (roleStr === "full" ? "Full" : roleStr === "editor" ? "Editor" : "View");
+      const role = formatRole(u.role, isOwner);
 
       return {
         id: u.id,
         email: u.email || u.login_identifier,
         loginIdentifier: u.login_identifier || u.email,
         username: u.login_identifier || u.email?.split("@")[0],
-        displayName: u.display_name || (isOwner ? (process.env.ADMIN_DISPLAY_NAME || "PU Central-Library") : (u.email || "Admin")),
+        displayName: resolveAdminDisplayName(u, isOwner),
         role,
         isOwner,
         isActive: u.is_active !== false,
-        permissions: isOwner || role === "Full" ? [
-          "papers:create", "papers:update", "papers:delete", "papers:file", "papers:sync",
-          "assistant:read", "assistant:block", "assistant:reply:create", "assistant:reply:update", "assistant:reply:delete",
-          "monitor:read", "logs:write", "admins:manage"
-        ] : role === "Editor" ? [
-          "papers:create", "papers:update", "papers:file", "assistant:read"
-        ] : [],
+        permissions: getAdminPermissionsList(role, isOwner),
         createdAt: u.created_at
       };
     });
@@ -78,11 +106,7 @@ export async function GET() {
         role: "Full",
         isOwner: true,
         isActive: true,
-        permissions: [
-          "papers:create", "papers:update", "papers:delete", "papers:file", "papers:sync",
-          "assistant:read", "assistant:block", "assistant:reply:create", "assistant:reply:update", "assistant:reply:delete",
-          "monitor:read", "logs:write", "admins:manage"
-        ],
+        permissions: getAdminPermissionsList("Full", true),
         createdAt: new Date().toISOString()
       });
     }
@@ -112,8 +136,7 @@ export async function POST(req: NextRequest) {
     }
 
     const adminClient = createAdminClient();
-    const roleLower = String(role || "view").toLowerCase();
-    const roleDb = roleLower === "full" ? "full" : roleLower === "editor" ? "editor" : "view";
+    const roleDb = normalizeRoleDb(role);
 
     let authUserId: string | null = null;
     if (password) {
@@ -146,7 +169,7 @@ export async function POST(req: NextRequest) {
 
     if (dbError) throw dbError;
 
-    const roleFormatted = roleDb === "full" ? "Full" : roleDb === "editor" ? "Editor" : "View";
+    const roleFormatted = formatRole(roleDb);
 
     return NextResponse.json({
       success: true,
@@ -181,8 +204,7 @@ export async function PATCH(req: NextRequest) {
     const updates: any = {};
     if (displayName !== undefined) updates.display_name = displayName;
     if (role !== undefined) {
-      const rLower = String(role).toLowerCase();
-      updates.role = rLower === "full" ? "full" : rLower === "editor" ? "editor" : "view";
+      updates.role = normalizeRoleDb(role);
     }
     if (isActive !== undefined) updates.is_active = isActive;
 
@@ -201,8 +223,7 @@ export async function PATCH(req: NextRequest) {
       });
     }
 
-    const roleLower = String(updated.role || "").toLowerCase();
-    const roleFormatted = roleLower === "full" ? "Full" : roleLower === "editor" ? "Editor" : "View";
+    const roleFormatted = formatRole(updated.role);
 
     return NextResponse.json({
       success: true,

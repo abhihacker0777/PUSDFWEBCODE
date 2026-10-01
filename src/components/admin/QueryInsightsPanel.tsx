@@ -18,7 +18,6 @@ import {
   TrendingUp,
   BarChart3,
   PieChart as PieIcon,
-  Search,
   FileText,
   AlertTriangle,
   CheckCircle2,
@@ -65,7 +64,7 @@ export default function QueryInsightsPanel({
   insightsLoading,
   insightsError,
   changeInsightsWindow
-}: QueryInsightsPanelProps) {
+}: Readonly<QueryInsightsPanelProps>) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -92,12 +91,12 @@ export default function QueryInsightsPanel({
     requests: item.count
   }));
 
-  const notFoundTone =
-    notFoundRate >= 30
-      ? "text-rose-600 bg-rose-50 border-rose-200"
-      : notFoundRate >= 10
-      ? "text-amber-600 bg-amber-50 border-amber-200"
-      : "text-emerald-600 bg-emerald-50 border-emerald-200";
+  let notFoundTone = "text-emerald-600 bg-emerald-50 border-emerald-200";
+  if (notFoundRate >= 30) {
+    notFoundTone = "text-rose-600 bg-rose-50 border-rose-200";
+  } else if (notFoundRate >= 10) {
+    notFoundTone = "text-amber-600 bg-amber-50 border-amber-200";
+  }
 
   return (
     <div className="w-full space-y-5 animate-fade-in font-sans">
@@ -217,8 +216,8 @@ export default function QueryInsightsPanel({
                       paddingAngle={4}
                       dataKey="value"
                     >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {pieData.map((entry) => (
+                        <Cell key={`cell-${entry.name}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip
@@ -286,7 +285,7 @@ export default function QueryInsightsPanel({
           ) : (
             <ol className="divide-y divide-gray-100">
               {(insights?.topNotFoundQuestions || []).map((item: any, i: number) => (
-                <li key={i} className="py-2.5 flex items-center justify-between gap-3">
+                <li key={`notfound-${item.question || i}`} className="py-2.5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="w-5 h-5 rounded-full bg-rose-50 text-rose-600 text-[10px] font-bold flex items-center justify-center shrink-0">
                       {i + 1}
@@ -321,7 +320,7 @@ export default function QueryInsightsPanel({
           ) : (
             <ol className="divide-y divide-gray-100">
               {(insights?.topFoundPapers || []).map((item: any, i: number) => (
-                <li key={i} className="py-2.5 flex items-center justify-between gap-3">
+                <li key={`found-${item.paperName || i}`} className="py-2.5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="w-5 h-5 rounded-full bg-blue-50 text-[#05488B] text-[10px] font-bold flex items-center justify-center shrink-0">
                       {i + 1}

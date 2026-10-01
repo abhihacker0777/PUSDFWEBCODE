@@ -40,7 +40,7 @@ export default function AdminModals({
   clearSelectedConfirm,
   setClearSelectedConfirm,
   executeClearSelected
-}: AdminModalsProps) {
+}: Readonly<AdminModalsProps>) {
   return (
     <>
       {deleteConfirm.show && (
@@ -51,7 +51,7 @@ export default function AdminModals({
             <p className="text-gray-600 mb-8 text-base">Do You Really Want To Permanently Delete <br/><span className="font-bold text-red-600 text-lg">"{deleteConfirm.paperName}"</span><br/>From The Database?</p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <button onClick={() => setDeleteConfirm({ show: false, paperName: "" })} className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2.5 rounded-lg font-bold transition-colors w-full">❌ Cancel</button>
-              <button onClick={() => { setDeleteConfirm({ show: false, paperName: "" }); executeDelete(); }} className="bg-[#E31E24] hover:bg-[#c11018] text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-colors w-full">🗑️ Yes, Delete</button>
+              <button onClick={() => { setDeleteConfirm({ show: false, paperName: "" }); void executeDelete(); }} className="bg-[#E31E24] hover:bg-[#c11018] text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-colors w-full">🗑️ Yes, Delete</button>
             </div>
           </div>
         </div>

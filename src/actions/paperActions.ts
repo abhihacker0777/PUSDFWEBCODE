@@ -3,7 +3,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { uploadBufferToGoogleDrive } from "@/lib/drive";
 import { Paper, PaperTargetMapping } from "@/types/paper";
-import { fetchPublicPapersFromSheet, mirrorPaperToSheet, mirrorDeletePaperFromSheet } from "@/lib/sheets";
+import { fetchPublicPapersFromSheet, mirrorPaperToSheet } from "@/lib/sheets";
 import { requireAdminSession } from "@/lib/authCheck";
 
 const PAPERS_TABLE = process.env.SUPABASE_PAPERS_TABLE || "papers";
@@ -133,6 +133,35 @@ export async function uploadPaperAction(formData: FormData) {
 
     if (!finalLink) {
       return { success: false, message: "Either a document file or direct link is required." };
+    }
+
+    if (!file && directLink) {
+      let isValidDoc = false;
+      try {
+        const parsed = new URL(directLink);
+        const host = parsed.hostname.toLowerCase();
+        const pathname = parsed.pathname.toLowerCase();
+        const isDriveDoc =
+          (host.includes("drive.google.com") || host.includes("docs.google.com")) &&
+          (pathname.includes("/file/d/") ||
+            pathname.includes("/document/d/") ||
+            pathname.includes("/open") ||
+            pathname.includes("/uc") ||
+            parsed.searchParams.has("id"));
+        const isDirectDoc =
+          pathname.endsWith(".pdf") ||
+          pathname.endsWith(".docx") ||
+          pathname.endsWith(".doc") ||
+          parsed.pathname.includes(".pdf") ||
+          parsed.pathname.includes(".docx");
+        isValidDoc = isDriveDoc || isDirectDoc;
+      } catch {
+        isValidDoc = false;
+      }
+
+      if (!isValidDoc) {
+        return { success: false, message: "Invalid document link. Only direct .pdf, .docx or Google Drive document links are accepted." };
+      }
     }
 
     const now = new Date().toISOString();

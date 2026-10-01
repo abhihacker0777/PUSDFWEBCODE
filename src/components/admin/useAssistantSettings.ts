@@ -84,10 +84,15 @@ export default function useAssistantSettings({
 
     setIsSavingReplies(true);
     try {
-      for (const reply of validReplies) {
-        const response = await saveCustomReply(reply);
-        if (!response.ok) throw new Error((await readApiResponse(response)).message || "Failed to save reply");
-      }
+      await Promise.all(
+        validReplies.map(async (reply) => {
+          const response = await saveCustomReply(reply);
+          if (!response.ok) {
+            const payload = await readApiResponse(response);
+            throw new Error(payload.message || "Failed to save reply");
+          }
+        })
+      );
       setDraftReplies([{ keyword: "", reply: "" }]);
       setEditingReplyKeyword("");
       await fetchSettings();

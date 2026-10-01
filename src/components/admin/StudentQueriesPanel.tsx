@@ -29,6 +29,45 @@ export interface StudentQueriesPanelProps {
   setQueryDisplayCount: (count: number) => void;
 }
 
+const getQueryStatusBadgeClass = (status: string) => {
+  if (status === "found") return "bg-green-100 text-green-700";
+  if (status === "info") return "bg-blue-100 text-blue-700";
+  return "bg-red-100 text-red-700";
+};
+
+const renderUserActionButton = (
+  canBlockAssistant: boolean,
+  isBlocked: boolean,
+  isBlockLoading: boolean,
+  email: string,
+  handleUnblockUser: (email: string) => Promise<void>,
+  handleBlockUser: (email: string) => Promise<void>
+) => {
+  if (!canBlockAssistant) {
+    return <span className="text-xs font-semibold text-gray-400">View only</span>;
+  }
+  if (isBlocked) {
+    return (
+      <button
+        onClick={() => void handleUnblockUser(email)}
+        disabled={isBlockLoading}
+        className="bg-white border border-green-500 text-green-600 px-3 py-1.5 rounded-md text-xs font-bold hover:bg-green-50 transition-colors shadow-sm whitespace-nowrap disabled:opacity-60 disabled:cursor-wait"
+      >
+        {isBlockLoading ? "Unblocking..." : "Unblock Access"}
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={() => void handleBlockUser(email)}
+      disabled={isBlockLoading}
+      className="bg-white border border-red-500 text-[#E31E24] px-4 py-1.5 rounded-md text-xs font-bold hover:bg-red-50 transition-colors shadow-sm whitespace-nowrap disabled:opacity-60 disabled:cursor-wait"
+    >
+      {isBlockLoading ? "Blocking..." : "Block Access"}
+    </button>
+  );
+};
+
 export default function StudentQueriesPanel({
   querySearch,
   setQuerySearch,
@@ -52,7 +91,7 @@ export default function StudentQueriesPanel({
   handleBlockUser,
   setQueryCurrentPage,
   setQueryDisplayCount
-}: StudentQueriesPanelProps) {
+}: Readonly<StudentQueriesPanelProps>) {
   return (
     <>
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 gap-3 md:gap-0">
@@ -71,7 +110,7 @@ export default function StudentQueriesPanel({
       </div>
 
       <div className="border border-gray-200 rounded-2xl shadow-sm bg-white overflow-hidden isolate">
-        <div className="w-full overflow-x-auto overflow-y-auto pb-2 rounded-t-2xl [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] hover:[&::-webkit-scrollbar-thumb]:bg-[#05488B] [&::-webkit-scrollbar-thumb]:rounded-full flex-1">
+        <div className="w-full overflow-x-auto pb-2 rounded-t-2xl [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-[#ffc107] hover:[&::-webkit-scrollbar-thumb]:bg-[#05488B] [&::-webkit-scrollbar-thumb]:rounded-full">
           <table className="w-full text-sm min-w-[800px] border-separate border-spacing-0">
             <thead>
               <tr className="border-b-2 border-gray-100 bg-gray-50 sticky top-0 z-10 shadow-xs">
@@ -118,12 +157,13 @@ export default function StudentQueriesPanel({
                         )}
                       </td>
                       <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                        {!canBlockAssistant ? (
-                          <span className="text-xs font-semibold text-gray-400">View only</span>
-                        ) : isBlocked ? (
-                          <button onClick={() => handleUnblockUser(group.email)} disabled={isBlockLoading} className="bg-white border border-green-500 text-green-600 px-3 py-1.5 rounded-md text-xs font-bold hover:bg-green-50 transition-colors shadow-sm whitespace-nowrap disabled:opacity-60 disabled:cursor-wait">{isBlockLoading ? "Unblocking..." : "Unblock Access"}</button>
-                        ) : (
-                          <button onClick={() => handleBlockUser(group.email)} disabled={isBlockLoading} className="bg-white border border-red-500 text-[#E31E24] px-4 py-1.5 rounded-md text-xs font-bold hover:bg-red-50 transition-colors shadow-sm whitespace-nowrap disabled:opacity-60 disabled:cursor-wait">{isBlockLoading ? "Blocking..." : "Block Access"}</button>
+                        {renderUserActionButton(
+                          canBlockAssistant,
+                          isBlocked,
+                          isBlockLoading,
+                          group.email,
+                          handleUnblockUser,
+                          handleBlockUser
                         )}
                       </td>
                     </tr>
@@ -131,15 +171,22 @@ export default function StudentQueriesPanel({
                       <tr>
                         <td colSpan={6} className="p-0 border-b border-gray-200">
                           <div className="bg-gray-50 px-6 py-4 shadow-inner">
-                            <h3 className="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wider">Query History for {group.email}</h3>
-                            <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-xs">
-                              <table className="w-full text-sm">
-                                <thead className="bg-gray-100 border-b border-gray-200 rounded-t-xl">
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">
+                                Query History for <span className="text-[#05488B] lowercase">{group.email}</span>
+                              </h3>
+                              <span className="text-xs font-semibold bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full">
+                                {group.queries?.length || 0} Records
+                              </span>
+                            </div>
+                            <div className="border border-gray-200 rounded-xl overflow-x-auto overflow-y-auto max-h-[380px] bg-white shadow-xs [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-[#ffc107] hover:[&::-webkit-scrollbar-thumb]:bg-[#05488B] [&::-webkit-scrollbar-thumb]:rounded-full">
+                              <table className="w-full text-sm border-separate border-spacing-0">
+                                <thead className="bg-gray-100 border-b border-gray-200 sticky top-0 z-10 shadow-xs">
                                   <tr>
-                                    <th className="px-4 py-2 text-left text-gray-500 font-semibold w-1/4">Date & Time</th>
-                                    <th className="px-4 py-2 text-left text-gray-500 font-semibold w-1/3">Question Asked</th>
-                                    <th className="px-4 py-2 text-center text-gray-500 font-semibold">Status</th>
-                                    <th className="px-4 py-2 text-left text-gray-500 font-semibold">Result Served</th>
+                                    <th className="px-4 py-2.5 text-left text-gray-600 font-semibold w-1/4 bg-gray-100 border-b border-gray-200">Date & Time</th>
+                                    <th className="px-4 py-2.5 text-left text-gray-600 font-semibold w-1/3 bg-gray-100 border-b border-gray-200">Question Asked</th>
+                                    <th className="px-4 py-2.5 text-center text-gray-600 font-semibold bg-gray-100 border-b border-gray-200">Status</th>
+                                    <th className="px-4 py-2.5 text-left text-gray-600 font-semibold bg-gray-100 border-b border-gray-200">Result Served</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -148,7 +195,7 @@ export default function StudentQueriesPanel({
                                       <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{q.date}</td>
                                       <td className="px-4 py-2.5 text-gray-800 italic">"{q.question}"</td>
                                       <td className="px-4 py-2.5 text-center">
-                                        <span className={`inline-flex items-center rounded-full text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider ${q.status === 'found' ? 'bg-green-100 text-green-700' : q.status === 'info' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                                        <span className={`inline-flex items-center rounded-full text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider ${getQueryStatusBadgeClass(q.status)}`}>
                                           {q.status}
                                         </span>
                                       </td>

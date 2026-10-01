@@ -10,6 +10,14 @@ const sortLogs = (logs: any[], sortType: string) => {
   return logs;
 };
 
+const matchValue = (value: unknown, term: string): boolean => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "object") {
+    return JSON.stringify(value).toLowerCase().includes(term);
+  }
+  return String(value).toLowerCase().includes(term);
+};
+
 export default function useActionLogs({ canClearLogs }: { canClearLogs: boolean }) {
   const [actionLog, setActionLog] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<any>>(new Set());
@@ -34,8 +42,9 @@ export default function useActionLogs({ canClearLogs }: { canClearLogs: boolean 
   useEffect(() => setCurrentPage(1), [search, sortType, displayCount]);
 
   const filteredLogs = useMemo(() => {
+    const term = search.toLowerCase();
     const matchingLogs = actionLog.filter((row) =>
-      Object.values(row).some((value) => String(value || "").toLowerCase().includes(search.toLowerCase()))
+      Object.values(row).some((value) => matchValue(value, term))
     );
     return sortLogs(matchingLogs, sortType);
   }, [actionLog, search, sortType]);

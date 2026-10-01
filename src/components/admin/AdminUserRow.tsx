@@ -29,7 +29,7 @@ export default function AdminUserRow({
   toggleDraftPassword,
   updateUserDraft,
   user
-}: AdminUserRowProps) {
+}: Readonly<AdminUserRowProps>) {
   const isOwner = Boolean(user.isOwner);
   const saving = adminSavingId === user.id;
   const draftPassword = adminPasswordDrafts[user.id] || "";

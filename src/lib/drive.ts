@@ -1,4 +1,4 @@
-import { Readable } from "stream";
+import { Readable } from "node:stream";
 import { getServiceDrive } from "./googleAuth";
 
 const DRIVE_FOLDER_ID = process.env.DRIVE_FOLDER_ID;

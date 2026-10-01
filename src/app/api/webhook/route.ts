@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
     const authHeader = req.headers.get("authorization") || req.headers.get("x-webhook-secret") || "";
     const expectedSecret = process.env.SUPABASE_WEBHOOK_SECRET || "";
     
-    if (!expectedSecret || !authHeader || !authHeader.includes(expectedSecret)) {
+    if (!expectedSecret || !authHeader?.includes(expectedSecret)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

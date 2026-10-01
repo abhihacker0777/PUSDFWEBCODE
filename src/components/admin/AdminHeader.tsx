@@ -9,7 +9,7 @@ export interface AdminHeaderProps {
   onLogout: () => Promise<void>;
 }
 
-export default function AdminHeader({ activeTitle, authUser, loggedInLabel, loggedInRoleLabel, onLogout }: AdminHeaderProps) {
+export default function AdminHeader({ activeTitle, authUser, loggedInLabel, loggedInRoleLabel, onLogout }: Readonly<AdminHeaderProps>) {
   return (
     <header className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-gray-200 bg-white flex-shrink-0">
       <h1 className="text-base font-bold text-gray-800 tracking-wide">

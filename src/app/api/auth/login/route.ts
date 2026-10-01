@@ -8,16 +8,29 @@ export async function POST(req: NextRequest) {
     const result = await loginAction(identifier, body.password, body.captchaToken);
 
     if (!result.success) {
+      const headers = new Headers();
+      const retryAfter = (result as any).retryAfterSeconds;
+      if (result.code === "RATE_LIMITED" && retryAfter) {
+        headers.set("Retry-After", String(retryAfter));
+      }
       return NextResponse.json({
         success: false,
         message: result.message,
         code: result.code,
-      }, { status: result.code === "CAPTCHA_REQUIRED" ? 403 : 401 });
+        retryAfterSeconds: retryAfter,
+      }, {
+        status: result.code === "CAPTCHA_REQUIRED"
+          ? 403
+          : result.code === "RATE_LIMITED"
+          ? 429
+          : 401,
+        headers,
+      });
     }
 
     return NextResponse.json({
       success: true,
-      user: result.user,
+      user: "user" in result ? result.user : null,
     });
   } catch (error: any) {
     return NextResponse.json(

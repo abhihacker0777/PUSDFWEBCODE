@@ -11,6 +11,49 @@ import { requestLogin, requestPasswordReset } from "./loginRequests";
 import useLoginSessionCheck from "./useLoginSessionCheck";
 import useTurnstileCaptcha from "./useTurnstileCaptcha";
 
+function isValidEmail(val: string): boolean {
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val);
+}
+
+function handleLoginErrorStatus(
+  response: Response,
+  data: any,
+  handlers: {
+    setRetrySeconds: (sec: number) => void;
+    setCaptchaRequired: (req: boolean) => void;
+    setError: (msg: string) => void;
+    setUserInitiatedLogin: (init: boolean) => void;
+    resetCaptcha: () => void;
+  }
+): boolean {
+  if (response.status === 429) {
+    const raw = data?.retryAfterSeconds ?? response.headers.get("Retry-After");
+    const parsed = Number(raw);
+    const seconds = Number.isFinite(parsed) && parsed > 0 ? Math.ceil(parsed) : 15 * 60;
+    handlers.setRetrySeconds(seconds);
+    handlers.setError("");
+    handlers.setUserInitiatedLogin(false);
+    handlers.resetCaptcha();
+    return true;
+  }
+
+  if (response.status === 403 && data?.code === "CAPTCHA_REQUIRED") {
+    handlers.setCaptchaRequired(true);
+    handlers.setError("Complete CAPTCHA to continue.");
+    handlers.resetCaptcha();
+    return true;
+  }
+
+  if (response.status === 403 && data?.code === "CSRF_REQUIRED") {
+    handlers.setError("Your session security token couldn't be verified. Refresh the page and try again.");
+    handlers.setUserInitiatedLogin(false);
+    handlers.resetCaptcha();
+    return true;
+  }
+
+  return false;
+}
+
 export default function useLoginController() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -39,11 +82,11 @@ export default function useLoginController() {
   useEffect(() => {
     const trimmedUser = username.trim();
     const hasValidEmail = trimmedUser.includes("@")
-      ? /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmedUser)
+      ? isValidEmail(trimmedUser)
       : trimmedUser.length >= 3;
 
     if (captchaToken && hasValidEmail && password.trim() && !isLoading && !loginLocked && userInitiatedLogin && !hasFailedAttempt) {
-      handleLogin(captchaToken, true);
+      void handleLogin(captchaToken, true);
     }
   }, [captchaToken, userInitiatedLogin, hasFailedAttempt]);
 
@@ -51,7 +94,13 @@ export default function useLoginController() {
     if (!loginLocked) return undefined;
 
     const timer = setInterval(() => {
-      setRetrySeconds((seconds) => Math.max(0, seconds - 1));
+      setRetrySeconds((seconds) => {
+        const next = Math.max(0, seconds - 1);
+        if (next === 0) {
+          setError("");
+        }
+        return next;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
@@ -63,7 +112,6 @@ export default function useLoginController() {
     }
 
     if (loginLocked) {
-      setError(`Too many login attempts. Try again in ${formatRetryTime(retrySeconds)}.`);
       return;
     }
 
@@ -73,7 +121,7 @@ export default function useLoginController() {
       return;
     }
 
-    if (trimmedUser.includes("@") && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmedUser)) {
+    if (trimmedUser.includes("@") && !isValidEmail(trimmedUser)) {
       setError("Please enter a valid email address (e.g. name@domain.com)");
       return;
     }
@@ -91,27 +139,13 @@ export default function useLoginController() {
       const { data, response } = await requestLogin({ username, password, captchaToken: token });
       if (data?.captchaRequired) setCaptchaRequired(true);
 
-      if (response.status === 429) {
-        const retryAfter = Number(data?.retryAfterSeconds || response.headers.get("Retry-After"));
-        const seconds = Number.isFinite(retryAfter) ? Math.max(1, Math.ceil(retryAfter)) : 15 * 60;
-        setRetrySeconds(seconds);
-        setError(`Too many login attempts. Try again in ${formatRetryTime(seconds)}.`);
-        setUserInitiatedLogin(false);
-        resetCaptcha();
-        return;
-      }
-
-      if (response.status === 403 && data?.code === "CAPTCHA_REQUIRED") {
-        setCaptchaRequired(true);
-        setError("Complete CAPTCHA to continue.");
-        resetCaptcha();
-        return;
-      }
-
-      if (response.status === 403 && data?.code === "CSRF_REQUIRED") {
-        setError("Your session security token couldn't be verified. Refresh the page and try again.");
-        setUserInitiatedLogin(false);
-        resetCaptcha();
+      if (handleLoginErrorStatus(response, data, {
+        setRetrySeconds,
+        setCaptchaRequired,
+        setError,
+        setUserInitiatedLogin,
+        resetCaptcha
+      })) {
         return;
       }
 
@@ -143,7 +177,7 @@ export default function useLoginController() {
     setError("");
     setResetStatus("");
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email || !isValidEmail(email)) {
       setError("Enter your admin email first, then request the reset link.");
       return;
     }

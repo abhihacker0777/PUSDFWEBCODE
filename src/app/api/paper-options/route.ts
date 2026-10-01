@@ -22,6 +22,7 @@ export async function GET() {
       },
     });
   } catch (error: any) {
+    console.error("Failed to fetch paper options:", error);
     return NextResponse.json([], { status: 500 });
   }
 }

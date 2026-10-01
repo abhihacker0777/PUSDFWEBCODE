@@ -23,7 +23,7 @@ export interface AdminPermissions {
   canSyncPapers: boolean;
 }
 
-export function getRolePermissions(role?: AdminRole | string, isPrimaryOwner = false): AdminPermissions {
+export function getRolePermissions(role?: string, isPrimaryOwner = false): AdminPermissions {
   if (isPrimaryOwner || role === "Full") {
     return {
       canCreatePapers: true,

@@ -62,12 +62,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
 
         {canUploadFiles && (
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 w-full">
-            <input 
+            <input
               type="file" id="fileUpload" className="hidden"
               accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              onChange={(e) => { 
+              onChange={(e) => {
                 const selectedFile = e.target.files?.[0];
-                if (selectedFile) { 
+                if (selectedFile) {
                   const fileNameLower = selectedFile.name.toLowerCase();
                   if (fileNameLower.endsWith('.pdf') || fileNameLower.endsWith('.docx')) {
                     setFile(selectedFile); setFileName(selectedFile.name); setFileError(false);
@@ -75,9 +75,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
                   } else {
                     setUploadStatus("Error: Invalid File! .PDF or .DOCX only.");
                     setTimeout(() => setUploadStatus(""), 4000);
-                    e.target.value = ""; 
+                    e.target.value = "";
                   }
-                } 
+                }
               }}
             />
             <label htmlFor="fileUpload" className="bg-[#05488B] hover:bg-[#215ea0] text-[#ffc107] px-5 py-2 rounded-lg cursor-pointer shadow text-center font-medium text-sm flex items-center justify-center gap-1.5 shrink-0 transition-colors">
@@ -98,7 +98,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
                     placeholder="Paste PDF / DOCX Link (e.g. Google Drive link)..."
                     value={directLink || ""}
                     onChange={(e) => {
-                      if (setDirectLink) setDirectLink(e.target.value);
+                      setDirectLink?.(e.target.value);
                       if (e.target.value.trim()) setFileError(false);
                     }}
                     className="w-full bg-gray-50 hover:bg-white focus:bg-white border border-gray-300 focus:border-[#05488B] text-gray-800 placeholder-gray-400 px-3 py-1.5 text-xs sm:text-sm rounded-lg shadow-sm outline-none transition-all pr-7"
@@ -106,7 +106,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
                   {directLink && (
                     <button
                       type="button"
-                      onClick={() => setDirectLink && setDirectLink("")}
+                      onClick={() => setDirectLink?.("")}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold"
                       title="Clear link"
                     >
@@ -122,15 +122,15 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
         <div className="w-full p-4 rounded-xl border shadow-sm overflow-visible relative z-30" style={{ backgroundColor: "#E31E24" }}>
           <div className="flex flex-col gap-4 overflow-visible">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <CustomDropdown id="course" label="Course" options={courses} value={course} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[149px]" setValue={(val) => { setCourse(val); setYear(""); setSpec(""); setSemester(""); setExam(""); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
-              <CustomDropdown id="year" label="Year" options={years} value={year} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[149px]" setValue={(val) => { setYear(val); setSemester(""); setExam(""); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
-              <CustomDropdown id="spec" label="Specialization" options={specs} value={spec} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[149px]" setValue={(val) => { setSpec(val); setSemester(""); setExam(""); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
+              <CustomDropdown id="course" label="Course" topOffset={14} options={courses} value={course} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[149px]" setValue={(val) => { setCourse(val); setYear(""); setSpec(""); setSemester(""); setExam(""); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
+              <CustomDropdown id="year" label="Year" topOffset={14} options={years} value={year} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[149px]" setValue={(val) => { setYear(val); setSemester(""); setExam(""); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
+              <CustomDropdown id="spec" label="Specialization" topOffset={14} options={specs} value={spec} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[149px]" setValue={(val) => { setSpec(val); setSemester(""); setExam(""); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 overflow-visible">
-              <CustomDropdown id="sem" label="Semester" options={semesters} value={semester} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[92px]" setValue={(val) => { setSemester(val); setExam(""); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
-              <CustomDropdown id="exam" label="Exam" options={exams} value={exam} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[92px]" setValue={(val) => { setExam(val); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
-              <CustomDropdown id="paper" label="Select to Update" searchable disabled={!exam} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[92px]" options={[...(canCreatePapers ? ["🆕 Create New"] : []), ...papers.map(p => p.name)]} value={paper} setValue={(val) => { if (val === "🆕 Create New") { setPaper("Paper Name ➡️"); setPaperName(""); setSelectedPaperIndex(null); } else { const sel = papers.find(p => p.name === val); setPaper(val); setPaperName(val); setSelectedPaperIndex(sel ? sel.index : null); } }} />
+              <CustomDropdown id="sem" label="Semester" topOffset={13} options={semesters} value={semester} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[92px]" setValue={(val) => { setSemester(val); setExam(""); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
+              <CustomDropdown id="exam" label="Exam" topOffset={13} options={exams} value={exam} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[92px]" setValue={(val) => { setExam(val); setPaper(""); setPaperName(""); setSelectedPaperIndex(null); }} />
+              <CustomDropdown id="paper" label="Select to Update" topOffset={6} searchable disabled={!exam} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} customHeight="max-h-[92px]" options={[...(canCreatePapers ? ["🆕 Create New"] : []), ...papers.map(p => p.name)]} value={paper} setValue={(val) => { if (val === "🆕 Create New") { setPaper("Paper Name ➡️"); setPaperName(""); setSelectedPaperIndex(null); } else { const sel = papers.find(p => p.name === val); setPaper(val); setPaperName(val); setSelectedPaperIndex(sel ? sel.index : null); } }} />
               <input type="text" placeholder="Paper Name" value={paperName} disabled={!paper} onChange={(e) => setPaperName(e.target.value)} className={`w-full border rounded-lg px-4 py-2 text-base font-medium shadow-sm outline-none transition-all placeholder:text-[#374151] ${!paper ? "bg-white cursor-not-allowed" : "bg-white border-[#ffc107]"} ${paperName ? "text-[#215ea0]" : "text-[#374151]"}`} />
             </div>
           </div>
@@ -147,7 +147,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
             {canDeletePapers && <button onClick={handleDelete} className="w-full sm:w-auto bg-[#E31E24] hover:bg-[#c11018] text-white px-6 py-2 rounded shadow-sm font-medium">🗑️ Delete</button>}
           </div>
           <div className="w-full lg:flex-1 flex items-center justify-center lg:justify-end order-3">
-             {canSyncPapers && <button onClick={handleSyncToWebsite} className="w-full sm:w-auto text-center bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded shadow-sm font-medium transition-colors" title="Deletes every paper in the live database and replaces it with whatever is currently in the Google Sheet backup.">⚠️ Restore From Sheet Backup</button>}
+            {canSyncPapers && <button onClick={handleSyncToWebsite} className="w-full sm:w-auto text-center bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded shadow-sm font-medium transition-colors" title="Deletes every paper in the live database and replaces it with whatever is currently in the Google Sheet backup.">⚠️ Restore From Sheet Backup</button>}
           </div>
         </div>
       </div>

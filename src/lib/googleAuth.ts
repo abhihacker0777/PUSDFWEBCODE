@@ -55,7 +55,7 @@ export async function verifyAssistantGoogleCredential(idToken: string) {
 
 export const verifyGoogleInstitutionalToken = verifyAssistantGoogleCredential;
 
-export async function getGoogleOAuthClient() {
+export function getGoogleOAuthClient() {
   if (googleServiceAuthClient) return googleServiceAuthClient;
 
   if (!CLIENT_ID || !CLIENT_SECRET || !DRIVE_REFRESH_TOKEN) {
@@ -67,12 +67,12 @@ export async function getGoogleOAuthClient() {
   return googleServiceAuthClient;
 }
 
-export async function getServiceDrive() {
-  const authClient = await getGoogleOAuthClient();
+export function getServiceDrive() {
+  const authClient = getGoogleOAuthClient();
   return google.drive({ version: "v3", auth: authClient });
 }
 
-export async function getServiceSheets() {
-  const authClient = await getGoogleOAuthClient();
+export function getServiceSheets() {
+  const authClient = getGoogleOAuthClient();
   return google.sheets({ version: "v4", auth: authClient });
 }

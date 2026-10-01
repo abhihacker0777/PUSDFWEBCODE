@@ -83,11 +83,79 @@ If intentType is "PAPER_SEARCH":
   }
 }
 
+function parseCourseAndSpec(norm: string) {
+  let course: string | null = null;
+  let specialization: string | null = null;
+
+  if (/\bbca\b/i.test(norm)) course = "BCA";
+  else if (/\bmca\b/i.test(norm)) course = "MCA";
+  else if (/\b(btech|b\.tech|b\s*tech)\b/i.test(norm)) course = "B.Tech";
+  else if (/\bmba\b/i.test(norm)) course = "MBA";
+  else if (/\bbba\b/i.test(norm)) course = "BBA";
+  else if (/\b(bsc|b\.sc)\b/i.test(norm)) course = "B.Sc";
+  else if (/\b(bdes|b\.des)\b/i.test(norm)) course = "B.Des";
+  else if (/\b(barch|b\.arch)\b/i.test(norm)) course = "B.Arch";
+  else if (/\bbph\b/i.test(norm)) course = "BPH";
+
+  if (norm.includes("cyber")) specialization = "CYBER SECURITY";
+  else if (norm.includes("aids") || norm.includes("data science")) specialization = "ARTIFICIAL INTELLIGENCE AND DATA SCIENCE";
+  else if (norm.includes("aiml") || norm.includes("machine learning")) specialization = "ARTIFICIAL INTELLIGENCE & MACHINE LEARNING";
+  else if (norm.includes("cloud")) specialization = "CLOUD TECHNOLOGY";
+  else if (norm.includes("cse") || norm.includes("computer science")) specialization = "COMPUTER SCIENCE & ENGINEERING";
+  else if (norm.includes("civil")) specialization = "CIVIL ENGINEERING";
+  else if (norm.includes("mechanical")) specialization = "MECHANICAL ENGINEERING";
+
+  return { course, specialization };
+}
+
+function parseSemesterAndExam(norm: string) {
+  let semester: string | null = null;
+  let exam: string | null = null;
+
+  const semMatch = /(?:sem|semester)\s*([1-8])|([1-8])(?:st|nd|rd|th)?\s*(?:sem|semester)/i.exec(norm);
+  if (semMatch) {
+    const s = semMatch[1] || semMatch[2];
+    semester = `Sem ${s}`;
+  } else {
+    const yearMatch = /([1-4])(?:st|nd|rd|th)?\s*year/i.exec(norm);
+    if (yearMatch) {
+      const yr = Number(yearMatch[1]);
+      semester = `Sem ${yr * 2 - 1}`;
+    }
+  }
+
+  if (norm.includes("mte") || norm.includes("mid") || norm.includes("mse")) exam = "MSE";
+  else if (norm.includes("ete") || norm.includes("end") || norm.includes("final") || norm.includes("ese")) exam = "ESE";
+
+  return { semester, exam };
+}
+
+function extractSubjectKeywords(norm: string) {
+  const keywords: string[] = [];
+  if (norm.includes("math") || norm.includes("maths") || norm.includes("mathematics")) keywords.push("mathematics");
+  if (norm.includes("os") || norm.includes("operating system")) keywords.push("operating system");
+  if (norm.includes("dbms") || norm.includes("rdbms") || norm.includes("database")) keywords.push("database");
+  if (norm.includes("cn") || norm.includes("network") || norm.includes("networking")) keywords.push("network");
+  if (norm.includes("dsa") || norm.includes("data structure")) keywords.push("data structures");
+  if (norm.includes("cyber")) keywords.push("cyber security");
+  if (norm.includes("python")) keywords.push("python");
+  if (norm.includes("java")) keywords.push("java");
+  if (norm.includes("physics")) keywords.push("physics");
+  if (norm.includes("chemistry")) keywords.push("chemistry");
+
+  const subjectTokens = norm
+    .replace(/\b(bca|mca|bba|mba|b\.?tech|semester|sem\s*\d|\d\s*(?:sem|year)|year|mte|ete|mse|ese|papers?|exam|previous|university|poornima)\b/gi, "")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !["for", "and", "the", "get", "show", "give", "want", "need"].includes(w));
+
+  return Array.from(new Set([...keywords, ...subjectTokens]));
+}
+
 export function extractRuleBasedIntent(query: string): ExtractedAIIntent {
   const norm = query.toLowerCase().trim();
 
   // 1. Detect greetings
-  if (/^(hi|hello|hey|hyy|hy|namaste|good\s*(morning|afternoon|evening)|hola)(\s*!*)?$/i.test(norm)) {
+  if (/^(hi|hello|hey|hyy|hy|namaste|good\s*(?:morning|afternoon|evening)|hola)[!\s]*$/i.test(norm)) {
     return {
       intentType: "GREETING",
       conversationalReply: "Hello! Welcome to Poornima University Academic Portal. How can I help you today? 😊",
@@ -105,7 +173,7 @@ export function extractRuleBasedIntent(query: string): ExtractedAIIntent {
   }
 
   // 3. Detect top courses / general questions
-  if (/top\s*(\d+)?\s*course|best\s*course|which\s*course|list\s*course|courses\s*available|available\s*courses/i.test(norm)) {
+  if (/(?:top(?:\s+\d+)?|best|which|list)\s+course|courses\s+available|available\s+courses/i.test(norm)) {
     return {
       intentType: "ADMISSION_OR_GENERAL",
       conversationalReply: "Poornima University offers top-tier, industry-recognized programs! The top 3 most popular and high-demand courses are:\n1. B.Tech in Computer Science & Engineering (Specializations: AI & ML, Data Science, Cyber Security, Cloud Technology)\n2. BCA (Bachelor of Computer Applications) with advanced industry specializations in AI, Cloud, and Full-Stack Development\n3. MBA & MCA for professional management and advanced computing careers.\n\nLet me know if you would like previous year question papers or semester syllabus for any of these courses! 😊",
@@ -122,70 +190,12 @@ export function extractRuleBasedIntent(query: string): ExtractedAIIntent {
     };
   }
 
-  let course: string | null = null;
-  let specialization: string | null = null;
-  let semester: string | null = null;
-  let exam: string | null = null;
-
-  // Course aliases
-  if (/\bbca\b/i.test(norm)) course = "BCA";
-  else if (/\bmca\b/i.test(norm)) course = "MCA";
-  else if (/\b(btech|b\.tech|b\s*tech)\b/i.test(norm)) course = "B.Tech";
-  else if (/\bmba\b/i.test(norm)) course = "MBA";
-  else if (/\bbba\b/i.test(norm)) course = "BBA";
-  else if (/\b(bsc|b\.sc)\b/i.test(norm)) course = "B.Sc";
-  else if (/\b(bdes|b\.des)\b/i.test(norm)) course = "B.Des";
-  else if (/\b(barch|b\.arch)\b/i.test(norm)) course = "B.Arch";
-  else if (/\bbph\b/i.test(norm)) course = "BPH";
-
-  // Specialization aliases
-  if (norm.includes("cyber")) specialization = "CYBER SECURITY";
-  else if (norm.includes("aids") || norm.includes("data science")) specialization = "ARTIFICIAL INTELLIGENCE AND DATA SCIENCE";
-  else if (norm.includes("aiml") || norm.includes("machine learning")) specialization = "ARTIFICIAL INTELLIGENCE & MACHINE LEARNING";
-  else if (norm.includes("cloud")) specialization = "CLOUD TECHNOLOGY";
-  else if (norm.includes("cse") || norm.includes("computer science")) specialization = "COMPUTER SCIENCE & ENGINEERING";
-  else if (norm.includes("civil")) specialization = "CIVIL ENGINEERING";
-  else if (norm.includes("mechanical")) specialization = "MECHANICAL ENGINEERING";
-
-  // Semester & Year
-  const semMatch = norm.match(/(?:sem|semester)\s*([1-8])|([1-8])(?:st|nd|rd|th)?\s*(?:sem|semester)/i);
-  if (semMatch) {
-    const s = semMatch[1] || semMatch[2];
-    semester = `Sem ${s}`;
-  } else {
-    const yearMatch = norm.match(/([1-4])(?:st|nd|rd|th)?\s*year/i);
-    if (yearMatch) {
-      const yr = Number(yearMatch[1]);
-      semester = `Sem ${yr * 2 - 1}`; // e.g. 1st year -> Sem 1
-    }
-  }
-
-  // Exam
-  if (norm.includes("mte") || norm.includes("mid") || norm.includes("mse")) exam = "MSE";
-  else if (norm.includes("ete") || norm.includes("end") || norm.includes("final") || norm.includes("ese")) exam = "ESE";
-
-  // Clean remaining query as subject keywords with synonyms
-  const keywords: string[] = [];
-  if (norm.includes("math") || norm.includes("maths") || norm.includes("mathematics")) keywords.push("mathematics");
-  if (norm.includes("os") || norm.includes("operating system")) keywords.push("operating system");
-  if (norm.includes("dbms") || norm.includes("rdbms") || norm.includes("database")) keywords.push("database");
-  if (norm.includes("cn") || norm.includes("network") || norm.includes("networking")) keywords.push("network");
-  if (norm.includes("dsa") || norm.includes("data structure")) keywords.push("data structures");
-  if (norm.includes("cyber")) keywords.push("cyber security");
-  if (norm.includes("python")) keywords.push("python");
-  if (norm.includes("java")) keywords.push("java");
-  if (norm.includes("physics")) keywords.push("physics");
-  if (norm.includes("chemistry")) keywords.push("chemistry");
-
-  const subjectTokens = norm
-    .replace(/\b(bca|mca|btech|b\.tech|mba|bba|sem\s*\d|\d\s*sem|semester|\d\s*year|year|mte|ete|mse|ese|paper|papers|exam|previous|university|poornima)\b/gi, "")
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && !["for", "and", "the", "get", "show", "give", "want", "need"].includes(w));
-
-  const allKeywords = Array.from(new Set([...keywords, ...subjectTokens]));
+  const { course, specialization } = parseCourseAndSpec(norm);
+  const { semester, exam } = parseSemesterAndExam(norm);
+  const allKeywords = extractSubjectKeywords(norm);
 
   const hasPaperIntent = Boolean(
-    course || semester || exam || keywords.length > 0 ||
+    course || semester || exam || allKeywords.length > 0 ||
     /\b(paper|papers|pyqp|exam|question|test|mid\s*term|end\s*term|syllabus)\b/i.test(norm)
   );
 

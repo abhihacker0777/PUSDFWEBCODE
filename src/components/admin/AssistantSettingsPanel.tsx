@@ -37,7 +37,7 @@ export default function AssistantSettingsPanel({
   handleDeleteReply,
   setReplyCurrentPage,
   setReplyDisplayCount
-}: AssistantSettingsPanelProps) {
+}: Readonly<AssistantSettingsPanelProps>) {
   return (
     <div className="flex flex-col gap-6 h-full">
       {(canCreateReplies || (editingReplyKeyword && canEditAssistant)) && (
@@ -47,7 +47,7 @@ export default function AssistantSettingsPanel({
           </div>
           <div className="p-4 flex flex-col gap-3">
             {draftReplies.map((draft, idx) => (
-              <div key={idx} className="flex flex-col md:flex-row gap-3 items-center w-full">
+              <div key={`draft-${idx}-${draft.keyword}`} className="flex flex-col md:flex-row gap-3 items-center w-full">
                 <input value={draft.keyword} onChange={e => { const newDrafts = [...draftReplies]; newDrafts[idx].keyword = e.target.value; setDraftReplies(newDrafts); }} disabled={!canCreateReplies} placeholder="Trigger Keyword (e.g., 'library', 'hod')" className="w-full md:w-64 border border-gray-300 rounded-lg px-4 py-2 outline-none focus:border-[#ffc107] disabled:bg-gray-50 disabled:text-gray-500" />
                 <input value={draft.reply} onChange={e => { const newDrafts = [...draftReplies]; newDrafts[idx].reply = e.target.value; setDraftReplies(newDrafts); }} placeholder="Assistant Reply Message..." className="w-full flex-1 border border-gray-300 rounded-lg px-4 py-2 outline-none focus:border-[#ffc107]" />
                 {canCreateReplies && draftReplies.length > 1 && (
@@ -79,7 +79,7 @@ export default function AssistantSettingsPanel({
             <tbody className="divide-y divide-gray-100">
               {customReplies.length === 0 && <tr><td colSpan={3} className="text-center py-8 text-gray-400">No Custom Replies Added Yet.</td></tr>}
               {customReplies.slice((replyCurrentPage - 1) * replyDisplayCount, replyCurrentPage * replyDisplayCount).map((r, i) => (
-                <tr key={i} className="hover:bg-gray-50/60 transition-colors">
+                <tr key={r.keyword || `reply-${i}`} className="hover:bg-gray-50/60 transition-colors">
                   <td className="px-4 py-3 text-gray-800 font-bold">"{r.keyword}"</td>
                   <td className="px-4 py-3 text-gray-600 italic">{r.reply}</td>
                   <td className="px-4 py-3 text-center">
