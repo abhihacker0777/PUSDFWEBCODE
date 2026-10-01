@@ -43,7 +43,9 @@
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
   font-family: 'Playfair Display', serif;
   transform-origin: bottom right;
-  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms cubic-bezier(0.16, 1, 0.3, 1), visibility 220ms;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: opacity 160ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms cubic-bezier(0.16, 1, 0.3, 1), visibility 220ms;
 }
 
 .pu-assistant-panel.is-closed {

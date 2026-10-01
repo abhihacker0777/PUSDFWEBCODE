@@ -85,7 +85,7 @@ export default function usePaperAssistantController() {
   }, [config.emailDomain, resetMessages]);
 
   useEffect(() => {
-    if (!isOpen || view !== "signin" || !config.googleClientId || !googleButtonRef.current) return undefined;
+    if (view !== "signin" || !config.googleClientId || !googleButtonRef.current) return undefined;
 
     // Do not wipe and re-render if the button is already initialized
     if (googleButtonRef.current.children.length > 0) return undefined;
@@ -121,7 +121,7 @@ export default function usePaperAssistantController() {
     return () => {
       disposed = true;
     };
-  }, [config.googleClientId, handleGoogleCredential, isOpen, view]);
+  }, [config.googleClientId, handleGoogleCredential, view]);
 
   const openAssistant = useCallback(() => {
     setIsOpen(true);

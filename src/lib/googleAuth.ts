@@ -1,9 +1,9 @@
 import { google } from "googleapis";
 
-const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_ID = process.env.CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_SIGNIN_CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const DRIVE_REFRESH_TOKEN = process.env.DRIVE_REFRESH_TOKEN;
-const GOOGLE_SIGNIN_CLIENT_ID = process.env.GOOGLE_SIGNIN_CLIENT_ID || CLIENT_ID;
+const GOOGLE_SIGNIN_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_SIGNIN_CLIENT_ID || process.env.GOOGLE_SIGNIN_CLIENT_ID || CLIENT_ID;
 const ASSISTANT_EMAIL_DOMAIN = process.env.ASSISTANT_EMAIL_DOMAIN || "poornima.edu.in";
 
 let googleServiceAuthClient: any = null;

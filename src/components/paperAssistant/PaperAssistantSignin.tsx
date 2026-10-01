@@ -27,10 +27,9 @@ export default function PaperAssistantSignin({
         </p>
 
         <div className="mx-auto mt-8 w-full max-w-[360px] rounded-[18px]">
-          {config.googleClientId ? (
-            <div className="flex justify-center min-h-[44px] items-center" ref={googleButtonRef} />
-          ) : (
-            <p className="text-sm font-semibold text-red-600">Google Sign-In Client ID Is Missing.</p>
+          <div className="flex justify-center min-h-[44px] items-center" ref={googleButtonRef} />
+          {!config.googleClientId && (
+            <p className="mt-2 text-xs font-semibold text-amber-400">Loading sign-in provider...</p>
           )}
           {isSigningIn && <p className="mt-4 text-sm font-semibold text-[#05488B]">Verifying Google Account...</p>}
           {signInError && <p className="mt-4 text-sm font-semibold text-red-600">{signInError}</p>}
