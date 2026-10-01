@@ -205,7 +205,6 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ id, label, optio
       {isOpen && menuPosition && typeof document !== "undefined" && createPortal(
         <div
           ref={menuRef}
-          role="listbox"
           style={{ position: "fixed", top: menuPosition.top, left: menuPosition.left, width: customWidth ? undefined : menuPosition.width }}
           className={`bg-[#cbe0fe] rounded-lg shadow-2xl z-[9999] border border-blue-200 overflow-hidden ${customWidth || ""}`}
         >
@@ -277,7 +276,6 @@ export const RoleDropdown: React.FC<RoleDropdownProps> = ({ id, value, onChange,
       {isOpen && menuPosition && typeof document !== "undefined" && createPortal(
         <div
           ref={menuRef}
-          role="listbox"
           style={{ position: "fixed", top: menuPosition.top, left: menuPosition.left, width: menuPosition.width }}
           className="bg-[#cbe0fe] rounded-lg shadow-2xl z-[9999] border border-blue-200 overflow-hidden"
         >

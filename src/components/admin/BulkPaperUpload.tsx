@@ -725,6 +725,423 @@ const BulkDeleteModeView: React.FC<BulkDeleteModeViewProps> = ({
   </div>
 );
 
+interface BulkSubHeaderNavProps {
+  bulkMode: string;
+  setBulkMode: (mode: string) => void;
+  bulkFilesCount: number;
+  canEditPapers: boolean;
+  canDeletePapers: boolean;
+  selectedQueueCount: number;
+  showQuickApply: boolean;
+  setShowQuickApply: (show: boolean) => void;
+  removeSelectedQueueItems: () => void;
+}
+
+const BulkSubHeaderNav: React.FC<BulkSubHeaderNavProps> = ({
+  bulkMode,
+  setBulkMode,
+  bulkFilesCount,
+  canEditPapers,
+  canDeletePapers,
+  selectedQueueCount,
+  showQuickApply,
+  setShowQuickApply,
+  removeSelectedQueueItems,
+}) => {
+  const uploadButtonClass = bulkMode === "upload"
+    ? "bg-[#05488B] text-[#ffc107] shadow-sm ring-2 ring-[#05488B]/20"
+    : "bg-gray-100 text-gray-700 hover:bg-gray-200";
+
+  const editButtonClass = bulkMode === "edit"
+    ? "bg-[#05488B] text-[#ffc107] shadow-sm ring-2 ring-[#05488B]/20"
+    : "bg-gray-100 text-gray-700 hover:bg-gray-200";
+
+  const deleteButtonClass = bulkMode === "delete"
+    ? "bg-[#E31E24] text-white shadow-sm ring-2 ring-[#E31E24]/20"
+    : "bg-gray-100 text-gray-700 hover:bg-gray-200";
+
+  const quickFillLabel = selectedQueueCount > 0 ? `Selected (${selectedQueueCount})` : "All";
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-200">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setBulkMode("upload")}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${uploadButtonClass}`}
+        >
+          📦 Bulk Upload {bulkFilesCount > 0 && `(${bulkFilesCount})`}
+        </button>
+
+        {canEditPapers && (
+          <button
+            type="button"
+            onClick={() => setBulkMode("edit")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${editButtonClass}`}
+          >
+            ✏️ Bulk Edit
+          </button>
+        )}
+
+        {canDeletePapers && (
+          <button
+            type="button"
+            onClick={() => setBulkMode("delete")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${deleteButtonClass}`}
+          >
+            🗑️ Bulk Delete
+          </button>
+        )}
+      </div>
+
+      {bulkMode === "upload" && bulkFilesCount > 0 && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowQuickApply(!showQuickApply)}
+            className="bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 px-3 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+          >
+            ⚡ Quick Fill {quickFillLabel}
+          </button>
+
+          {selectedQueueCount > 0 && (
+            <button
+              type="button"
+              onClick={removeSelectedQueueItems}
+              className="bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 px-3 py-1 rounded-lg text-xs font-bold transition-colors"
+            >
+              🗑️ Remove Selected ({selectedQueueCount})
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface BulkDeleteConfirmModalProps {
+  selectedCount: number;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+const BulkDeleteConfirmModal: React.FC<BulkDeleteConfirmModalProps> = ({
+  selectedCount,
+  onCancel,
+  onConfirm,
+}) => (
+  <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 transition-opacity">
+    <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full text-center transform transition-all border-t-8 border-red-500">
+      <div className="text-5xl mb-4">⚠️</div>
+      <h2 className="text-2xl font-bold text-gray-800 mb-2">Delete {selectedCount} Papers?</h2>
+      <p className="text-gray-600 mb-6 text-sm">
+        Are you sure you want to permanently delete these <span className="font-bold text-red-600">{selectedCount}</span> papers from the database and Google Sheet backup?
+      </p>
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2.5 rounded-lg font-bold transition-colors w-full"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="bg-[#E31E24] hover:bg-[#c11018] text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition-colors w-full"
+        >
+          Yes, Delete All
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+interface BulkUploadModeViewProps {
+  bulkFiles: any[];
+  bulkDragHandlers: any;
+  mainInputRef: React.RefObject<HTMLInputElement | null>;
+  bulkIsDragging: boolean;
+  pasteLinkUrl: string;
+  setPasteLinkUrl: (url: string) => void;
+  handleAddLinkSubmit: (e: any) => void;
+  showQuickApply: boolean;
+  setShowQuickApply: (show: boolean) => void;
+  selectedQueueIds: Set<any>;
+  quickFields: any;
+  setQuickFields: (fields: any) => void;
+  handleApplyQuick: () => void;
+  toggleAllQueueItems: () => void;
+  showLinkInput: boolean;
+  setShowLinkInput: (show: boolean) => void;
+  bulkIsUploading: boolean;
+  clearBulkQueue: () => void;
+  bulkValidationError: string;
+  bulkSummary: any;
+  toggleQueueItem: (id: any) => void;
+  bulkOptionsForTarget: any;
+  updateBulkFileField: any;
+  removeBulkFile: any;
+  addTargetToRow: any;
+  removeTargetFromRow: any;
+  openDropdown: string | null;
+  setOpenDropdown: (id: string | null) => void;
+  uploadAllBulkFiles: () => void;
+}
+
+const BulkUploadModeView: React.FC<BulkUploadModeViewProps> = ({
+  bulkFiles,
+  bulkDragHandlers,
+  mainInputRef,
+  bulkIsDragging,
+  pasteLinkUrl,
+  setPasteLinkUrl,
+  handleAddLinkSubmit,
+  showQuickApply,
+  setShowQuickApply,
+  selectedQueueIds,
+  quickFields,
+  setQuickFields,
+  handleApplyQuick,
+  toggleAllQueueItems,
+  showLinkInput,
+  setShowLinkInput,
+  bulkIsUploading,
+  clearBulkQueue,
+  bulkValidationError,
+  bulkSummary,
+  toggleQueueItem,
+  bulkOptionsForTarget,
+  updateBulkFileField,
+  removeBulkFile,
+  addTargetToRow,
+  removeTargetFromRow,
+  openDropdown,
+  setOpenDropdown,
+  uploadAllBulkFiles,
+}) => {
+  const queuePlural = bulkFiles.length > 1 ? "s" : "";
+  const uploadButtonLabel = `🚀 Upload All (${bulkFiles.length} Paper${queuePlural})`;
+  const quickFillCountLabel = selectedQueueIds.size > 0
+    ? `${selectedQueueIds.size} Selected Rows`
+    : `All ${bulkFiles.length} Rows`;
+  const applyButtonLabel = selectedQueueIds.size > 0 ? "Selected" : "All";
+  const linkToggleLabel = showLinkInput ? "Hide Link" : "+ Add Link";
+
+  if (bulkFiles.length === 0) {
+    return (
+      <div className="space-y-3">
+        <button
+          type="button"
+          {...bulkDragHandlers}
+          onClick={() => mainInputRef.current?.click()}
+          className={`w-full rounded-xl border-2 border-dashed p-6 sm:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors block ${
+            bulkIsDragging ? "border-[#05488B] bg-[#eef5ff]" : "border-[#ffc107] bg-[#fffdf5] hover:bg-[#fffaf0]"
+          }`}
+        >
+          <div className="text-3xl mb-2">📁</div>
+          <p className="text-base font-semibold text-[#374151]">Drag &amp; drop PDF/DOCX files here</p>
+          <p className="text-xs text-gray-500 mb-3">or browse files from your computer</p>
+          <span className="inline-block bg-[#05488B] hover:bg-[#215ea0] text-[#ffc107] px-5 py-1.5 rounded-lg shadow font-medium text-sm transition-colors">
+            📂 Choose Files
+          </span>
+        </button>
+
+        <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 flex flex-col sm:flex-row items-center gap-2">
+          <span className="text-xs font-semibold text-gray-600 shrink-0">🔗 Have document link?</span>
+          <input
+            type="url"
+            placeholder="Paste Google Drive or direct PDF/DOCX URL..."
+            value={pasteLinkUrl}
+            onChange={(e) => setPasteLinkUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAddLinkSubmit(e); }}
+            className="flex-1 w-full bg-white border border-gray-300 focus:border-[#05488B] text-gray-800 placeholder-gray-400 px-3 py-1.5 text-xs rounded-lg shadow-xs outline-none"
+          />
+          <button
+            type="button"
+            onClick={handleAddLinkSubmit}
+            disabled={!pasteLinkUrl.trim()}
+            className="w-full sm:w-auto bg-[#05488B] disabled:opacity-50 hover:bg-[#215ea0] text-[#ffc107] px-4 py-1.5 rounded-lg font-medium text-xs shadow-xs transition-colors shrink-0"
+          >
+            + Add Link
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {showQuickApply && (
+        <div className="mb-3.5 p-3 rounded-xl bg-amber-50/80 border border-amber-300 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-amber-900">
+              ⚡ Quick Fill ({quickFillCountLabel})
+            </span>
+            <button type="button" onClick={() => setShowQuickApply(false)} className="text-xs text-gray-500 hover:text-black">✕ Close</button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <input
+              placeholder="Course (e.g. B.Tech)"
+              value={quickFields.course}
+              onChange={(e) => setQuickFields({ ...quickFields, course: e.target.value })}
+              className="px-2.5 py-1 text-xs bg-white border rounded"
+            />
+            <input
+              placeholder="Year (e.g. 1 Year)"
+              value={quickFields.year}
+              onChange={(e) => setQuickFields({ ...quickFields, year: e.target.value })}
+              className="px-2.5 py-1 text-xs bg-white border rounded"
+            />
+            <input
+              placeholder="Specialization"
+              value={quickFields.spec}
+              onChange={(e) => setQuickFields({ ...quickFields, spec: e.target.value })}
+              className="px-2.5 py-1 text-xs bg-white border rounded"
+            />
+            <input
+              placeholder="Sem (e.g. 1 Sem)"
+              value={quickFields.semester}
+              onChange={(e) => setQuickFields({ ...quickFields, semester: e.target.value })}
+              className="px-2.5 py-1 text-xs bg-white border rounded"
+            />
+            <input
+              placeholder="Exam (MSE / ESE)"
+              value={quickFields.exam}
+              onChange={(e) => setQuickFields({ ...quickFields, exam: e.target.value })}
+              className="px-2.5 py-1 text-xs bg-white border rounded"
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleApplyQuick}
+              className="bg-[#05488B] text-[#ffc107] px-4 py-1 rounded text-xs font-bold shadow-xs hover:bg-[#215ea0]"
+            >
+              Apply To {applyButtonLabel}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 pb-2.5 border-b border-gray-200 gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selectedQueueIds.size === bulkFiles.length}
+              onChange={toggleAllQueueItems}
+              className="w-4 h-4 rounded accent-[#05488B]"
+            />
+            <span>Select All</span>
+          </label>
+          <span className="text-xs text-gray-400">|</span>
+          <h3 className="text-xs sm:text-sm font-bold text-[#374151]">
+            Queue: {bulkFiles.length} Paper{queuePlural}
+          </h3>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => mainInputRef.current?.click()}
+            className="bg-[#fffdf5] text-[#05488B] border border-[#ffc107] hover:bg-[#ffc107] px-3 py-1 rounded-lg text-xs font-bold transition-colors"
+          >
+            + Add Files
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowLinkInput(!showLinkInput)}
+            className="bg-gray-100 text-gray-700 hover:bg-gray-200 px-3 py-1 rounded-lg text-xs font-semibold transition-colors"
+          >
+            🔗 {linkToggleLabel}
+          </button>
+
+          {!bulkIsUploading && (
+            <button
+              type="button"
+              onClick={clearBulkQueue}
+              className="text-xs font-medium text-[#f43f5e] hover:text-[#c11018] ml-1"
+            >
+              Clear All
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showLinkInput && (
+        <div className="mb-3 p-2.5 rounded-lg bg-gray-50 border border-gray-200 flex gap-2">
+          <input
+            type="url"
+            placeholder="Paste PDF / DOCX Link..."
+            value={pasteLinkUrl}
+            onChange={(e) => setPasteLinkUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAddLinkSubmit(e); }}
+            className="flex-1 bg-white border border-gray-300 focus:border-[#05488B] text-gray-800 px-3 py-1 text-xs rounded-lg outline-none"
+          />
+          <button
+            type="button"
+            onClick={handleAddLinkSubmit}
+            disabled={!pasteLinkUrl.trim()}
+            className="bg-[#05488B] disabled:opacity-50 text-[#ffc107] px-3 py-1 rounded-lg text-xs font-bold"
+          >
+            Add
+          </button>
+        </div>
+      )}
+
+      {bulkValidationError && (
+        <div className="mb-3 p-2.5 rounded-lg bg-red-50 text-xs font-medium text-[#f43f5e] flex items-center gap-1.5 border border-red-200">
+          ❌ {bulkValidationError}
+        </div>
+      )}
+
+      {bulkSummary && (
+        <div className="mb-3 p-2.5 rounded-lg bg-emerald-50 text-xs font-medium text-emerald-800 flex items-center gap-1.5 border border-emerald-200">
+          🎉 Completed: {bulkSummary.succeeded} uploaded, {bulkSummary.failed} failed out of {bulkSummary.total} total papers.
+        </div>
+      )}
+
+      <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1.5 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] [&::-webkit-scrollbar-thumb]:rounded-full">
+        {bulkFiles.map((row: any) => (
+          <BulkPaperUploadRow
+            key={row.id}
+            row={row}
+            isSelected={selectedQueueIds.has(row.id)}
+            onToggleSelect={toggleQueueItem}
+            optionsForTarget={bulkOptionsForTarget}
+            onFieldChange={updateBulkFileField}
+            onRemove={removeBulkFile}
+            onAddTarget={addTargetToRow}
+            onRemoveTarget={removeTargetFromRow}
+            openDropdown={openDropdown}
+            setOpenDropdown={setOpenDropdown}
+          />
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center justify-center">
+        <button
+          type="button"
+          disabled={bulkIsUploading || bulkFiles.length === 0}
+          onClick={uploadAllBulkFiles}
+          className="bg-[#05488B] hover:bg-[#215ea0] disabled:opacity-50 text-[#ffc107] px-8 py-2 rounded-lg font-bold text-sm shadow-md transition-colors flex items-center gap-2"
+        >
+          {bulkIsUploading ? (
+            <span className="flex items-center gap-2">
+              <span className="w-4 h-4 border-2 border-[#ffc107] border-t-transparent rounded-full animate-spin"></span>
+              <span>Uploading Papers...</span>
+            </span>
+          ) : (
+            <span>{uploadButtonLabel}</span>
+          )}
+        </button>
+      </div>
+    </>
+  );
+};
+
 export default function BulkPaperUpload({
   bulkMode = "upload",
   setBulkMode,
@@ -863,72 +1280,17 @@ export default function BulkPaperUpload({
 
   return (
     <div className="w-full bg-white rounded-xl shadow-md p-4 sm:p-5 border relative">
-      {/* Sub-Header Navigation: Bulk Upload | Bulk Edit | Bulk Delete */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setBulkMode("upload")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              bulkMode === "upload"
-                ? "bg-[#05488B] text-[#ffc107] shadow-sm ring-2 ring-[#05488B]/20"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            📦 Bulk Upload {bulkFiles.length > 0 && `(${bulkFiles.length})`}
-          </button>
-
-          {canEditPapers && (
-            <button
-              type="button"
-              onClick={() => setBulkMode("edit")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                bulkMode === "edit"
-                  ? "bg-[#05488B] text-[#ffc107] shadow-sm ring-2 ring-[#05488B]/20"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              ✏️ Bulk Edit
-            </button>
-          )}
-
-          {canDeletePapers && (
-            <button
-              type="button"
-              onClick={() => setBulkMode("delete")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                bulkMode === "delete"
-                  ? "bg-[#E31E24] text-white shadow-sm ring-2 ring-[#E31E24]/20"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              🗑️ Bulk Delete
-            </button>
-          )}
-        </div>
-
-        {bulkMode === "upload" && bulkFiles.length > 0 && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowQuickApply(!showQuickApply)}
-              className="bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 px-3 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
-            >
-              ⚡ Quick Fill {selectedQueueIds.size > 0 ? `Selected (${selectedQueueIds.size})` : "All"}
-            </button>
-
-            {selectedQueueIds.size > 0 && (
-              <button
-                type="button"
-                onClick={removeSelectedQueueItems}
-                className="bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 px-3 py-1 rounded-lg text-xs font-bold transition-colors"
-              >
-                🗑️ Remove Selected ({selectedQueueIds.size})
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <BulkSubHeaderNav
+        bulkMode={bulkMode}
+        setBulkMode={setBulkMode}
+        bulkFilesCount={bulkFiles.length}
+        canEditPapers={canEditPapers}
+        canDeletePapers={canDeletePapers}
+        selectedQueueCount={selectedQueueIds.size}
+        showQuickApply={showQuickApply}
+        setShowQuickApply={setShowQuickApply}
+        removeSelectedQueueItems={removeSelectedQueueItems}
+      />
 
       <input
         ref={cloneInputRef}
@@ -938,7 +1300,6 @@ export default function BulkPaperUpload({
         accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         onChange={handleCloneSelect}
       />
-      {/* Hidden File Input for Bulk Upload */}
       <input
         ref={mainInputRef}
         type="file"
@@ -948,227 +1309,40 @@ export default function BulkPaperUpload({
         onChange={(e) => { addBulkFiles(e.target.files); e.target.value = ""; }}
       />
 
-      {/* MODE 1: BULK UPLOAD */}
       {bulkMode === "upload" && (
-        <>
-          {bulkFiles.length === 0 ? (
-            <div className="space-y-3">
-              <button
-                type="button"
-                {...bulkDragHandlers}
-                onClick={() => mainInputRef.current?.click()}
-                className={`w-full rounded-xl border-2 border-dashed p-6 sm:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors block ${
-                  bulkIsDragging ? "border-[#05488B] bg-[#eef5ff]" : "border-[#ffc107] bg-[#fffdf5] hover:bg-[#fffaf0]"
-                }`}
-              >
-                <div className="text-3xl mb-2">📁</div>
-                <p className="text-base font-semibold text-[#374151]">Drag &amp; drop PDF/DOCX files here</p>
-                <p className="text-xs text-gray-500 mb-3">or browse files from your computer</p>
-                <span
-                  className="inline-block bg-[#05488B] hover:bg-[#215ea0] text-[#ffc107] px-5 py-1.5 rounded-lg shadow font-medium text-sm transition-colors"
-                >
-                  📂 Choose Files
-                </span>
-              </button>
-
-              <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 flex flex-col sm:flex-row items-center gap-2">
-                <span className="text-xs font-semibold text-gray-600 shrink-0">🔗 Have document link?</span>
-                <input
-                  type="url"
-                  placeholder="Paste Google Drive or direct PDF/DOCX URL..."
-                  value={pasteLinkUrl}
-                  onChange={(e) => setPasteLinkUrl(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleAddLinkSubmit(e); }}
-                  className="flex-1 w-full bg-white border border-gray-300 focus:border-[#05488B] text-gray-800 placeholder-gray-400 px-3 py-1.5 text-xs rounded-lg shadow-xs outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddLinkSubmit}
-                  disabled={!pasteLinkUrl.trim()}
-                  className="w-full sm:w-auto bg-[#05488B] disabled:opacity-50 hover:bg-[#215ea0] text-[#ffc107] px-4 py-1.5 rounded-lg font-medium text-xs shadow-xs transition-colors shrink-0"
-                >
-                  + Add Link
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Quick Fill Drawer */}
-              {showQuickApply && (
-                <div className="mb-3.5 p-3 rounded-xl bg-amber-50/80 border border-amber-300 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-amber-900">
-                      ⚡ Quick Fill ({selectedQueueIds.size > 0 ? `${selectedQueueIds.size} Selected Rows` : `All ${bulkFiles.length} Rows`})
-                    </span>
-                    <button type="button" onClick={() => setShowQuickApply(false)} className="text-xs text-gray-500 hover:text-black">✕ Close</button>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    <input
-                      placeholder="Course (e.g. B.Tech)"
-                      value={quickFields.course}
-                      onChange={(e) => setQuickFields({ ...quickFields, course: e.target.value })}
-                      className="px-2.5 py-1 text-xs bg-white border rounded"
-                    />
-                    <input
-                      placeholder="Year (e.g. 1 Year)"
-                      value={quickFields.year}
-                      onChange={(e) => setQuickFields({ ...quickFields, year: e.target.value })}
-                      className="px-2.5 py-1 text-xs bg-white border rounded"
-                    />
-                    <input
-                      placeholder="Specialization"
-                      value={quickFields.spec}
-                      onChange={(e) => setQuickFields({ ...quickFields, spec: e.target.value })}
-                      className="px-2.5 py-1 text-xs bg-white border rounded"
-                    />
-                    <input
-                      placeholder="Sem (e.g. 1 Sem)"
-                      value={quickFields.semester}
-                      onChange={(e) => setQuickFields({ ...quickFields, semester: e.target.value })}
-                      className="px-2.5 py-1 text-xs bg-white border rounded"
-                    />
-                    <input
-                      placeholder="Exam (MSE / ESE)"
-                      value={quickFields.exam}
-                      onChange={(e) => setQuickFields({ ...quickFields, exam: e.target.value })}
-                      className="px-2.5 py-1 text-xs bg-white border rounded"
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={handleApplyQuick}
-                      className="bg-[#05488B] text-[#ffc107] px-4 py-1 rounded text-xs font-bold shadow-xs hover:bg-[#215ea0]"
-                    >
-                      Apply To {selectedQueueIds.size > 0 ? "Selected" : "All"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Action Toolbar */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 pb-2.5 border-b border-gray-200 gap-2.5">
-                <div className="flex items-center gap-2.5">
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={bulkFiles.length > 0 && selectedQueueIds.size === bulkFiles.length}
-                      onChange={toggleAllQueueItems}
-                      className="w-4 h-4 rounded accent-[#05488B]"
-                    />
-                    <span>Select All</span>
-                  </label>
-                  <span className="text-xs text-gray-400">|</span>
-                  <h3 className="text-xs sm:text-sm font-bold text-[#374151]">
-                    Queue: {bulkFiles.length} Paper{bulkFiles.length > 1 ? "s" : ""}
-                  </h3>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => mainInputRef.current?.click()}
-                    className="bg-[#fffdf5] text-[#05488B] border border-[#ffc107] hover:bg-[#ffc107] px-3 py-1 rounded-lg text-xs font-bold transition-colors"
-                  >
-                    + Add Files
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowLinkInput(!showLinkInput)}
-                    className="bg-gray-100 text-gray-700 hover:bg-gray-200 px-3 py-1 rounded-lg text-xs font-semibold transition-colors"
-                  >
-                    🔗 {showLinkInput ? "Hide Link" : "+ Add Link"}
-                  </button>
-
-                  {!bulkIsUploading && (
-                    <button
-                      type="button"
-                      onClick={clearBulkQueue}
-                      className="text-xs font-medium text-[#f43f5e] hover:text-[#c11018] ml-1"
-                    >
-                      Clear All
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {showLinkInput && (
-                <div className="mb-3 p-2.5 rounded-lg bg-gray-50 border border-gray-200 flex gap-2">
-                  <input
-                    type="url"
-                    placeholder="Paste PDF / DOCX Link..."
-                    value={pasteLinkUrl}
-                    onChange={(e) => setPasteLinkUrl(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleAddLinkSubmit(e); }}
-                    className="flex-1 bg-white border border-gray-300 focus:border-[#05488B] text-gray-800 px-3 py-1 text-xs rounded-lg outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddLinkSubmit}
-                    disabled={!pasteLinkUrl.trim()}
-                    className="bg-[#05488B] disabled:opacity-50 text-[#ffc107] px-3 py-1 rounded-lg text-xs font-bold"
-                  >
-                    Add
-                  </button>
-                </div>
-              )}
-
-              {bulkValidationError && (
-                <div className="mb-3 p-2.5 rounded-lg bg-red-50 text-xs font-medium text-[#f43f5e] flex items-center gap-1.5 border border-red-200">
-                  ❌ {bulkValidationError}
-                </div>
-              )}
-
-              {bulkSummary && (
-                <div className="mb-3 p-2.5 rounded-lg bg-emerald-50 text-xs font-medium text-emerald-800 flex items-center gap-1.5 border border-emerald-200">
-                  🎉 Completed: {bulkSummary.succeeded} uploaded, {bulkSummary.failed} failed out of {bulkSummary.total} total papers.
-                </div>
-              )}
-
-              {/* Rows List */}
-              <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1.5 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] [&::-webkit-scrollbar-thumb]:rounded-full">
-                {bulkFiles.map((row: any) => (
-                  <BulkPaperUploadRow
-                    key={row.id}
-                    row={row}
-                    isSelected={selectedQueueIds.has(row.id)}
-                    onToggleSelect={toggleQueueItem}
-                    optionsForTarget={bulkOptionsForTarget}
-                    onFieldChange={updateBulkFileField}
-                    onRemove={removeBulkFile}
-                    onAddTarget={addTargetToRow}
-                    onRemoveTarget={removeTargetFromRow}
-                    openDropdown={openDropdown}
-                    setOpenDropdown={setOpenDropdown}
-                  />
-                ))}
-              </div>
-
-              {/* Upload All Action */}
-              <div className="mt-4 flex items-center justify-center">
-                <button
-                  type="button"
-                  disabled={bulkIsUploading || bulkFiles.length === 0}
-                  onClick={uploadAllBulkFiles}
-                  className="bg-[#05488B] hover:bg-[#215ea0] disabled:opacity-50 text-[#ffc107] px-8 py-2 rounded-lg font-bold text-sm shadow-md transition-colors flex items-center gap-2"
-                >
-                  {bulkIsUploading ? (
-                    <span className="flex items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-[#ffc107] border-t-transparent rounded-full animate-spin"></span>
-                      <span>Uploading Papers...</span>
-                    </span>
-                  ) : (
-                    <span>🚀 Upload All ({bulkFiles.length} Paper{bulkFiles.length > 1 ? "s" : ""})</span>
-                  )}
-                </button>
-              </div>
-            </>
-          )}
-        </>
+        <BulkUploadModeView
+          bulkFiles={bulkFiles}
+          bulkDragHandlers={bulkDragHandlers}
+          mainInputRef={mainInputRef}
+          bulkIsDragging={bulkIsDragging}
+          pasteLinkUrl={pasteLinkUrl}
+          setPasteLinkUrl={setPasteLinkUrl}
+          handleAddLinkSubmit={handleAddLinkSubmit}
+          showQuickApply={showQuickApply}
+          setShowQuickApply={setShowQuickApply}
+          selectedQueueIds={selectedQueueIds}
+          quickFields={quickFields}
+          setQuickFields={setQuickFields}
+          handleApplyQuick={handleApplyQuick}
+          toggleAllQueueItems={toggleAllQueueItems}
+          showLinkInput={showLinkInput}
+          setShowLinkInput={setShowLinkInput}
+          bulkIsUploading={bulkIsUploading}
+          clearBulkQueue={clearBulkQueue}
+          bulkValidationError={bulkValidationError}
+          bulkSummary={bulkSummary}
+          toggleQueueItem={toggleQueueItem}
+          bulkOptionsForTarget={bulkOptionsForTarget}
+          updateBulkFileField={updateBulkFileField}
+          removeBulkFile={removeBulkFile}
+          addTargetToRow={addTargetToRow}
+          removeTargetFromRow={removeTargetFromRow}
+          openDropdown={openDropdown}
+          setOpenDropdown={setOpenDropdown}
+          uploadAllBulkFiles={uploadAllBulkFiles}
+        />
       )}
 
-      {/* MODE 2: BULK EDIT PAPERS */}
       {bulkMode === "edit" && (
         <BulkEditModeView
           dbActionMessage={dbActionMessage}
@@ -1204,7 +1378,6 @@ export default function BulkPaperUpload({
         />
       )}
 
-      {/* MODE 3: BULK DELETE PAPERS */}
       {bulkMode === "delete" && (
         <BulkDeleteModeView
           dbActionMessage={dbActionMessage}
@@ -1237,33 +1410,12 @@ export default function BulkPaperUpload({
         />
       )}
 
-      {/* Confirmation Modal for Bulk Delete */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 transition-opacity">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full text-center transform transition-all border-t-8 border-red-500">
-            <div className="text-5xl mb-4">⚠️</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Delete {selectedDbPapersList.length} Papers?</h2>
-            <p className="text-gray-600 mb-6 text-sm">
-              Are you sure you want to permanently delete these <span className="font-bold text-red-600">{selectedDbPapersList.length}</span> papers from the database and Google Sheet backup?
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2.5 rounded-lg font-bold transition-colors w-full"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleExecuteBulkDelete}
-                className="bg-[#E31E24] hover:bg-[#c11018] text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition-colors w-full"
-              >
-                Yes, Delete All
-              </button>
-            </div>
-          </div>
-        </div>
+        <BulkDeleteConfirmModal
+          selectedCount={selectedDbPapersList.length}
+          onCancel={() => setShowDeleteConfirm(false)}
+          onConfirm={handleExecuteBulkDelete}
+        />
       )}
     </div>
   );

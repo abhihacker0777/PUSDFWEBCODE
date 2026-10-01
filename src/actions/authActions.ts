@@ -200,7 +200,7 @@ export async function requestPasswordResetAction(email: string) {
         .eq("email", cleanEmail)
         .single();
 
-      if (!adminRecord || !adminRecord.is_active) {
+      if (!adminRecord?.is_active) {
         // Return generic success to avoid account enumeration (OWASP)
         return { success: true, message: "If that email belongs to an administrator, a reset link has been dispatched." };
       }
