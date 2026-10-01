@@ -37,7 +37,7 @@ export default function Filters({
     "flex flex-nowrap gap-[15px] overflow-x-auto py-[10px] pr-10 w-full [&::-webkit-scrollbar]:h-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] [&::-webkit-scrollbar-thumb]:rounded-[20px] hover:[&::-webkit-scrollbar-thumb]:bg-[#05488B] active:[&::-webkit-scrollbar-thumb]:bg-[#05488B]";
 
   const baseCard =
-    "flex-shrink-0 px-8 py-3 rounded-2xl cursor-pointer min-w-[146px] whitespace-nowrap text-center shadow-md hover:shadow-lg transition-all border-2 border-solid border-transparent box-border font-medium flex items-center justify-center";
+    "flex-shrink-0 px-8 py-3 rounded-2xl cursor-pointer min-w-[146px] whitespace-nowrap text-center shadow-md hover:shadow-lg transition-colors duration-150 transform-gpu active:scale-95 border-2 border-solid border-transparent box-border font-medium flex items-center justify-center";
 
   const activeCard =
     "bg-[#4a80bc] text-white border-[#ffc107] !border-[#ffc107] !border-solid !border-[2px] shadow-md";

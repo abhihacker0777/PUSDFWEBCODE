@@ -117,18 +117,16 @@ export default function usePaperAssistantController() {
     };
   }, [config.googleClientId, handleGoogleCredential, isOpen, view]);
 
-  const openAssistant = () => {
+  const openAssistant = useCallback(() => {
     setIsOpen(true);
     setSignInError("");
-  };
+  }, []);
 
-  const closeAssistant = () => {
+  const closeAssistant = useCallback(() => {
     setIsOpen(false);
     setInput("");
     setSignInError("");
-    resetMessages(auth?.user);
-    setView(auth ? "chat" : "signin");
-  };
+  }, []);
 
   const handleSubmit = async (event?: React.FormEvent, directQuery?: string) => {
     if (event) event.preventDefault();

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Filters from "@/components/Filters";
 import PaperList, { PaperItem } from "@/components/PaperList";
@@ -17,26 +17,8 @@ const yearSequence = ["1 Year", "2 Year", "3 Year", "4 Year", "5 Year"];
 const semSequence = ["1 Sem", "2 Sem", "3 Sem", "4 Sem", "5 Sem", "6 Sem", "7 Sem", "8 Sem", "9 Sem", "10 Sem"];
 const examSequence = ["MSE", "ESE"];
 
-export default function HomePage() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [papersData, setPapersData] = useState<PaperItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selected, setSelected] = useState<{
-    course: string | null;
-    year: string | null;
-    specialization: string | null;
-    sem: string | null;
-    exam: string | null;
-  }>({
-    course: null,
-    year: null,
-    specialization: null,
-    sem: null,
-    exam: null
-  });
-
 function tryReadCachedPapers(): PaperItem[] | null {
-  if (typeof sessionStorage === "undefined") return null;
+  if (typeof window === "undefined" || typeof sessionStorage === "undefined") return null;
   const cached = sessionStorage.getItem("papersCache");
   if (!cached) return null;
   try {
@@ -53,6 +35,26 @@ function tryReadCachedPapers(): PaperItem[] | null {
   }
   return null;
 }
+
+export default function HomePage() {
+  const [papersData, setPapersData] = useState<PaperItem[]>(() => {
+    return tryReadCachedPapers() ?? [];
+  });
+  const [isLoading, setIsLoading] = useState(() => papersData.length === 0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selected, setSelected] = useState<{
+    course: string | null;
+    year: string | null;
+    specialization: string | null;
+    sem: string | null;
+    exam: string | null;
+  }>({
+    course: null,
+    year: null,
+    specialization: null,
+    sem: null,
+    exam: null
+  });
 
   useEffect(() => {
     let disposed = false;
@@ -114,37 +116,39 @@ function tryReadCachedPapers(): PaperItem[] | null {
     };
   }, []);
 
-  const unique = (field: keyof PaperItem, filter: Record<string, string | null> = {}): string[] => {
-    return [
-      ...new Set(
-        papersData
-          .filter((p) =>
-            Object.keys(filter)
-              .filter((k) => filter[k])
-              .every((k) => {
+  const unique = useCallback(
+    (field: keyof PaperItem, filter: Record<string, string | null> = {}): string[] => {
+      const activeFilterKeys = Object.keys(filter).filter((k) => filter[k]);
+      return [
+        ...new Set(
+          papersData
+            .filter((p) =>
+              activeFilterKeys.every((k) => {
                 const pVal = (p as any)[k] ?? (k === "specialization" ? p.spec : null);
                 return String(pVal ?? "").trim() === String(filter[k] ?? "").trim();
               })
-          )
-          .map((p) => (p as any)[field] ?? (field === "specialization" ? p.spec : null))
-          .filter(Boolean)
-      )
-    ] as string[];
-  };
+            )
+            .map((p) => (p as any)[field] ?? (field === "specialization" ? p.spec : null))
+            .filter(Boolean)
+        )
+      ] as string[];
+    },
+    [papersData]
+  );
 
-  const ordered = (list: string[], sequence: string[]): string[] => {
+  const ordered = useCallback((list: string[], sequence: string[]): string[] => {
     const known = sequence.filter((v) => list.includes(v));
     const unknown = list.filter((v) => !sequence.includes(v));
     return [...known, ...unknown];
-  };
+  }, []);
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     return searchLocalPapers(papersData, searchQuery);
   }, [papersData, searchQuery]);
 
-  const handleSelect = (type: string, value: string) => {
-    if (searchQuery) setSearchQuery("");
+  const handleSelect = useCallback((type: string, value: string) => {
+    setSearchQuery("");
     if (type === "course") {
       setSelected({ course: value, year: null, specialization: null, sem: null, exam: null });
     } else if (type === "year") {
@@ -156,26 +160,48 @@ function tryReadCachedPapers(): PaperItem[] | null {
     } else {
       setSelected((prev) => ({ ...prev, [type]: value }));
     }
-  };
+  }, []);
 
-  const years = ordered(unique("year", { course: selected.course }), yearSequence);
-  const specs = unique("specialization", { course: selected.course, year: selected.year }).sort((a, b) => a.localeCompare(b));
-  const sems = ordered(unique("sem", { course: selected.course, year: selected.year, specialization: selected.specialization }), semSequence);
-  const exams = ordered(unique("exam", { course: selected.course, year: selected.year, specialization: selected.specialization, sem: selected.sem }), examSequence);
+  const availableCourses = useMemo(() => {
+    return ordered(unique("course"), courseSequence);
+  }, [ordered, unique]);
 
-  const filteredPapers = [...papersData]
-    .filter((p) =>
-      Object.keys(selected).every((k) => {
-        if (!(selected as any)[k]) return true;
-        const paperValue = (p as any)[k] ?? (k === "specialization" ? p.spec : null);
-        return String(paperValue ?? "").trim() === String((selected as any)[k] ?? "").trim();
-      })
-    )
-    .sort((a, b) => {
-      const textA = (a.subject || a.title || a.name || "").toLowerCase().trim();
-      const textB = (b.subject || b.title || b.name || "").toLowerCase().trim();
-      return textA.localeCompare(textB);
-    });
+  const years = useMemo(() => {
+    if (!selected.course) return [];
+    return ordered(unique("year", { course: selected.course }), yearSequence);
+  }, [ordered, unique, selected.course]);
+
+  const specs = useMemo(() => {
+    if (!selected.course || !selected.year) return [];
+    return unique("specialization", { course: selected.course, year: selected.year }).sort((a, b) => a.localeCompare(b));
+  }, [unique, selected.course, selected.year]);
+
+  const sems = useMemo(() => {
+    if (!selected.course || !selected.year) return [];
+    return ordered(unique("sem", { course: selected.course, year: selected.year, specialization: selected.specialization }), semSequence);
+  }, [ordered, unique, selected.course, selected.year, selected.specialization]);
+
+  const exams = useMemo(() => {
+    if (!selected.course || !selected.year || !selected.sem) return [];
+    return ordered(unique("exam", { course: selected.course, year: selected.year, specialization: selected.specialization, sem: selected.sem }), examSequence);
+  }, [ordered, unique, selected.course, selected.year, selected.specialization, selected.sem]);
+
+  const filteredPapers = useMemo(() => {
+    if (!selected.exam) return [];
+    return [...papersData]
+      .filter((p) =>
+        Object.keys(selected).every((k) => {
+          if (!(selected as any)[k]) return true;
+          const paperValue = (p as any)[k] ?? (k === "specialization" ? p.spec : null);
+          return String(paperValue ?? "").trim() === String((selected as any)[k] ?? "").trim();
+        })
+      )
+      .sort((a, b) => {
+        const textA = (a.subject || a.title || a.name || "").toLowerCase().trim();
+        const textB = (b.subject || b.title || b.name || "").toLowerCase().trim();
+        return textA.localeCompare(textB);
+      });
+  }, [papersData, selected]);
 
   const lastUpdated = useMemo(() => {
     if (!papersData || papersData.length === 0) return "";
@@ -194,8 +220,6 @@ function tryReadCachedPapers(): PaperItem[] | null {
     const yr = String(d.getFullYear()).slice(-2);
     return `${day}-${month}-${yr}`;
   }, [papersData]);
-
-  const availableCourses = ordered(unique("course"), courseSequence);
 
   const renderFilterContent = () => {
     if (isLoading && papersData.length === 0) {
