@@ -42,6 +42,40 @@ export interface CreatePaperActionsParams {
   setSelectedPaperIndex: (index: any) => void;
 }
 
+function isValidDocumentLink(cleanUrl: string): boolean {
+  try {
+    const parsed = new URL(cleanUrl);
+    const host = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+    const isDriveDoc =
+      (host.includes("drive.google.com") || host.includes("docs.google.com")) &&
+      (pathname.includes("/file/d/") ||
+        pathname.includes("/document/d/") ||
+        pathname.includes("/open") ||
+        pathname.includes("/uc") ||
+        parsed.searchParams.has("id"));
+    const isDirectDoc =
+      pathname.endsWith(".pdf") ||
+      pathname.endsWith(".docx") ||
+      pathname.endsWith(".doc") ||
+      parsed.pathname.includes(".pdf") ||
+      parsed.pathname.includes(".docx");
+    return isDriveDoc || isDirectDoc;
+  } catch {
+    return false;
+  }
+}
+
+function populateSnapshotFields(formData: FormData, selectedPaper: any) {
+  if (!selectedPaper) return;
+  formData.append("expectedCourse", selectedPaper.course || "");
+  formData.append("expectedYear", selectedPaper.year || "");
+  formData.append("expectedSpec", selectedPaper.spec || selectedPaper.specialization || "");
+  formData.append("expectedSem", selectedPaper.sem || selectedPaper.semester || "");
+  formData.append("expectedExam", selectedPaper.exam || "");
+  formData.append("expectedName", selectedPaper.name || selectedPaper.title || "");
+}
+
 export const createPaperActions = ({
   canEditPapers,
   canUploadFiles,
@@ -100,36 +134,10 @@ export const createPaperActions = ({
       return;
     }
 
-    if (directLink?.trim()) {
-      const cleanUrl = directLink.trim();
-      let isValidDoc = false;
-      try {
-        const parsed = new URL(cleanUrl);
-        const host = parsed.hostname.toLowerCase();
-        const pathname = parsed.pathname.toLowerCase();
-        const isDriveDoc =
-          (host.includes("drive.google.com") || host.includes("docs.google.com")) &&
-          (pathname.includes("/file/d/") ||
-            pathname.includes("/document/d/") ||
-            pathname.includes("/open") ||
-            pathname.includes("/uc") ||
-            parsed.searchParams.has("id"));
-        const isDirectDoc =
-          pathname.endsWith(".pdf") ||
-          pathname.endsWith(".docx") ||
-          pathname.endsWith(".doc") ||
-          parsed.pathname.includes(".pdf") ||
-          parsed.pathname.includes(".docx");
-        isValidDoc = isDriveDoc || isDirectDoc;
-      } catch {
-        isValidDoc = false;
-      }
-
-      if (!isValidDoc) {
-        setUploadStatus("Error: Only .pdf, .docx or Google Drive links are allowed.");
-        setTimeout(() => setUploadStatus(""), 4000);
-        return;
-      }
+    if (directLink?.trim() && !isValidDocumentLink(directLink.trim())) {
+      setUploadStatus("Error: Only .pdf, .docx or Google Drive links are allowed.");
+      setTimeout(() => setUploadStatus(""), 4000);
+      return;
     }
 
     rememberCustomSpec(course, spec);
@@ -145,21 +153,12 @@ export const createPaperActions = ({
       formData.append("course", course);
       formData.append("year", year);
       formData.append("spec", spec);
-      // backend expects `sem` and `name` fields
       formData.append("sem", semester);
       formData.append("exam", exam);
       formData.append("name", paperName.trim());
       if (selectedPaperIndex) {
         formData.append("index", selectedPaperIndex);
-        // include expected snapshot fields for concurrency checks
-        if (selectedPaper) {
-          formData.append("expectedCourse", selectedPaper.course || "");
-          formData.append("expectedYear", selectedPaper.year || "");
-          formData.append("expectedSpec", selectedPaper.spec || selectedPaper.specialization || "");
-          formData.append("expectedSem", selectedPaper.sem || selectedPaper.semester || "");
-          formData.append("expectedExam", selectedPaper.exam || "");
-          formData.append("expectedName", selectedPaper.name || selectedPaper.title || "");
-        }
+        populateSnapshotFields(formData, selectedPaper);
       }
 
       const response = await uploadPaper(formData);

@@ -13,17 +13,20 @@ export async function POST(req: NextRequest) {
       if (result.code === "RATE_LIMITED" && retryAfter) {
         headers.set("Retry-After", String(retryAfter));
       }
+      let status = 401;
+      if (result.code === "CAPTCHA_REQUIRED") {
+        status = 403;
+      } else if (result.code === "RATE_LIMITED") {
+        status = 429;
+      }
+
       return NextResponse.json({
         success: false,
         message: result.message,
         code: result.code,
         retryAfterSeconds: retryAfter,
       }, {
-        status: result.code === "CAPTCHA_REQUIRED"
-          ? 403
-          : result.code === "RATE_LIMITED"
-          ? 429
-          : 401,
+        status,
         headers,
       });
     }

@@ -88,10 +88,20 @@ export default function useStudentQueries({ authUser, canMonitor }: UseStudentQu
 
 const matchValue = (value: unknown, term: string): boolean => {
   if (value === null || value === undefined) return false;
-  if (typeof value === "object") {
-    return JSON.stringify(value).toLowerCase().includes(term);
+  if (typeof value === "string") {
+    return value.toLowerCase().includes(term);
   }
-  return String(value).toLowerCase().includes(term);
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).toLowerCase().includes(term);
+  }
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value).toLowerCase().includes(term);
+    } catch {
+      return false;
+    }
+  }
+  return false;
 };
 
   const groupedQueriesArray = useMemo(() => {

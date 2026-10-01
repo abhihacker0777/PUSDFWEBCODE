@@ -106,12 +106,20 @@ function useDropdownPosition(
       onCloseRef.current();
     };
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onCloseRef.current();
+      }
+    };
+
     window.addEventListener("scroll", handleScroll, true);
     window.addEventListener("resize", updatePosition);
+    window.addEventListener("keydown", handleKeyDown);
     document.addEventListener("mousedown", handleOutsideClick);
     return () => {
       window.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("mousedown", handleOutsideClick);
     };
   }, [isOpen, topOffset]);
@@ -197,9 +205,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ id, label, optio
       {isOpen && menuPosition && typeof document !== "undefined" && createPortal(
         <div
           ref={menuRef}
-          role="dialog"
-          aria-modal="false"
-          onKeyDown={(e) => { if (e.key === "Escape") setOpenDropdown(null); }}
+          role="listbox"
           style={{ position: "fixed", top: menuPosition.top, left: menuPosition.left, width: customWidth ? undefined : menuPosition.width }}
           className={`bg-[#cbe0fe] rounded-lg shadow-2xl z-[9999] border border-blue-200 overflow-hidden ${customWidth || ""}`}
         >
@@ -271,9 +277,7 @@ export const RoleDropdown: React.FC<RoleDropdownProps> = ({ id, value, onChange,
       {isOpen && menuPosition && typeof document !== "undefined" && createPortal(
         <div
           ref={menuRef}
-          role="dialog"
-          aria-modal="false"
-          onKeyDown={(e) => { if (e.key === "Escape") setOpenRoleMenu(""); }}
+          role="listbox"
           style={{ position: "fixed", top: menuPosition.top, left: menuPosition.left, width: menuPosition.width }}
           className="bg-[#cbe0fe] rounded-lg shadow-2xl z-[9999] border border-blue-200 overflow-hidden"
         >

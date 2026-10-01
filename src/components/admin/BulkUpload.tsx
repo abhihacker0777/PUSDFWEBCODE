@@ -140,6 +140,10 @@ export default function BulkUpload() {
     }
   };
 
+  const uploadButtonLabel = selectedFiles.length > 1
+    ? `🚀 Upload ${selectedFiles.length} Papers to Database`
+    : `🚀 Upload ${selectedFiles.length} Paper to Database`;
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 min-h-[400px]">
       
@@ -318,9 +322,7 @@ export default function BulkUpload() {
                   <span>Processing Background Upload...</span>
                 </>
               ) : (
-                selectedFiles.length > 1
-                  ? `🚀 Upload ${selectedFiles.length} Papers to Database`
-                  : `🚀 Upload ${selectedFiles.length} Paper to Database`
+                uploadButtonLabel
               )}
             </button>
           </div>

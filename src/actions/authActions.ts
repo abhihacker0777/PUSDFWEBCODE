@@ -50,6 +50,52 @@ async function handleFailedLogin(cleanIdentifier: string, startedAt: number) {
   };
 }
 
+async function resolveAuthEmail(
+  adminSupabase: any,
+  cleanIdentifier: string,
+  rawIdentifier: string
+): Promise<{ emailToAuth?: string; deactivated?: boolean; notFound?: boolean }> {
+  const { data: userRecord } = await adminSupabase
+    .from("admin_users")
+    .select("email, display_name, is_active")
+    .or(`login_identifier.ilike.${cleanIdentifier},email.ilike.${cleanIdentifier}`)
+    .maybeSingle();
+
+  if (userRecord) {
+    if (!userRecord.is_active) {
+      return { deactivated: true };
+    }
+    return { emailToAuth: userRecord.email || rawIdentifier.trim() };
+  }
+
+  if (!cleanIdentifier.includes("@")) {
+    return { notFound: true };
+  }
+
+  return { emailToAuth: rawIdentifier.trim() };
+}
+
+async function verifyActiveAdminStatus(
+  adminSupabase: any,
+  supabase: any,
+  emailToAuth: string
+): Promise<boolean> {
+  const isSuperAdmin = emailToAuth.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  if (isSuperAdmin) return true;
+
+  const { data: adminRecord } = await adminSupabase
+    .from("admin_users")
+    .select("is_active, role")
+    .eq("email", emailToAuth)
+    .single();
+
+  if (!adminRecord?.is_active) {
+    await supabase.auth.signOut();
+    return false;
+  }
+  return true;
+}
+
 export async function loginAction(
   param1: FormData | string,
   param2?: string,
@@ -90,25 +136,16 @@ export async function loginAction(
     const adminSupabase = createAdminClient();
 
     // 3. Resolve login identifier (could be email or username)
-    let emailToAuth = identifier.trim();
-
-    const { data: userRecord } = await adminSupabase
-      .from("admin_users")
-      .select("email, display_name, is_active")
-      .or(`login_identifier.ilike.${cleanIdentifier},email.ilike.${cleanIdentifier}`)
-      .maybeSingle();
-
-    if (userRecord) {
-      if (!userRecord.is_active) {
-        await equalizeLoginTiming(startedAt);
-        return { success: false, message: "This administrative account has been deactivated." };
-      }
-      if (userRecord.email) {
-        emailToAuth = userRecord.email;
-      }
-    } else if (!cleanIdentifier.includes("@")) {
+    const resolution = await resolveAuthEmail(adminSupabase, cleanIdentifier, identifier);
+    if (resolution.deactivated) {
+      await equalizeLoginTiming(startedAt);
+      return { success: false, message: "This administrative account has been deactivated." };
+    }
+    if (resolution.notFound || !resolution.emailToAuth) {
       return await handleFailedLogin(cleanIdentifier, startedAt);
     }
+
+    const emailToAuth = resolution.emailToAuth;
 
     // 4. Authenticate with Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -124,19 +161,10 @@ export async function loginAction(
     await resetLoginAttempts(cleanIdentifier);
 
     // 6. Verify account active state
-    const isSuperAdmin = emailToAuth.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-    if (!isSuperAdmin) {
-      const { data: adminRecord } = await adminSupabase
-        .from("admin_users")
-        .select("is_active, role")
-        .eq("email", emailToAuth)
-        .single();
-
-      if (!adminRecord?.is_active) {
-        await supabase.auth.signOut();
-        await equalizeLoginTiming(startedAt);
-        return { success: false, message: "This administrative account has been deactivated." };
-      }
+    const isActive = await verifyActiveAdminStatus(adminSupabase, supabase, emailToAuth);
+    if (!isActive) {
+      await equalizeLoginTiming(startedAt);
+      return { success: false, message: "This administrative account has been deactivated." };
     }
 
     await equalizeLoginTiming(startedAt);

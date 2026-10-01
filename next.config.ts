@@ -15,8 +15,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  async rewrites() {
-    return [
+  rewrites() {
+    return Promise.resolve([
       {
         source: "/papers",
         destination: "/api/papers",
@@ -133,10 +133,10 @@ const nextConfig: NextConfig = {
         source: "/password-reset/confirm",
         destination: "/api/auth/reset/confirm",
       },
-    ];
+    ]);
   },
-  async headers() {
-    return [
+  headers() {
+    return Promise.resolve([
       {
         source: "/(.*)",
         headers: [
@@ -166,7 +166,7 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-    ];
+    ]);
   },
 
 };

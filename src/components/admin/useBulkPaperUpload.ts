@@ -344,24 +344,23 @@ export default function useBulkPaperUpload({
     let succeeded = 0;
     let failed = 0;
 
-    for (const row of bulkFiles) {
+    await bulkFiles.reduce(async (prevPromise, row) => {
+      await prevPromise;
       setBulkFiles((current) =>
         current.map((item) => (item.id === row.id ? { ...item, status: "uploading", message: "" } : item))
       );
 
       const result = await uploadBulkRowTargets(row);
+      const status = result.success ? "success" : "error";
       if (result.success) {
         succeeded += 1;
-        setBulkFiles((current) =>
-          current.map((item) => (item.id === row.id ? { ...item, status: "success", message: result.message } : item))
-        );
       } else {
         failed += 1;
-        setBulkFiles((current) =>
-          current.map((item) => (item.id === row.id ? { ...item, status: "error", message: result.message } : item))
-        );
       }
-    }
+      setBulkFiles((current) =>
+        current.map((item) => (item.id === row.id ? { ...item, status, message: result.message } : item))
+      );
+    }, Promise.resolve());
 
     if (succeeded > 0) {
       clearPapersCache();

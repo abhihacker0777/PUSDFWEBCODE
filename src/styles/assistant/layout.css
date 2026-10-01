@@ -146,13 +146,13 @@
 }
 
 .pu-assistant-header-actions button:hover {
-  background: rgba(0, 0, 0, 0.08);
-  color: #0f172a;
+  background-color: #b8be56;
+  color: #000000;
 }
 
 .pu-assistant-header-actions button:active {
-  background-color: transparent !important;
-  color: #0f172a;
+  background-color: #a7ad47;
+  color: #000000;
 }
 
 .pu-assistant-header-actions svg {

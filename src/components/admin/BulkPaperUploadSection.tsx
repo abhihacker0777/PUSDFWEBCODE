@@ -278,29 +278,22 @@ export default function BulkPaperUploadSection({ papers, onRefresh }: Readonly<B
       {activeTab === "upload" && (
         <div>
           {/* Dropzone */}
-          <div
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                fileInputRef.current?.click();
-              }
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            onChange={(e) => {
+              handleFilesAdded(e.target.files);
+              e.target.value = "";
             }}
+            className="hidden"
+          />
+          <button
+            type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-[#ffc107] bg-[#fffdf5] hover:bg-[#fffaf0] rounded-2xl p-8 text-center cursor-pointer transition-colors"
+            className="w-full border-2 border-dashed border-[#ffc107] bg-[#fffdf5] hover:bg-[#fffaf0] rounded-2xl p-8 text-center cursor-pointer transition-colors block"
           >
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              onChange={(e) => {
-                handleFilesAdded(e.target.files);
-                e.target.value = "";
-              }}
-              className="hidden"
-            />
             <div className="w-12 h-12 rounded-full bg-amber-100 text-[#05488B] flex items-center justify-center mx-auto mb-3">
               <FolderPlus className="w-6 h-6" />
             </div>
@@ -310,7 +303,7 @@ export default function BulkPaperUploadSection({ papers, onRefresh }: Readonly<B
             <p className="text-xs text-gray-500 mt-1">
               or click to browse multiple files from your computer
             </p>
-          </div>
+          </button>
 
           {/* Queue List */}
           {queue.length > 0 && (

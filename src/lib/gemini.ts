@@ -83,29 +83,47 @@ If intentType is "PAPER_SEARCH":
   }
 }
 
+const COURSE_PATTERNS: Array<[RegExp, string]> = [
+  [/\bbca\b/i, "BCA"],
+  [/\bmca\b/i, "MCA"],
+  [/\b(btech|b\.tech|b\s*tech)\b/i, "B.Tech"],
+  [/\bmba\b/i, "MBA"],
+  [/\bbba\b/i, "BBA"],
+  [/\b(bsc|b\.sc)\b/i, "B.Sc"],
+  [/\b(bdes|b\.des)\b/i, "B.Des"],
+  [/\b(barch|b\.arch)\b/i, "B.Arch"],
+  [/\bbph\b/i, "BPH"],
+];
+
+const SPEC_PATTERNS: Array<[string[], string]> = [
+  [["cyber"], "CYBER SECURITY"],
+  [["aids", "data science"], "ARTIFICIAL INTELLIGENCE AND DATA SCIENCE"],
+  [["aiml", "machine learning"], "ARTIFICIAL INTELLIGENCE & MACHINE LEARNING"],
+  [["cloud"], "CLOUD TECHNOLOGY"],
+  [["cse", "computer science"], "COMPUTER SCIENCE & ENGINEERING"],
+  [["civil"], "CIVIL ENGINEERING"],
+  [["mechanical"], "MECHANICAL ENGINEERING"],
+];
+
+function parseCourse(norm: string): string | null {
+  for (const [pattern, course] of COURSE_PATTERNS) {
+    if (pattern.test(norm)) return course;
+  }
+  return null;
+}
+
+function parseSpecialization(norm: string): string | null {
+  for (const [keywords, spec] of SPEC_PATTERNS) {
+    if (keywords.some((k) => norm.includes(k))) return spec;
+  }
+  return null;
+}
+
 function parseCourseAndSpec(norm: string) {
-  let course: string | null = null;
-  let specialization: string | null = null;
-
-  if (/\bbca\b/i.test(norm)) course = "BCA";
-  else if (/\bmca\b/i.test(norm)) course = "MCA";
-  else if (/\b(btech|b\.tech|b\s*tech)\b/i.test(norm)) course = "B.Tech";
-  else if (/\bmba\b/i.test(norm)) course = "MBA";
-  else if (/\bbba\b/i.test(norm)) course = "BBA";
-  else if (/\b(bsc|b\.sc)\b/i.test(norm)) course = "B.Sc";
-  else if (/\b(bdes|b\.des)\b/i.test(norm)) course = "B.Des";
-  else if (/\b(barch|b\.arch)\b/i.test(norm)) course = "B.Arch";
-  else if (/\bbph\b/i.test(norm)) course = "BPH";
-
-  if (norm.includes("cyber")) specialization = "CYBER SECURITY";
-  else if (norm.includes("aids") || norm.includes("data science")) specialization = "ARTIFICIAL INTELLIGENCE AND DATA SCIENCE";
-  else if (norm.includes("aiml") || norm.includes("machine learning")) specialization = "ARTIFICIAL INTELLIGENCE & MACHINE LEARNING";
-  else if (norm.includes("cloud")) specialization = "CLOUD TECHNOLOGY";
-  else if (norm.includes("cse") || norm.includes("computer science")) specialization = "COMPUTER SCIENCE & ENGINEERING";
-  else if (norm.includes("civil")) specialization = "CIVIL ENGINEERING";
-  else if (norm.includes("mechanical")) specialization = "MECHANICAL ENGINEERING";
-
-  return { course, specialization };
+  return {
+    course: parseCourse(norm),
+    specialization: parseSpecialization(norm),
+  };
 }
 
 function parseSemesterAndExam(norm: string) {
@@ -130,6 +148,9 @@ function parseSemesterAndExam(norm: string) {
   return { semester, exam };
 }
 
+const STOPWORD_PATTERN_1 = /\b(bca|mca|bba|mba|b\.?tech|year|mte|ete|mse|ese|papers?|exam|previous|university|poornima)\b/gi;
+const STOPWORD_PATTERN_2 = /\b(semester|sem\s*\d|\d\s*(?:sem|year))\b/gi;
+
 function extractSubjectKeywords(norm: string) {
   const keywords: string[] = [];
   if (norm.includes("math") || norm.includes("maths") || norm.includes("mathematics")) keywords.push("mathematics");
@@ -144,11 +165,17 @@ function extractSubjectKeywords(norm: string) {
   if (norm.includes("chemistry")) keywords.push("chemistry");
 
   const subjectTokens = norm
-    .replace(/\b(bca|mca|bba|mba|b\.?tech|semester|sem\s*\d|\d\s*(?:sem|year)|year|mte|ete|mse|ese|papers?|exam|previous|university|poornima)\b/gi, "")
+    .replace(STOPWORD_PATTERN_1, "")
+    .replace(STOPWORD_PATTERN_2, "")
     .split(/\s+/)
     .filter((w) => w.length > 2 && !["for", "and", "the", "get", "show", "give", "want", "need"].includes(w));
 
   return Array.from(new Set([...keywords, ...subjectTokens]));
+}
+
+function isCoursesQuery(norm: string): boolean {
+  if (norm.includes("courses available") || norm.includes("available courses")) return true;
+  return /\b(top(?:\s+\d+)?|best|which|list)\s+course/i.test(norm);
 }
 
 export function extractRuleBasedIntent(query: string): ExtractedAIIntent {
@@ -173,7 +200,7 @@ export function extractRuleBasedIntent(query: string): ExtractedAIIntent {
   }
 
   // 3. Detect top courses / general questions
-  if (/(?:top(?:\s+\d+)?|best|which|list)\s+course|courses\s+available|available\s+courses/i.test(norm)) {
+  if (isCoursesQuery(norm)) {
     return {
       intentType: "ADMISSION_OR_GENERAL",
       conversationalReply: "Poornima University offers top-tier, industry-recognized programs! The top 3 most popular and high-demand courses are:\n1. B.Tech in Computer Science & Engineering (Specializations: AI & ML, Data Science, Cyber Security, Cloud Technology)\n2. BCA (Bachelor of Computer Applications) with advanced industry specializations in AI, Cloud, and Full-Stack Development\n3. MBA & MCA for professional management and advanced computing careers.\n\nLet me know if you would like previous year question papers or semester syllabus for any of these courses! 😊",

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  formatRetryTime,
   GENERIC_LOGIN_ERROR,
   TURNSTILE_SITE_KEY
 } from "./loginConstants";

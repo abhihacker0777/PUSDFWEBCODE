@@ -400,6 +400,331 @@ const BulkPapersDbTable = ({
   );
 };
 
+interface BulkEditModeViewProps {
+  dbActionMessage: any;
+  setDbActionMessage: (msg: any) => void;
+  dbSearch: string;
+  setDbSearch: (val: string) => void;
+  dbCourseFilter: string;
+  setDbCourseFilter: (val: string) => void;
+  dbSemFilter: string;
+  setDbSemFilter: (val: string) => void;
+  dbExamFilter: string;
+  setDbExamFilter: (val: string) => void;
+  dbPage: number;
+  setDbPage: (val: any) => void;
+  dbPageSize: number;
+  uniqueCourses: any[];
+  uniqueYears: any[];
+  uniqueSemesters: any[];
+  uniqueExams: any[];
+  openDropdown: string | null;
+  setOpenDropdown: (id: string | null) => void;
+  selectedDbPapersList: any[];
+  clearDbSelection: () => void;
+  editUpdates: any;
+  setEditUpdates: (val: any) => void;
+  isDbActionLoading: boolean;
+  handleExecuteBulkEdit: () => void;
+  pagedDbPapers: any[];
+  dbSelectedIds: Set<any>;
+  toggleAllDbPapers: () => void;
+  toggleDbPaper: (id: any) => void;
+  totalFilteredCount: number;
+}
+
+const BulkEditModeView: React.FC<BulkEditModeViewProps> = ({
+  dbActionMessage,
+  setDbActionMessage,
+  dbSearch,
+  setDbSearch,
+  dbCourseFilter,
+  setDbCourseFilter,
+  dbSemFilter,
+  setDbSemFilter,
+  dbExamFilter,
+  setDbExamFilter,
+  dbPage,
+  setDbPage,
+  dbPageSize,
+  uniqueCourses,
+  uniqueYears,
+  uniqueSemesters,
+  uniqueExams,
+  openDropdown,
+  setOpenDropdown,
+  selectedDbPapersList,
+  clearDbSelection,
+  editUpdates,
+  setEditUpdates,
+  isDbActionLoading,
+  handleExecuteBulkEdit,
+  pagedDbPapers,
+  dbSelectedIds,
+  toggleAllDbPapers,
+  toggleDbPaper,
+  totalFilteredCount,
+}) => (
+  <div className="space-y-3.5">
+    {dbActionMessage && (
+      <div className={`p-2.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
+        dbActionMessage.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+      }`}>
+        <span>{dbActionMessage.type === "error" ? "❌ " : "✅ "}{dbActionMessage.text}</span>
+        <button type="button" onClick={() => setDbActionMessage(null)} className="text-gray-400 hover:text-black">✕</button>
+      </div>
+    )}
+
+    <BulkDbFilters
+      prefix="bulk-edit"
+      dbSearch={dbSearch}
+      setDbSearch={setDbSearch}
+      dbCourseFilter={dbCourseFilter}
+      setDbCourseFilter={setDbCourseFilter}
+      dbSemFilter={dbSemFilter}
+      setDbSemFilter={setDbSemFilter}
+      dbExamFilter={dbExamFilter}
+      setDbExamFilter={setDbExamFilter}
+      setDbPage={setDbPage}
+      uniqueCourses={uniqueCourses}
+      uniqueSemesters={uniqueSemesters}
+      uniqueExams={uniqueExams}
+      openDropdown={openDropdown}
+      setOpenDropdown={setOpenDropdown}
+    />
+
+    {selectedDbPapersList.length > 0 && (
+      <div className="p-3.5 bg-blue-50/80 border-2 border-blue-300 rounded-xl space-y-2.5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-[#05488B]">
+            ✏️ Bulk Update Selected ({selectedDbPapersList.length} Papers)
+          </span>
+          <button type="button" onClick={clearDbSelection} className="text-xs text-gray-500 hover:text-black">
+            Clear Selection
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+          <div>
+            <label htmlFor="bulk-edit-drawer-course" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW COURSE</label>
+            <CustomDropdown
+              id="bulk-edit-drawer-course"
+              label="(Keep Same)"
+              options={["(Keep Same)", ...uniqueCourses]}
+              value={editUpdates.course || "(Keep Same)"}
+              setValue={(val) => setEditUpdates({ ...editUpdates, course: val === "(Keep Same)" ? "" : val })}
+              openDropdown={openDropdown}
+              setOpenDropdown={setOpenDropdown}
+              customHeight="max-h-[149px]"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="bulk-edit-drawer-year" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW YEAR</label>
+            <CustomDropdown
+              id="bulk-edit-drawer-year"
+              label="(Keep Same)"
+              options={["(Keep Same)", ...uniqueYears]}
+              value={editUpdates.year || "(Keep Same)"}
+              setValue={(val) => setEditUpdates({ ...editUpdates, year: val === "(Keep Same)" ? "" : val })}
+              openDropdown={openDropdown}
+              setOpenDropdown={setOpenDropdown}
+              customHeight="max-h-[149px]"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="bulk-edit-drawer-spec" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW SPECIALIZATION</label>
+            <input
+              id="bulk-edit-drawer-spec"
+              placeholder="(Keep Same)"
+              value={editUpdates.spec}
+              onChange={(e) => setEditUpdates({ ...editUpdates, spec: e.target.value })}
+              className="w-full bg-white border border-[#ffc107] rounded-lg px-4 py-2 text-base font-medium text-center shadow-xs outline-none text-[#215ea0] placeholder:text-[#374151]"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="bulk-edit-drawer-sem" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW SEMESTER</label>
+            <CustomDropdown
+              id="bulk-edit-drawer-sem"
+              label="(Keep Same)"
+              options={["(Keep Same)", ...uniqueSemesters]}
+              value={editUpdates.semester || "(Keep Same)"}
+              setValue={(val) => setEditUpdates({ ...editUpdates, semester: val === "(Keep Same)" ? "" : val })}
+              openDropdown={openDropdown}
+              setOpenDropdown={setOpenDropdown}
+              customHeight="max-h-[149px]"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="bulk-edit-drawer-exam" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW EXAM</label>
+            <CustomDropdown
+              id="bulk-edit-drawer-exam"
+              label="(Keep Same)"
+              options={["(Keep Same)", "MSE", "ESE"]}
+              value={editUpdates.exam || "(Keep Same)"}
+              setValue={(val) => setEditUpdates({ ...editUpdates, exam: val === "(Keep Same)" ? "" : val })}
+              openDropdown={openDropdown}
+              setOpenDropdown={setOpenDropdown}
+              customHeight="max-h-[149px]"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            type="button"
+            disabled={isDbActionLoading}
+            onClick={handleExecuteBulkEdit}
+            className="bg-[#05488B] hover:bg-[#215ea0] disabled:opacity-50 text-[#ffc107] font-bold text-xs px-5 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+          >
+            {isDbActionLoading ? "Updating..." : `💾 Apply Changes to ${selectedDbPapersList.length} Papers`}
+          </button>
+        </div>
+      </div>
+    )}
+
+    <BulkPapersDbTable
+      pagedDbPapers={pagedDbPapers}
+      dbSelectedIds={dbSelectedIds}
+      toggleAllDbPapers={toggleAllDbPapers}
+      toggleDbPaper={toggleDbPaper}
+      totalCount={totalFilteredCount}
+      dbPage={dbPage}
+      dbPageSize={dbPageSize}
+      setDbPage={setDbPage}
+      accentColor="accent-[#05488B]"
+      activeRowBg="bg-amber-50"
+    />
+  </div>
+);
+
+interface BulkDeleteModeViewProps {
+  dbActionMessage: any;
+  setDbActionMessage: (msg: any) => void;
+  dbSearch: string;
+  setDbSearch: (val: string) => void;
+  dbCourseFilter: string;
+  setDbCourseFilter: (val: string) => void;
+  dbSemFilter: string;
+  setDbSemFilter: (val: string) => void;
+  dbExamFilter: string;
+  setDbExamFilter: (val: string) => void;
+  dbPage: number;
+  setDbPage: (val: any) => void;
+  dbPageSize: number;
+  uniqueCourses: any[];
+  uniqueSemesters: any[];
+  uniqueExams: any[];
+  openDropdown: string | null;
+  setOpenDropdown: (id: string | null) => void;
+  selectedDbPapersList: any[];
+  clearDbSelection: () => void;
+  isDbActionLoading: boolean;
+  setShowDeleteConfirm: (val: boolean) => void;
+  pagedDbPapers: any[];
+  dbSelectedIds: Set<any>;
+  toggleAllDbPapers: () => void;
+  toggleDbPaper: (id: any) => void;
+  totalFilteredCount: number;
+}
+
+const BulkDeleteModeView: React.FC<BulkDeleteModeViewProps> = ({
+  dbActionMessage,
+  setDbActionMessage,
+  dbSearch,
+  setDbSearch,
+  dbCourseFilter,
+  setDbCourseFilter,
+  dbSemFilter,
+  setDbSemFilter,
+  dbExamFilter,
+  setDbExamFilter,
+  dbPage,
+  setDbPage,
+  dbPageSize,
+  uniqueCourses,
+  uniqueSemesters,
+  uniqueExams,
+  openDropdown,
+  setOpenDropdown,
+  selectedDbPapersList,
+  clearDbSelection,
+  isDbActionLoading,
+  setShowDeleteConfirm,
+  pagedDbPapers,
+  dbSelectedIds,
+  toggleAllDbPapers,
+  toggleDbPaper,
+  totalFilteredCount,
+}) => (
+  <div className="space-y-3.5">
+    {dbActionMessage && (
+      <div className={`p-2.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
+        dbActionMessage.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+      }`}>
+        <span>{dbActionMessage.type === "error" ? "❌ " : "✅ "}{dbActionMessage.text}</span>
+        <button type="button" onClick={() => setDbActionMessage(null)} className="text-gray-400 hover:text-black">✕</button>
+      </div>
+    )}
+
+    <BulkDbFilters
+      prefix="bulk-delete"
+      dbSearch={dbSearch}
+      setDbSearch={setDbSearch}
+      dbCourseFilter={dbCourseFilter}
+      setDbCourseFilter={setDbCourseFilter}
+      dbSemFilter={dbSemFilter}
+      setDbSemFilter={setDbSemFilter}
+      dbExamFilter={dbExamFilter}
+      setDbExamFilter={setDbExamFilter}
+      setDbPage={setDbPage}
+      uniqueCourses={uniqueCourses}
+      uniqueSemesters={uniqueSemesters}
+      uniqueExams={uniqueExams}
+      openDropdown={openDropdown}
+      setOpenDropdown={setOpenDropdown}
+    />
+
+    <div className="flex items-center justify-between p-3 bg-red-50/80 border border-red-200 rounded-xl">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold text-red-900">
+          Selected for Deletion: {selectedDbPapersList.length} Paper{selectedDbPapersList.length === 1 ? "" : "s"}
+        </span>
+        {selectedDbPapersList.length > 0 && (
+          <button type="button" onClick={clearDbSelection} className="text-xs text-gray-500 hover:text-black">
+            (Clear)
+          </button>
+        )}
+      </div>
+
+      <button
+        type="button"
+        disabled={selectedDbPapersList.length === 0 || isDbActionLoading}
+        onClick={() => setShowDeleteConfirm(true)}
+        className="bg-[#E31E24] hover:bg-[#c11018] disabled:opacity-40 text-white font-bold text-xs px-4 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+      >
+        {isDbActionLoading ? "Deleting..." : `🗑️ Delete Selected (${selectedDbPapersList.length})`}
+      </button>
+    </div>
+
+    <BulkPapersDbTable
+      pagedDbPapers={pagedDbPapers}
+      dbSelectedIds={dbSelectedIds}
+      toggleAllDbPapers={toggleAllDbPapers}
+      toggleDbPaper={toggleDbPaper}
+      totalCount={totalFilteredCount}
+      dbPage={dbPage}
+      dbPageSize={dbPageSize}
+      setDbPage={setDbPage}
+      accentColor="accent-[#E31E24]"
+      activeRowBg="bg-red-50/70"
+    />
+  </div>
+);
+
 export default function BulkPaperUpload({
   bulkMode = "upload",
   setBulkMode,
@@ -628,32 +953,23 @@ export default function BulkPaperUpload({
         <>
           {bulkFiles.length === 0 ? (
             <div className="space-y-3">
-              <div
+              <button
+                type="button"
                 {...bulkDragHandlers}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    mainInputRef.current?.click();
-                  }
-                }}
                 onClick={() => mainInputRef.current?.click()}
-                className={`w-full rounded-xl border-2 border-dashed p-6 sm:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${
+                className={`w-full rounded-xl border-2 border-dashed p-6 sm:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors block ${
                   bulkIsDragging ? "border-[#05488B] bg-[#eef5ff]" : "border-[#ffc107] bg-[#fffdf5] hover:bg-[#fffaf0]"
                 }`}
               >
                 <div className="text-3xl mb-2">📁</div>
                 <p className="text-base font-semibold text-[#374151]">Drag &amp; drop PDF/DOCX files here</p>
                 <p className="text-xs text-gray-500 mb-3">or browse files from your computer</p>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); mainInputRef.current?.click(); }}
-                  className="bg-[#05488B] hover:bg-[#215ea0] text-[#ffc107] px-5 py-1.5 rounded-lg shadow font-medium text-sm transition-colors"
+                <span
+                  className="inline-block bg-[#05488B] hover:bg-[#215ea0] text-[#ffc107] px-5 py-1.5 rounded-lg shadow font-medium text-sm transition-colors"
                 >
                   📂 Choose Files
-                </button>
-              </div>
+                </span>
+              </button>
 
               <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 flex flex-col sm:flex-row items-center gap-2">
                 <span className="text-xs font-semibold text-gray-600 shrink-0">🔗 Have document link?</span>
@@ -838,12 +1154,12 @@ export default function BulkPaperUpload({
                   className="bg-[#05488B] hover:bg-[#215ea0] disabled:opacity-50 text-[#ffc107] px-8 py-2 rounded-lg font-bold text-sm shadow-md transition-colors flex items-center gap-2"
                 >
                   {bulkIsUploading ? (
-                    <>
+                    <span className="flex items-center gap-2">
                       <span className="w-4 h-4 border-2 border-[#ffc107] border-t-transparent rounded-full animate-spin"></span>
-                      Uploading Papers...
-                    </>
+                      <span>Uploading Papers...</span>
+                    </span>
                   ) : (
-                    <>🚀 Upload All ({bulkFiles.length} Paper{bulkFiles.length > 1 ? "s" : ""})</>
+                    <span>🚀 Upload All ({bulkFiles.length} Paper{bulkFiles.length > 1 ? "s" : ""})</span>
                   )}
                 </button>
               </div>
@@ -854,209 +1170,71 @@ export default function BulkPaperUpload({
 
       {/* MODE 2: BULK EDIT PAPERS */}
       {bulkMode === "edit" && (
-        <div className="space-y-3.5">
-          {dbActionMessage && (
-            <div className={`p-2.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
-              dbActionMessage.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-800 border border-emerald-200"
-            }`}>
-              <span>{dbActionMessage.type === "error" ? "❌ " : "✅ "}{dbActionMessage.text}</span>
-              <button type="button" onClick={() => setDbActionMessage(null)} className="text-gray-400 hover:text-black">✕</button>
-            </div>
-          )}
-
-          <BulkDbFilters
-            prefix="bulk-edit"
-            dbSearch={dbSearch}
-            setDbSearch={setDbSearch}
-            dbCourseFilter={dbCourseFilter}
-            setDbCourseFilter={setDbCourseFilter}
-            dbSemFilter={dbSemFilter}
-            setDbSemFilter={setDbSemFilter}
-            dbExamFilter={dbExamFilter}
-            setDbExamFilter={setDbExamFilter}
-            setDbPage={setDbPage}
-            uniqueCourses={uniqueCourses}
-            uniqueSemesters={uniqueSemesters}
-            uniqueExams={uniqueExams}
-            openDropdown={openDropdown}
-            setOpenDropdown={setOpenDropdown}
-          />
-
-          {/* Bulk Edit Drawer if items are selected */}
-          {selectedDbPapersList.length > 0 && (
-            <div className="p-3.5 bg-blue-50/80 border-2 border-blue-300 rounded-xl space-y-2.5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#05488B]">
-                  ✏️ Bulk Update Selected ({selectedDbPapersList.length} Papers)
-                </span>
-                <button type="button" onClick={clearDbSelection} className="text-xs text-gray-500 hover:text-black">
-                  Clear Selection
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-                <div>
-                  <label htmlFor="bulk-edit-drawer-course" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW COURSE</label>
-                  <CustomDropdown
-                    id="bulk-edit-drawer-course"
-                    label="(Keep Same)"
-                    options={["(Keep Same)", ...uniqueCourses]}
-                    value={editUpdates.course || "(Keep Same)"}
-                    setValue={(val) => setEditUpdates({ ...editUpdates, course: val === "(Keep Same)" ? "" : val })}
-                    openDropdown={openDropdown}
-                    setOpenDropdown={setOpenDropdown}
-                    customHeight="max-h-[149px]"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="bulk-edit-drawer-year" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW YEAR</label>
-                  <CustomDropdown
-                    id="bulk-edit-drawer-year"
-                    label="(Keep Same)"
-                    options={["(Keep Same)", ...uniqueYears]}
-                    value={editUpdates.year || "(Keep Same)"}
-                    setValue={(val) => setEditUpdates({ ...editUpdates, year: val === "(Keep Same)" ? "" : val })}
-                    openDropdown={openDropdown}
-                    setOpenDropdown={setOpenDropdown}
-                    customHeight="max-h-[149px]"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="bulk-edit-drawer-spec" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW SPECIALIZATION</label>
-                  <input
-                    id="bulk-edit-drawer-spec"
-                    placeholder="(Keep Same)"
-                    value={editUpdates.spec}
-                    onChange={(e) => setEditUpdates({ ...editUpdates, spec: e.target.value })}
-                    className="w-full bg-white border border-[#ffc107] rounded-lg px-4 py-2 text-base font-medium text-center shadow-xs outline-none text-[#215ea0] placeholder:text-[#374151]"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="bulk-edit-drawer-sem" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW SEMESTER</label>
-                  <CustomDropdown
-                    id="bulk-edit-drawer-sem"
-                    label="(Keep Same)"
-                    options={["(Keep Same)", ...uniqueSemesters]}
-                    value={editUpdates.semester || "(Keep Same)"}
-                    setValue={(val) => setEditUpdates({ ...editUpdates, semester: val === "(Keep Same)" ? "" : val })}
-                    openDropdown={openDropdown}
-                    setOpenDropdown={setOpenDropdown}
-                    customHeight="max-h-[149px]"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="bulk-edit-drawer-exam" className="text-[10px] font-bold text-gray-500 block mb-0.5">NEW EXAM</label>
-                  <CustomDropdown
-                    id="bulk-edit-drawer-exam"
-                    label="(Keep Same)"
-                    options={["(Keep Same)", "MSE", "ESE"]}
-                    value={editUpdates.exam || "(Keep Same)"}
-                    setValue={(val) => setEditUpdates({ ...editUpdates, exam: val === "(Keep Same)" ? "" : val })}
-                    openDropdown={openDropdown}
-                    setOpenDropdown={setOpenDropdown}
-                    customHeight="max-h-[149px]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  disabled={isDbActionLoading}
-                  onClick={handleExecuteBulkEdit}
-                  className="bg-[#05488B] hover:bg-[#215ea0] disabled:opacity-50 text-[#ffc107] font-bold text-xs px-5 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
-                >
-                  {isDbActionLoading ? "Updating..." : `💾 Apply Changes to ${selectedDbPapersList.length} Papers`}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <BulkPapersDbTable
-            pagedDbPapers={pagedDbPapers}
-            dbSelectedIds={dbSelectedIds}
-            toggleAllDbPapers={toggleAllDbPapers}
-            toggleDbPaper={toggleDbPaper}
-            totalCount={filteredDbPapers.length}
-            dbPage={dbPage}
-            dbPageSize={dbPageSize}
-            setDbPage={setDbPage}
-            accentColor="accent-[#05488B]"
-            activeRowBg="bg-amber-50"
-          />
-        </div>
+        <BulkEditModeView
+          dbActionMessage={dbActionMessage}
+          setDbActionMessage={setDbActionMessage}
+          dbSearch={dbSearch}
+          setDbSearch={setDbSearch}
+          dbCourseFilter={dbCourseFilter}
+          setDbCourseFilter={setDbCourseFilter}
+          dbSemFilter={dbSemFilter}
+          setDbSemFilter={setDbSemFilter}
+          dbExamFilter={dbExamFilter}
+          setDbExamFilter={setDbExamFilter}
+          dbPage={dbPage}
+          setDbPage={setDbPage}
+          dbPageSize={dbPageSize}
+          uniqueCourses={uniqueCourses}
+          uniqueYears={uniqueYears}
+          uniqueSemesters={uniqueSemesters}
+          uniqueExams={uniqueExams}
+          openDropdown={openDropdown}
+          setOpenDropdown={setOpenDropdown}
+          selectedDbPapersList={selectedDbPapersList}
+          clearDbSelection={clearDbSelection}
+          editUpdates={editUpdates}
+          setEditUpdates={setEditUpdates}
+          isDbActionLoading={isDbActionLoading}
+          handleExecuteBulkEdit={handleExecuteBulkEdit}
+          pagedDbPapers={pagedDbPapers}
+          dbSelectedIds={dbSelectedIds}
+          toggleAllDbPapers={toggleAllDbPapers}
+          toggleDbPaper={toggleDbPaper}
+          totalFilteredCount={filteredDbPapers.length}
+        />
       )}
 
       {/* MODE 3: BULK DELETE PAPERS */}
       {bulkMode === "delete" && (
-        <div className="space-y-3.5">
-          {dbActionMessage && (
-            <div className={`p-2.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
-              dbActionMessage.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-800 border border-emerald-200"
-            }`}>
-              <span>{dbActionMessage.type === "error" ? "❌ " : "✅ "}{dbActionMessage.text}</span>
-              <button type="button" onClick={() => setDbActionMessage(null)} className="text-gray-400 hover:text-black">✕</button>
-            </div>
-          )}
-
-          <BulkDbFilters
-            prefix="bulk-delete"
-            dbSearch={dbSearch}
-            setDbSearch={setDbSearch}
-            dbCourseFilter={dbCourseFilter}
-            setDbCourseFilter={setDbCourseFilter}
-            dbSemFilter={dbSemFilter}
-            setDbSemFilter={setDbSemFilter}
-            dbExamFilter={dbExamFilter}
-            setDbExamFilter={setDbExamFilter}
-            setDbPage={setDbPage}
-            uniqueCourses={uniqueCourses}
-            uniqueSemesters={uniqueSemesters}
-            uniqueExams={uniqueExams}
-            openDropdown={openDropdown}
-            setOpenDropdown={setOpenDropdown}
-          />
-
-          {/* Bulk Delete Bar */}
-          <div className="flex items-center justify-between p-3 bg-red-50/80 border border-red-200 rounded-xl">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-red-900">
-                Selected for Deletion: {selectedDbPapersList.length} Paper{selectedDbPapersList.length === 1 ? "" : "s"}
-              </span>
-              {selectedDbPapersList.length > 0 && (
-                <button type="button" onClick={clearDbSelection} className="text-xs text-gray-500 hover:text-black">
-                  (Clear)
-                </button>
-              )}
-            </div>
-
-            <button
-              type="button"
-              disabled={selectedDbPapersList.length === 0 || isDbActionLoading}
-              onClick={() => setShowDeleteConfirm(true)}
-              className="bg-[#E31E24] hover:bg-[#c11018] disabled:opacity-40 text-white font-bold text-xs px-4 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
-            >
-              {isDbActionLoading ? "Deleting..." : `🗑️ Delete Selected (${selectedDbPapersList.length})`}
-            </button>
-          </div>
-
-          <BulkPapersDbTable
-            pagedDbPapers={pagedDbPapers}
-            dbSelectedIds={dbSelectedIds}
-            toggleAllDbPapers={toggleAllDbPapers}
-            toggleDbPaper={toggleDbPaper}
-            totalCount={filteredDbPapers.length}
-            dbPage={dbPage}
-            dbPageSize={dbPageSize}
-            setDbPage={setDbPage}
-            accentColor="accent-[#E31E24]"
-            activeRowBg="bg-red-50/70"
-          />
-        </div>
+        <BulkDeleteModeView
+          dbActionMessage={dbActionMessage}
+          setDbActionMessage={setDbActionMessage}
+          dbSearch={dbSearch}
+          setDbSearch={setDbSearch}
+          dbCourseFilter={dbCourseFilter}
+          setDbCourseFilter={setDbCourseFilter}
+          dbSemFilter={dbSemFilter}
+          setDbSemFilter={setDbSemFilter}
+          dbExamFilter={dbExamFilter}
+          setDbExamFilter={setDbExamFilter}
+          dbPage={dbPage}
+          setDbPage={setDbPage}
+          dbPageSize={dbPageSize}
+          uniqueCourses={uniqueCourses}
+          uniqueSemesters={uniqueSemesters}
+          uniqueExams={uniqueExams}
+          openDropdown={openDropdown}
+          setOpenDropdown={setOpenDropdown}
+          selectedDbPapersList={selectedDbPapersList}
+          clearDbSelection={clearDbSelection}
+          isDbActionLoading={isDbActionLoading}
+          setShowDeleteConfirm={setShowDeleteConfirm}
+          pagedDbPapers={pagedDbPapers}
+          dbSelectedIds={dbSelectedIds}
+          toggleAllDbPapers={toggleAllDbPapers}
+          toggleDbPaper={toggleDbPaper}
+          totalFilteredCount={filteredDbPapers.length}
+        />
       )}
 
       {/* Confirmation Modal for Bulk Delete */}

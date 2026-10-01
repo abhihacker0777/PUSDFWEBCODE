@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { uploadBufferToGoogleDrive } from "@/lib/drive";
 import { Paper, PaperTargetMapping } from "@/types/paper";
 import { fetchPublicPapersFromSheet, mirrorPaperToSheet } from "@/lib/sheets";

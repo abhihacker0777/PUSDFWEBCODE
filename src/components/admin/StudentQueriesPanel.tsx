@@ -190,7 +190,7 @@ export default function StudentQueriesPanel({
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                  {group.queries.map((q: any) => (
+                                  {(group.queries || []).map((q: any) => (
                                     <tr key={q.id} className="hover:bg-gray-50 transition-colors">
                                       <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{q.date}</td>
                                       <td className="px-4 py-2.5 text-gray-800 italic">"{q.question}"</td>
