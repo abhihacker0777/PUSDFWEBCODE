@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FiFileText, FiHome, FiMessageCircle, FiSettings, FiUsers } from "react-icons/fi";
+import { FileText, Home, MessageCircle, Settings, Users } from "lucide-react";
 import { ROLE_LABELS } from "./adminConstants";
 
 const getActiveTitle = (activeNav: string): string => {
@@ -59,16 +59,16 @@ export default function useAdminChrome({
   }, []);
 
   const navItems = useMemo(() => ([
-    permissions.canEditPapers && { id: "dashboard", label: "Home", icon: FiHome },
-    permissions.canMonitor && { id: "paper", label: "Recent Action", icon: FiFileText },
+    permissions.canEditPapers && { id: "dashboard", label: "Home", icon: Home },
+    permissions.canMonitor && { id: "paper", label: "Recent Action", icon: FileText },
     permissions.canMonitor && {
       id: "queries",
       label: "Student Queries",
-      icon: FiMessageCircle,
+      icon: MessageCircle,
       showNew: hasNewStudentQueries && activeNav !== "queries"
     },
-    permissions.canReadAssistant && { id: "assistant", label: "Update Assistant", icon: FiSettings },
-    permissions.canManageAdmins && { id: "admins", label: "Admins", icon: FiUsers }
+    permissions.canReadAssistant && { id: "assistant", label: "Update Assistant", icon: Settings },
+    permissions.canManageAdmins && { id: "admins", label: "Admins", icon: Users }
   ].filter(Boolean) as any[]), [activeNav, hasNewStudentQueries, permissions]);
 
   const [showPersonalName, setShowPersonalName] = useState(false);

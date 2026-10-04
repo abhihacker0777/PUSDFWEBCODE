@@ -2,7 +2,7 @@
 
 import React, { RefObject } from "react";
 import Image from "next/image";
-import { FiRefreshCw, FiX } from "react-icons/fi";
+import { RefreshCw, X } from "lucide-react";
 import PaperAssistantChat from "./PaperAssistantChat";
 import PaperAssistantSignin from "./PaperAssistantSignin";
 import { AssistantConfig } from "./useAssistantConfig";
@@ -92,7 +92,7 @@ export default function PaperAssistantPanel({
               aria-label="Change Google account"
               title="Change Google account"
             >
-              <FiRefreshCw aria-hidden="true" />
+              <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           )}
           <button
@@ -102,7 +102,7 @@ export default function PaperAssistantPanel({
             aria-label="Close assistant"
             title="Close"
           >
-            <FiX aria-hidden="true" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </header>

@@ -32,7 +32,7 @@
   color: #ffffff;
   font-size: 14px;
   height: 40px;
-  outline: none;
+  outline: none !important;
 }
 
 .pu-assistant-input::placeholder {
@@ -40,8 +40,10 @@
   opacity: 1;
 }
 
-.pu-assistant-input:focus {
-  box-shadow: none;
+.pu-assistant-input:focus,
+.pu-assistant-input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .pu-assistant-send {

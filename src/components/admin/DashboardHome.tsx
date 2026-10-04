@@ -1,6 +1,15 @@
 import React, { useState } from "react";
-import BulkPaperUpload from "./BulkPaperUpload";
+import dynamic from "next/dynamic";
 import DashboardPage from "./DashboardPage";
+
+const BulkPaperUpload = dynamic(() => import("./BulkPaperUpload"), {
+  ssr: false,
+  loading: () => (
+    <div className="p-8 text-center bg-white rounded-xl shadow-sm border border-gray-200">
+      <p className="text-gray-600 font-medium">Loading Bulk Upload Operations...</p>
+    </div>
+  ),
+});
 
 export interface DashboardHomeProps {
   coverImg?: any;

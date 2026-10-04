@@ -3,11 +3,15 @@ import { Paper } from "@/types/paper";
 
 const SHEET_ID = process.env.SHEET_ID || "";
 const SHEET_URL = process.env.SHEET_URL || "";
-const SHEET_WRITE_MODE = process.env.SHEET_WRITE_MODE || "USER_ENTERED";
+const SHEET_WRITE_MODE = "RAW" as const;
 
 function sanitize(str: any, maxLen = 160): string {
   if (typeof str !== "string") return "";
-  return str.trim().slice(0, maxLen);
+  let trimmed = str.trim().slice(0, maxLen);
+  if (/^[=+\-@\t\r]/.test(trimmed)) {
+    trimmed = `'${trimmed}`;
+  }
+  return trimmed;
 }
 
 function safeUrl(url: any): string {

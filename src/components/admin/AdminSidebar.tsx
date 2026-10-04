@@ -24,7 +24,7 @@ export default function AdminSidebar({ navItems, activeNav, setActiveNav, newQue
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
-            <button key={item.id} onClick={() => setActiveNav(item.id)} className={`shrink-0 whitespace-nowrap w-auto md:w-full flex items-center justify-center md:justify-start gap-2 px-3 md:px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeNav === item.id ? "bg-white text-[#05488b] shadow-md" : "text-black/75 hover:bg-white/15 hover:text-black"}`}>
+            <button key={item.id} onClick={() => setActiveNav(item.id)} aria-current={activeNav === item.id ? "page" : undefined} className={`shrink-0 whitespace-nowrap w-auto md:w-full flex items-center justify-center md:justify-start gap-2 px-3 md:px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeNav === item.id ? "bg-white text-[#05488b] shadow-md" : "text-black/75 hover:bg-white/15 hover:text-black"}`}>
               <Icon className={`${activeNav === item.id ? "text-[#05488b]" : ""} w-4 h-4 shrink-0`} />
               <span className="text-left leading-tight min-w-9">{item.label}</span>
               {item.showNew && (

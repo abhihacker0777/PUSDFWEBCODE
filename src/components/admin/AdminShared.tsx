@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "./AdminIcons";
 import { ROLE_LABELS } from "./adminConstants";
@@ -134,6 +134,16 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ id, label, optio
   const [searchTerm, setSearchTerm] = useState("");
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen && searchable) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, searchable]);
 
   const menuPosition = useDropdownPosition(
     isOpen,
@@ -206,17 +216,44 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ id, label, optio
         <div
           ref={menuRef}
           style={{ position: "fixed", top: menuPosition.top, left: menuPosition.left, width: customWidth ? undefined : menuPosition.width }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           className={`bg-[#cbe0fe] rounded-lg shadow-2xl z-[9999] border border-blue-200 overflow-hidden ${customWidth || ""}`}
         >
           {searchable && (
-            <div className="p-2 border-b border-blue-200/70">
+            <div
+              className="p-2 border-b border-blue-200/70 relative"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
               <input
+                ref={searchInputRef}
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Escape") {
+                    setOpenDropdown(null);
+                  }
+                }}
                 placeholder={`Search ${label.toLowerCase()}...`}
-                className="w-full border border-blue-300 rounded-md px-3 py-1.5 text-sm outline-none bg-white text-[#374151] placeholder:text-gray-400"
+                className="w-full border border-blue-300 rounded-md px-3 py-1.5 text-sm outline-none focus:outline-none focus:ring-1 focus:ring-[#05488B] bg-white text-[#374151] placeholder:text-gray-400 pr-7"
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearchTerm("");
+                    searchInputRef.current?.focus();
+                  }}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold p-1 cursor-pointer"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           )}
           <div className={`${customHeight || 'max-h-[150px]'} overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#ffc107] [&::-webkit-scrollbar-thumb]:rounded-full`}>

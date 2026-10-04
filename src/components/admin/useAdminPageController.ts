@@ -47,6 +47,7 @@ export default function useAdminPageController() {
     let isPolling = false;
     const loadData = async () => {
       if (isPolling) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       isPolling = true;
       try {
         await fetchPapers();
@@ -66,8 +67,19 @@ export default function useAdminPageController() {
     void loadData();
     const intervalId = setInterval(() => {
       void loadData();
-    }, 30000);
-    return () => clearInterval(intervalId);
+    }, 90000);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void loadData();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [
     fetchAdminUsers,
     fetchLogs,

@@ -1,5 +1,5 @@
 import React from "react";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { Eye, EyeOff } from "lucide-react";
 import { ADMIN_PASSWORD_MIN_LENGTH } from "./adminConstants";
 import { RoleDropdown } from "./AdminShared";
 
@@ -95,7 +95,7 @@ export default function AdminUserRow({
               onClick={() => toggleDraftPassword(user.id)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black focus:outline-none disabled:opacity-50"
             >
-              {isPasswordVisible ? <FaEyeSlash /> : <FaEye />}
+              {isPasswordVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           )}
         </div>

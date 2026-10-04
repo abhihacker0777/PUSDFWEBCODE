@@ -109,7 +109,7 @@ export default function RecentActionsPanel({
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-          <div className="flex items-center gap-2 border border-blue-200 bg-blue-50/60 rounded-lg px-4 py-1.5 w-full sm:w-60"><SearchIcon /><input className="bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none w-full" placeholder="Search" value={search} onChange={e => setSearch(e.target.value)} /></div>
+          <div className="flex items-center gap-2 border border-blue-200 bg-blue-50/60 rounded-lg px-4 py-1.5 w-full sm:w-60"><SearchIcon /><input className="bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 w-full" placeholder="Search" value={search} onChange={e => setSearch(e.target.value)} /></div>
           <div className="relative w-full sm:w-auto">
             <button onClick={(e) => { e.stopPropagation(); setShowFilter(!showFilter); setShowAllMenu(false); setShowQueryFilter(false); }} className="w-full justify-center p-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 shadow-sm"><FilterLinesIcon /></button>
             {showFilter && (

@@ -93,7 +93,7 @@ export const getTimeGreeting = (name?: string): string => {
   return `Hello${student}, studying late? 🌙`;
 };
 
-export const buildInitialMessages = (user?: any) => {
+export const buildInitialMessages = (user?: any, time?: string) => {
   const studentName = user?.name || (user?.email ? user.email.split("@")[0].replace(/\d+/g, " ").trim() : "");
   const formattedName = studentName
     ? studentName.split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")
@@ -106,7 +106,7 @@ export const buildInitialMessages = (user?: any) => {
       text: user?.email
         ? `${greeting}\n\nHello! Welcome to Poornima University Academic Portal. How can I help you today? 😊`
         : "Sign in with your Poornima Google account to ask for papers.",
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: time || "",
       isWelcome: true,
     }
   ];

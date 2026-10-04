@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import { uploadPaper, bulkDeletePapersApi, bulkEditPapersApi } from "./adminApi";
 import { cleanStatusMessage, clearPapersCache, notifyPapersUpdated, readApiResponse } from "./adminHelpers";
 import { buildPaperOptions } from "./paperOptions";
@@ -62,8 +62,9 @@ const uploadBulkRowTargets = async (row: any): Promise<{ success: boolean; messa
         return { success: false, message: cleanStatusMessage(payload.message || "Upload failed") };
       }
 
-      if (payload.paper?.link) {
-        sharedFileLink = payload.paper.link;
+      const sharedLink = payload.paper?.link ?? payload.paper?.drive_url ?? payload.data?.drive_url ?? payload.data?.link;
+      if (sharedLink) {
+        sharedFileLink = sharedLink;
       }
     } catch {
       return { success: false, message: "Server connection failed" };
@@ -318,16 +319,29 @@ export default function useBulkPaperUpload({
     }));
   }, [rememberCustomSpec, rememberCustomSemester]);
 
-  const bulkOptionsForTarget = useCallback((target: any) => buildPaperOptions({
-    allPapers,
-    course: target.course,
-    year: target.year,
-    spec: target.spec,
-    semester: target.semester,
-    exam: target.exam,
-    customSpecsByCourse,
-    customSemestersByYear
-  }), [allPapers, customSpecsByCourse, customSemestersByYear]);
+  const optionsCache = useRef(new Map<string, ReturnType<typeof buildPaperOptions>>());
+  useEffect(() => {
+    optionsCache.current.clear();
+  }, [allPapers, customSpecsByCourse, customSemestersByYear]);
+
+  const bulkOptionsForTarget = useCallback((target: any) => {
+    const key = [target.course, target.year, target.spec, target.semester, target.exam].join("|");
+    let v = optionsCache.current.get(key);
+    if (!v) {
+      v = buildPaperOptions({
+        allPapers,
+        course: target.course,
+        year: target.year,
+        spec: target.spec,
+        semester: target.semester,
+        exam: target.exam,
+        customSpecsByCourse,
+        customSemestersByYear
+      });
+      optionsCache.current.set(key, v);
+    }
+    return v;
+  }, [allPapers, customSpecsByCourse, customSemestersByYear]);
 
   const uploadAllBulkFiles = useCallback(async () => {
     if (!canCreatePapers || bulkFiles.length === 0 || bulkIsUploading) return;

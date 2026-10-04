@@ -157,7 +157,7 @@ const BulkPaperUploadRow = ({
               value={row.paperName}
               placeholder="Paper Name"
               onChange={(e) => onFieldChange(row.id, null, "paperName", e.target.value)}
-              className="font-bold text-xs sm:text-sm text-[#05488B] bg-transparent border-b border-transparent hover:border-gray-300 focus:border-[#05488B] outline-none px-1 py-0.5 w-full truncate"
+              className="font-bold text-xs sm:text-sm text-[#05488B] bg-transparent border-b border-transparent hover:border-gray-300 focus:border-[#05488B] outline-none focus:outline-none focus-visible:outline-none focus:ring-0 px-1 py-0.5 w-full truncate"
               title="Click to rename paper title"
             />
             <p className="text-[11px] text-gray-500 truncate px-1" title={row.link || row.fileName}>

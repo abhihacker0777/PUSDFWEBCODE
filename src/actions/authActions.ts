@@ -9,9 +9,10 @@ import {
   recordFailedLogin,
   resetLoginAttempts
 } from "@/lib/redis";
+import { allow } from "@/lib/ratelimit";
 import crypto from "node:crypto";
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "hackcanabhi@gmail.com";
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "").toLowerCase().trim();
 const PASSWORD_RESET_URL = process.env.PASSWORD_RESET_URL || "http://localhost:3000/reset-password";
 
 function extractCredentials(param1: FormData | string, param2?: string, param3?: string) {
@@ -33,20 +34,36 @@ function extractCredentials(param1: FormData | string, param2?: string, param3?:
   return { identifier: "", password: "", captchaToken: "" };
 }
 
-async function handleFailedLogin(cleanIdentifier: string, startedAt: number) {
-  const lockout = await recordFailedLogin(cleanIdentifier, 5, 900);
+async function handleFailedLogin(
+  cleanIdentifier: string,
+  startedAt: number
+): Promise<{
+  success: false;
+  message: string;
+  code?: string;
+  remainingAttempts?: number;
+  retryAfterSeconds?: number;
+}> {
+  const result = await recordFailedLogin(cleanIdentifier);
   await equalizeLoginTiming(startedAt);
-  if (lockout.locked) {
+
+  if (result.locked) {
     return {
       success: false,
-      message: "Too many failed login attempts. Account temporarily locked for 15 minutes.",
+      message: "Too many failed login attempts. Account temporarily locked.",
       code: "RATE_LIMITED",
-      retryAfterSeconds: 900,
+      retryAfterSeconds: 900
     };
   }
+
+  const remaining = result.remaining;
   return {
     success: false,
-    message: `Invalid credentials. (${lockout.remaining} attempt${lockout.remaining === 1 ? "" : "s"} remaining before temporary lockout.)`,
+    message: remaining <= 2
+      ? `Invalid credentials. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining before lockout.`
+      : "Invalid login credentials.",
+    code: "INVALID_CREDENTIALS",
+    remainingAttempts: remaining
   };
 }
 
@@ -55,17 +72,34 @@ async function resolveAuthEmail(
   cleanIdentifier: string,
   rawIdentifier: string
 ): Promise<{ emailToAuth?: string; deactivated?: boolean; notFound?: boolean }> {
-  const { data: userRecord } = await adminSupabase
+  const id = cleanIdentifier.trim().toLowerCase().slice(0, 254);
+
+  // Exact lowercase login_identifier match
+  const { data: byLogin } = await adminSupabase
     .from("admin_users")
-    .select("email, display_name, is_active")
-    .or(`login_identifier.ilike.${cleanIdentifier},email.ilike.${cleanIdentifier}`)
+    .select("email, auth_email, is_active")
+    .eq("login_identifier", id)
     .maybeSingle();
 
-  if (userRecord) {
-    if (!userRecord.is_active) {
+  if (byLogin) {
+    if (!byLogin.is_active) {
       return { deactivated: true };
     }
-    return { emailToAuth: userRecord.email || rawIdentifier.trim() };
+    return { emailToAuth: byLogin.auth_email || byLogin.email || rawIdentifier.trim() };
+  }
+
+  // Exact lowercase email match
+  const { data: byEmail } = await adminSupabase
+    .from("admin_users")
+    .select("email, auth_email, is_active")
+    .eq("email", id)
+    .maybeSingle();
+
+  if (byEmail) {
+    if (!byEmail.is_active) {
+      return { deactivated: true };
+    }
+    return { emailToAuth: byEmail.auth_email || byEmail.email || rawIdentifier.trim() };
   }
 
   if (!cleanIdentifier.includes("@")) {
@@ -77,20 +111,19 @@ async function resolveAuthEmail(
 
 async function verifyActiveAdminStatus(
   adminSupabase: any,
-  supabase: any,
+  _supabase: any,
   emailToAuth: string
 ): Promise<boolean> {
-  const isSuperAdmin = emailToAuth.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isSuperAdmin = Boolean(ADMIN_EMAIL && emailToAuth.toLowerCase() === ADMIN_EMAIL);
   if (isSuperAdmin) return true;
 
   const { data: adminRecord } = await adminSupabase
     .from("admin_users")
     .select("is_active, role")
-    .eq("email", emailToAuth)
-    .single();
+    .eq("email", emailToAuth.toLowerCase().trim())
+    .maybeSingle();
 
   if (!adminRecord?.is_active) {
-    await supabase.auth.signOut();
     return false;
   }
   return true;
@@ -116,7 +149,7 @@ export async function loginAction(
     return { success: false, message: "Please provide both identifier and password." };
   }
 
-  const cleanIdentifier = identifier.trim().toLowerCase();
+  const cleanIdentifier = identifier.trim().toLowerCase().slice(0, 254);
 
   // 2. Check if identifier is currently locked out
   const currentAttempts = await getLoginAttempts(cleanIdentifier);
@@ -135,11 +168,11 @@ export async function loginAction(
     const supabase = await createClient();
     const adminSupabase = createAdminClient();
 
-    // 3. Resolve login identifier (could be email or username)
+    // 3. Resolve login identifier (email or username)
     const resolution = await resolveAuthEmail(adminSupabase, cleanIdentifier, identifier);
     if (resolution.deactivated) {
-      await equalizeLoginTiming(startedAt);
-      return { success: false, message: "This administrative account has been deactivated." };
+      // Record failed attempt and return generic message to avoid enumeration
+      return await handleFailedLogin(cleanIdentifier, startedAt);
     }
     if (resolution.notFound || !resolution.emailToAuth) {
       return await handleFailedLogin(cleanIdentifier, startedAt);
@@ -163,12 +196,19 @@ export async function loginAction(
     // 6. Verify account active state
     const isActive = await verifyActiveAdminStatus(adminSupabase, supabase, emailToAuth);
     if (!isActive) {
-      await equalizeLoginTiming(startedAt);
-      return { success: false, message: "This administrative account has been deactivated." };
+      await supabase.auth.signOut();
+      return await handleFailedLogin(cleanIdentifier, startedAt);
     }
 
+
     await equalizeLoginTiming(startedAt);
-    return { success: true, user: authData.user };
+    return {
+      success: true,
+      user: {
+        id: authData.user.id,
+        email: authData.user.email,
+      },
+    };
   } catch (error: any) {
     await equalizeLoginTiming(startedAt);
     return { success: false, message: error.message || "An error occurred during authentication.", code: "AUTH_ERROR" };
@@ -181,96 +221,137 @@ export async function logoutAction() {
   return { success: true };
 }
 
+const pad = async (t0: number, ms = 800) => {
+  const d = ms - (Date.now() - t0);
+  if (d > 0) await new Promise((r) => setTimeout(r, d));
+};
+
+const GENERIC_RESET_MSG = {
+  success: true,
+  message: "If that email belongs to an administrator, a reset link has been dispatched.",
+};
+
 export async function requestPasswordResetAction(email: string) {
-  const cleanEmail = email.toLowerCase().trim();
-  if (!cleanEmail) {
-    return { success: false, message: "Please provide a valid email address." };
+  const t0 = Date.now();
+  const cleanEmail = String(email ?? "").toLowerCase().trim();
+
+  if (!cleanEmail || cleanEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    await pad(t0);
+    return GENERIC_RESET_MSG;
+  }
+
+  // Rate limit password reset requests
+  const allowed = await allow("reset", `e:${cleanEmail}`, 3, 3600000);
+  if (!allowed) {
+    await pad(t0);
+    return GENERIC_RESET_MSG;
   }
 
   try {
     const adminSupabase = createAdminClient();
-    const isSuperAdmin = cleanEmail === ADMIN_EMAIL.toLowerCase();
+    const isSuperAdmin = Boolean(ADMIN_EMAIL && cleanEmail === ADMIN_EMAIL);
 
-    // Verify email belongs to an admin
     let recipientName = "Administrator";
     if (!isSuperAdmin) {
       const { data: adminRecord } = await adminSupabase
         .from("admin_users")
         .select("display_name, is_active")
         .eq("email", cleanEmail)
-        .single();
+        .maybeSingle();
 
       if (!adminRecord?.is_active) {
-        // Return generic success to avoid account enumeration (OWASP)
-        return { success: true, message: "If that email belongs to an administrator, a reset link has been dispatched." };
+        await pad(t0);
+        return GENERIC_RESET_MSG;
       }
       recipientName = adminRecord.display_name || recipientName;
     }
 
     // Generate secure token
-    const token = crypto.randomBytes(32).toString("hex");
+    const token = crypto.randomBytes(32).toString("base64url");
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins
 
-    // Save token hash to Supabase admin_resets table or metadata
-    await adminSupabase.from("admin_password_resets").insert({
+    const { error: insertError } = await adminSupabase.from("admin_password_resets").insert({
       email: cleanEmail,
       token_hash: tokenHash,
       expires_at: expiresAt,
     });
+
+    if (insertError) {
+      console.error("admin_password_resets insert error:", insertError);
+      await pad(t0);
+      return GENERIC_RESET_MSG;
+    }
 
     const resetLink = `${PASSWORD_RESET_URL}?token=${token}&email=${encodeURIComponent(cleanEmail)}`;
     await sendPasswordResetEmail({
       to: cleanEmail,
       resetUrl: resetLink,
       recipientName,
-    });
+    }).catch((mailErr) => console.error("Send reset email error:", mailErr));
 
-    return {
-      success: true,
-      message: "If that email belongs to an administrator, a reset link has been dispatched.",
-    };
+    await pad(t0);
+    return GENERIC_RESET_MSG;
   } catch (err: any) {
     console.error("Password reset error:", err);
-    return { success: false, message: "Unable to process password reset at this time." };
+    await pad(t0);
+    return GENERIC_RESET_MSG;
   }
 }
 
 export async function confirmPasswordResetAction(token: string, newPassword: string) {
   try {
-    if (!token || !newPassword || newPassword.length < 10) {
+    if (!token || typeof token !== "string" || token.length < 20 || token.length > 128) {
+      return { success: false, message: "Reset link is invalid or has already been used." };
+    }
+
+    if (!newPassword || typeof newPassword !== "string" || newPassword.length < 10 || newPassword.length > 128) {
       return { success: false, message: "Password must be at least 10 characters." };
     }
 
     const adminSupabase = getServiceRoleClient();
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-    const { data: resetEntry, error } = await adminSupabase
+    // Atomic single-use delete
+    const { data: resetEntry, error: deleteError } = await adminSupabase
       .from("admin_password_resets")
-      .select("id, email, expires_at")
+      .delete()
       .eq("token_hash", tokenHash)
-      .single();
+      .gt("expires_at", new Date().toISOString())
+      .select("email")
+      .maybeSingle();
 
-    if (error || !resetEntry) {
-      return { success: false, message: "Reset link is invalid or has already been used." };
+    if (deleteError || !resetEntry) {
+      return { success: false, message: "Reset link is invalid, expired, or has already been used." };
     }
 
-    if (new Date(resetEntry.expires_at) < new Date()) {
-      return { success: false, message: "Reset link has expired. Please request a new one." };
+    // Locate target user across pages
+    let targetUserId: string | null = null;
+    for (let page = 1; page <= 20; page++) {
+      const { data: res } = await adminSupabase.auth.admin.listUsers({ page, perPage: 200 });
+      const u = res?.users.find((x: any) => x.email?.toLowerCase() === resetEntry.email.toLowerCase());
+      if (u) {
+        targetUserId = u.id;
+        break;
+      }
+      if (!res || res.users.length < 200) break;
     }
 
-    // Update password in Supabase Auth
-    const { data: userList } = await adminSupabase.auth.admin.listUsers();
-    const targetUser = userList?.users.find((u) => u.email === resetEntry.email);
-
-    if (targetUser) {
-      await adminSupabase.auth.admin.updateUserById(targetUser.id, {
-        password: newPassword,
-      });
+    if (!targetUserId) {
+      return { success: false, message: "Could not complete password reset. User not found." };
     }
 
-    // Delete used reset token
-    await adminSupabase.from("admin_password_resets").delete().eq("id", resetEntry.id);
+    const { error: updateError } = await adminSupabase.auth.admin.updateUserById(targetUserId, {
+      password: newPassword,
+    });
+
+    if (updateError) {
+      console.error("Supabase password update error:", updateError);
+      return { success: false, message: "Could not update the password." };
+    }
+
+    // Clean up any other remaining reset tokens for this email
+    await adminSupabase.from("admin_password_resets").delete().eq("email", resetEntry.email);
 
     return {
       success: true,
@@ -281,4 +362,3 @@ export async function confirmPasswordResetAction(token: string, newPassword: str
     return { success: false, message: "Unable to update password at this time." };
   }
 }
-

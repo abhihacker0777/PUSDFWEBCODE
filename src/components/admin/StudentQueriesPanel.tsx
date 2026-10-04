@@ -1,5 +1,5 @@
 import React from "react";
-import { FiChevronDown, FiChevronRight } from "react-icons/fi";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { FilterLinesIcon, SearchIcon } from "./AdminIcons";
 import { PaginationFooter } from "./AdminShared";
 import { normalizeQueryEmail } from "./adminHelpers";
@@ -96,7 +96,7 @@ export default function StudentQueriesPanel({
     <>
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 gap-3 md:gap-0">
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-          <div className="flex items-center gap-2 border border-blue-200 bg-blue-50/60 rounded-lg px-4 py-1.5 w-full sm:w-60"><SearchIcon /><input className="bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none w-full" placeholder="Search Query or Email" value={querySearch} onChange={e => setQuerySearch(e.target.value)} /></div>
+          <div className="flex items-center gap-2 border border-blue-200 bg-blue-50/60 rounded-lg px-4 py-1.5 w-full sm:w-60"><SearchIcon /><input className="bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 w-full" placeholder="Search Query or Email" value={querySearch} onChange={e => setQuerySearch(e.target.value)} /></div>
           <div className="relative w-full sm:w-auto">
             <button onClick={(e) => { e.stopPropagation(); setShowQueryFilter(prev => !prev); setShowAllMenu(false); setShowFilter(false); }} className="w-full justify-center p-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 shadow-sm"><FilterLinesIcon /></button>
             {showQueryFilter && (
@@ -133,7 +133,7 @@ export default function StudentQueriesPanel({
                   <React.Fragment key={group.email}>
                     <tr className={`transition-colors cursor-pointer ${isExpanded ? "bg-blue-50/40" : "bg-white hover:bg-gray-50"}`} onClick={() => { rememberStudentQueryEmail(group.email); toggleEmailExpanded(group.email); }}>
                       <td className="px-4 py-3 text-gray-400 text-center">
-                        {isExpanded ? <FiChevronDown className="w-5 h-5 text-[#05488B]" /> : <FiChevronRight className="w-5 h-5" />}
+                        {isExpanded ? <ChevronDown className="w-5 h-5 text-[#05488B]" /> : <ChevronRight className="w-5 h-5" />}
                       </td>
                       <td className="px-4 py-3 text-gray-800 font-bold text-base">
                         <div className="flex items-center gap-2 min-w-0">

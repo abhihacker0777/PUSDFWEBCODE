@@ -1,6 +1,15 @@
 import React, { useState } from "react";
-import QueryInsightsPanel from "./QueryInsightsPanel";
+import dynamic from "next/dynamic";
 import StudentQueriesPanel from "./StudentQueriesPanel";
+
+const QueryInsightsPanel = dynamic(() => import("./QueryInsightsPanel"), {
+  ssr: false,
+  loading: () => (
+    <div className="p-8 text-center bg-white rounded-xl shadow-sm border border-gray-200">
+      <p className="text-gray-600 font-medium">Loading Query Insights...</p>
+    </div>
+  ),
+});
 
 export interface StudentQueriesHomeProps {
   insightsProps: any;

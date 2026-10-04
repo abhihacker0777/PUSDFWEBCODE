@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { mirrorPaperToSheet, mirrorDeletePaperFromSheet } from "@/lib/sheets";
+
+const safeEq = (a: string, b: string) => {
+  const A = Buffer.from(a);
+  const B = Buffer.from(b);
+  return A.length === B.length && timingSafeEqual(A, B);
+};
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization") || req.headers.get("x-webhook-secret") || "";
+    const rawHeader = req.headers.get("x-webhook-secret") || req.headers.get("authorization") || "";
+    const provided = rawHeader.toLowerCase().startsWith("bearer ") ? rawHeader.slice(7).trim() : rawHeader.trim();
     const expectedSecret = process.env.SUPABASE_WEBHOOK_SECRET || "";
     
-    if (!expectedSecret || !authHeader?.includes(expectedSecret)) {
+    if (!expectedSecret || !safeEq(provided, expectedSecret)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

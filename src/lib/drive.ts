@@ -62,3 +62,16 @@ export async function uploadBufferToGoogleDrive({
     webContentLink,
   };
 }
+
+export async function deleteDriveFile(fileId: string): Promise<boolean> {
+  if (!fileId) return false;
+  try {
+    const drive = await getServiceDrive();
+    await drive.files.delete({ fileId, supportsAllDrives: true });
+    return true;
+  } catch (error) {
+    console.error("Failed to delete Google Drive file:", fileId, error);
+    return false;
+  }
+}
+

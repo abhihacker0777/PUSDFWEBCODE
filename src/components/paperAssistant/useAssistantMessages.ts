@@ -13,8 +13,17 @@ export interface AssistantMessageItem {
 }
 
 export default function useAssistantMessages(savedUser: any, isLoading: boolean) {
-  const [messages, setMessages] = useState<AssistantMessageItem[]>(() => buildInitialMessages(savedUser));
+  const [messages, setMessages] = useState<AssistantMessageItem[]>(() => buildInitialMessages(savedUser, ""));
   const messagesRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    // Stamp the client-side time after hydration to avoid hydration mismatch
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.time ? msg : { ...msg, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }
+      )
+    );
+  }, []);
 
   useEffect(() => {
     if (messagesRef.current) {

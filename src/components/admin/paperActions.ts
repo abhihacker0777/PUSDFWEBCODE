@@ -175,8 +175,8 @@ export const createPaperActions = ({
         sem: semester,
         exam,
         name: paperName.trim(),
-        url: payload.paper?.link || "",
-        index: payload.paper?.id || selectedPaperIndex || paperName.trim()
+        url: payload.paper?.link || payload.paper?.drive_url || payload.data?.drive_url || payload.data?.link || "",
+        index: payload.paper?.id || payload.data?.id || selectedPaperIndex || paperName.trim()
       });
       clearPapersCache();
       notifyPapersUpdated();

@@ -8,6 +8,7 @@ export interface AuthenticatedAdmin {
   isOwner: boolean;
   role: AdminRole;
   permissions: string[];
+  displayName?: string;
 }
 
 export class AuthError extends Error {
@@ -79,45 +80,70 @@ export async function requireAdminSession(requiredPermission?: string): Promise<
   if (error || !user) {
     throw new AuthError("Unauthorized: Authentication required.", 401);
   }
+  if (!user.email_confirmed_at) {
+    throw new AuthError("Forbidden: Email not confirmed.", 403);
+  }
 
-  const adminEmail = (process.env.ADMIN_EMAIL || "").toLowerCase().trim();
-  const callerEmail = (user.email || "").toLowerCase().trim();
-  const isOwner = Boolean(adminEmail && callerEmail === adminEmail);
+  const ownerId = process.env.ADMIN_AUTH_USER_ID;
+  const ownerEmail = (process.env.ADMIN_EMAIL ?? "").toLowerCase().trim();
+  const callerEmail = (user.email ?? "").toLowerCase().trim();
+  const isOwner = Boolean(
+    (ownerId && user.id === ownerId) ||
+    (!ownerId && ownerEmail && callerEmail === ownerEmail)
+  );
 
   if (isOwner) {
+    const ownerName = process.env.ADMIN_DISPLAY_NAME || user.user_metadata?.display_name || user.user_metadata?.name || user.email?.split("@")[0] || "abhishek";
     return {
       user,
       isOwner: true,
       role: "full",
-      permissions: [...ROLE_PERMISSIONS.full, "admins:manage"]
+      permissions: [...ROLE_PERMISSIONS.full, "admins:manage"],
+      displayName: ownerName
     };
   }
 
   const adminClient = createAdminClient();
-  const { data: admin } = await adminClient
+  let adminRecord: any = null;
+
+  // First try matching on auth_user_id
+  const { data: byAuthId } = await adminClient
     .from("admin_users")
-    .select("role, is_active")
-    .or(`email.ilike.${callerEmail},login_identifier.ilike.${callerEmail}`)
+    .select("id, role, is_active, display_name, login_identifier")
+    .eq("auth_user_id", user.id)
     .maybeSingle();
 
-  if (!admin || admin.is_active === false) {
+  if (byAuthId) {
+    adminRecord = byAuthId;
+  } else {
+    // Exact lowercase email lookup
+    const { data: byEmail } = await adminClient
+      .from("admin_users")
+      .select("id, role, is_active, display_name, login_identifier")
+      .eq("email", callerEmail)
+      .maybeSingle();
+    adminRecord = byEmail;
+  }
+
+  if (!adminRecord || adminRecord.is_active === false) {
     throw new AuthError("Forbidden: Account is inactive or unauthorized.", 403);
   }
 
-  const role = (String(admin.role || "view").toLowerCase()) as AdminRole;
+  const role = (String(adminRecord.role || "view").toLowerCase()) as AdminRole;
   const permissions = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.view;
 
-  if (requiredPermission) {
-    if (!permissions.includes(requiredPermission)) {
-      throw new AuthError(`Forbidden: Missing required permission '${requiredPermission}'.`, 403);
-    }
+  if (requiredPermission && !permissions.includes(requiredPermission)) {
+    throw new AuthError(`Forbidden: Missing required permission '${requiredPermission}'.`, 403);
   }
+
+  const resolvedName = adminRecord.display_name || adminRecord.login_identifier || user.user_metadata?.display_name || user.user_metadata?.name || user.email?.split("@")[0] || "Admin";
 
   return {
     user,
     isOwner: false,
     role,
-    permissions
+    permissions,
+    displayName: resolvedName
   };
 }
 

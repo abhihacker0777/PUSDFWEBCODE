@@ -9,7 +9,16 @@ export default function Navbar({ lastUpdated }: Readonly<{ lastUpdated?: string 
     <header className="w-full bg-[#b22222] shadow-md sticky top-0 z-50">
       <nav className="w-full pl-[20px] sm:pl-[40px] md:pl-[120px] pr-2 md:pr-4 py-1 flex items-center justify-between">
         {/* Left: Hindi Logo */}
-        <Link href="/" className="flex items-center no-underline rounded-lg focus-visible:ring-2 focus-visible:ring-white">
+        <Link
+          href="/"
+          onClick={(e) => {
+            if (typeof window !== "undefined" && window.location.pathname === "/") {
+              e.preventDefault();
+              window.location.reload();
+            }
+          }}
+          className="flex items-center no-underline rounded-lg focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
+        >
           <Image
             src="/puhindilogo.jpg"
             alt="Poornima University Logo"

@@ -19,6 +19,7 @@ export async function GET() {
 
     const queries = (data || []).map((row: any) => ({
       id: row.id,
+      createdAt: row.created_at || "",
       date: row.created_at ? new Date(row.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "-",
       email: row.email || "-",
       question: row.question || "-",

@@ -2,12 +2,37 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { clearLogs, clearSelectedLogs, getLogs } from "./adminApi";
 import { goToLogin, isAdminSessionExpired } from "./adminHelpers";
 
+const parseLogTimestamp = (dateStr: any): number => {
+  if (!dateStr) return 0;
+  const str = String(dateStr).trim();
+  const direct = Date.parse(str);
+  if (!Number.isNaN(direct)) return direct;
+
+  // Handles "DD/MM/YYYY, HH:MM:SS am/pm" (e.g., "29/9/2026, 3:11:19 pm")
+  const match = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?\s*(am|pm)?/i);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1;
+    const year = parseInt(match[3], 10);
+    let hour = parseInt(match[4], 10);
+    const minute = parseInt(match[5], 10);
+    const second = match[6] ? parseInt(match[6], 10) : 0;
+    const meridiem = (match[7] || "").toLowerCase();
+    if (meridiem === "pm" && hour < 12) hour += 12;
+    if (meridiem === "am" && hour === 12) hour = 0;
+    return new Date(year, month, day, hour, minute, second).getTime();
+  }
+  return 0;
+};
+
 const sortLogs = (logs: any[], sortType: string) => {
   if (sortType === "az") return [...logs].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
   if (sortType === "za") return [...logs].sort((a, b) => String(b.name || "").localeCompare(String(a.name || "")));
-  if (sortType === "new") return [...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  if (sortType === "old") return [...logs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  return logs;
+  if (sortType === "old") {
+    return [...logs].sort((a, b) => parseLogTimestamp(a.createdAt || a.date) - parseLogTimestamp(b.createdAt || b.date));
+  }
+  // Default or "new": newest first!
+  return [...logs].sort((a, b) => parseLogTimestamp(b.createdAt || b.date) - parseLogTimestamp(a.createdAt || a.date));
 };
 
 const matchValue = (value: unknown, term: string): boolean => {
@@ -53,9 +78,13 @@ export default function useActionLogs({ canClearLogs }: { canClearLogs: boolean 
 
   const filteredLogs = useMemo(() => {
     const term = search.toLowerCase();
-    const matchingLogs = actionLog.filter((row) =>
-      Object.values(row).some((value) => matchValue(value, term))
-    );
+    const matchingLogs = actionLog.filter((row) => {
+      if (row.status === "Login" || String(row.name || "").toLowerCase().includes("admin login")) {
+        return false;
+      }
+      if (!term) return true;
+      return Object.values(row).some((value) => matchValue(value, term));
+    });
     return sortLogs(matchingLogs, sortType);
   }, [actionLog, search, sortType]);
 

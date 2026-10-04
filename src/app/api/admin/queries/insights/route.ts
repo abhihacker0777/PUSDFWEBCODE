@@ -6,11 +6,38 @@ export async function GET(req: NextRequest) {
   try {
     await requireAdminSession("queries:read");
     const adminClient = createAdminClient();
+
+    const url = new URL(req.url);
+    const rawDays = Number(url.searchParams.get("days") || 30);
+    const days = Math.min(365, Math.max(1, Number.isNaN(rawDays) ? 30 : rawDays));
+
+    // Try high-performance database RPC function first
+    try {
+      const { data: rpcData, error: rpcError } = await (adminClient as any).rpc("query_insights", { days });
+      if (!rpcError && rpcData && typeof rpcData === "object") {
+        const total = Number(rpcData.totalQueries || 0);
+        const notFound = Number(rpcData.statusCounts?.not_found || 0);
+        const notFoundRate = total > 0 ? Math.round((notFound / total) * 100) : 0;
+        return NextResponse.json({
+          totalQueries: total,
+          statusCounts: rpcData.statusCounts || {},
+          notFoundRate,
+          topNotFoundQuestions: rpcData.topNotFoundQuestions || [],
+          topFoundPapers: rpcData.topFoundPapers || [],
+        });
+      }
+    } catch {
+      // RPC not yet migrated in Supabase, fall through to query fallback
+    }
+
+    // Fallback: Query rows filtered by date window
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
     const { data } = await adminClient
       .from("student_queries")
       .select("id,email,question,status,paper_name,created_at")
+      .gte("created_at", cutoffDate)
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(1000);
 
     const rows = data || [];
     const statusCounts: Record<string, number> = {};
@@ -50,10 +77,9 @@ export async function GET(req: NextRequest) {
       statusCounts,
       notFoundRate,
       topNotFoundQuestions,
-      topFoundPapers
+      topFoundPapers,
     });
   } catch (error: any) {
     return handleApiError(error);
   }
 }
-

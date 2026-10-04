@@ -40,7 +40,7 @@ export default function Filters({
     "flex-shrink-0 px-8 py-3 rounded-2xl cursor-pointer min-w-[146px] whitespace-nowrap text-center shadow-md hover:shadow-lg transition-colors duration-150 transform-gpu active:scale-95 border-2 border-solid border-transparent box-border font-medium flex items-center justify-center";
 
   const activeCard =
-    "bg-[#4a80bc] text-white border-[#ffc107] !border-[#ffc107] !border-solid !border-[2px] shadow-md";
+    "bg-[#2f6db0] text-white border-[#ffc107] !border-[#ffc107] !border-solid !border-[2px] shadow-md";
 
   // ⚡ OPTIMIZATION: Memoize the sorted specializations so it only runs when `specs` changes,
   // preventing unnecessary re-sorting on every single click.
@@ -100,10 +100,11 @@ export default function Filters({
               </span>
               <input
                 type="text"
+                aria-label="Search paper"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search Paper (Eg. B.Tech 1st Sem RDBMS)"
-                className="w-full pl-8 pr-8 py-2 text-xs bg-white border border-gray-300 hover:border-gray-400 rounded-full shadow-xs focus:outline-none focus:ring-2 focus:ring-[#05488B] focus:border-transparent text-gray-800 placeholder-gray-400 transition-all font-sans"
+                className="w-full pl-8 pr-8 py-2 text-base sm:text-xs bg-white border border-gray-300 hover:border-gray-400 rounded-full shadow-xs focus:outline-none focus:ring-2 focus:ring-[#05488B] focus:border-transparent text-gray-800 placeholder-gray-400 transition-all font-sans"
               />
               {searchQuery && (
                 <button
@@ -139,6 +140,7 @@ export default function Filters({
                 <button
                   type="button"
                   key={`${type}-${item}`}
+                  aria-pressed={isActive}
                   onClick={() => handleSelect(type, item)}
                   className={`${baseCard} ${isActive ? activeCard : "bg-white text-gray-700"
                     }`}

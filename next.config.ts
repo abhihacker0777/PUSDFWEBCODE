@@ -1,19 +1,25 @@
 import type { NextConfig } from "next";
 
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://accounts.google.com https://va.vercel-scripts.com",
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com",
+  "img-src 'self' data: blob: https://*.googleusercontent.com",
+  "font-src 'self' data:",
+  "connect-src 'self' https://challenges.cloudflare.com https://accounts.google.com https://vitals.vercel-insights.com https://va.vercel-scripts.com",
+  "frame-src https://challenges.cloudflare.com https://accounts.google.com",
+  "frame-ancestors 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join("; ");
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
+  serverExternalPackages: ["nodemailer"],
   images: {
     formats: ["image/avif", "image/webp"],
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "lh3.googleusercontent.com",
-      },
-      {
-        protocol: "https",
-        hostname: "drive.google.com",
-      },
-    ],
   },
   rewrites() {
     return Promise.resolve([
@@ -98,10 +104,6 @@ const nextConfig: NextConfig = {
         destination: "/api/admin/users",
       },
       {
-        source: "/papers/search",
-        destination: "/api/papers/search",
-      },
-      {
         source: "/assistant/config",
         destination: "/api/assistant/config",
       },
@@ -141,6 +143,10 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: [
           {
+            key: "Content-Security-Policy-Report-Only",
+            value: csp,
+          },
+          {
             key: "X-Content-Type-Options",
             value: "nosniff",
           },
@@ -150,11 +156,15 @@ const nextConfig: NextConfig = {
           },
           {
             key: "X-XSS-Protection",
-            value: "1; mode=block",
+            value: "0",
           },
           {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
           },
           {
             key: "Permissions-Policy",
@@ -162,13 +172,12 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Strict-Transport-Security",
-            value: "max-age=31536000; includeSubDomains",
+            value: "max-age=63072000; includeSubDomains",
           },
         ],
       },
     ]);
   },
-
 };
 
 export default nextConfig;

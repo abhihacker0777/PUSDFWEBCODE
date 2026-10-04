@@ -110,7 +110,11 @@ const matchValue = (value: unknown, term: string): boolean => {
       .filter((query) =>
         Object.values(query).some((value) => matchValue(value, term))
       )
-      .sort((a, b) => querySortType === "old" ? new Date(a.date).getTime() - new Date(b.date).getTime() : new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => {
+        const timeA = Date.parse(a.createdAt || a.date) || 0;
+        const timeB = Date.parse(b.createdAt || b.date) || 0;
+        return querySortType === "old" ? timeA - timeB : timeB - timeA;
+      });
 
     const groupedQueriesMap = processedQueries.reduce((acc: Record<string, any>, query) => {
       const email = normalizeQueryEmail(query.email || "unknown");

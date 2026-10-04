@@ -1,12 +1,47 @@
 "use server";
 
+import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
-import { uploadBufferToGoogleDrive } from "@/lib/drive";
+import { uploadBufferToGoogleDrive, deleteDriveFile } from "@/lib/drive";
 import { Paper, PaperTargetMapping } from "@/types/paper";
 import { fetchPublicPapersFromSheet, mirrorPaperToSheet } from "@/lib/sheets";
 import { requireAdminSession } from "@/lib/authCheck";
 
 const PAPERS_TABLE = process.env.SUPABASE_PAPERS_TABLE || "papers";
+
+const MetaSchema = z.object({
+  course: z.string().trim().min(1, "Course is required").max(60),
+  year: z.string().trim().min(1, "Year is required").max(30),
+  specialization: z.string().trim().min(1, "Specialization is required").max(100),
+  semester: z.string().trim().min(1, "Semester is required").max(30),
+  exam: z.enum(["MSE", "ESE"], { message: "Exam must be MSE or ESE" }),
+  title: z.string().trim().min(1, "Paper name is required").max(160),
+});
+
+const pick = (fd: FormData, ...keys: string[]): string => {
+  for (const k of keys) {
+    const v = fd.get(k);
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+};
+
+const isDriveUrl = (s: string) => {
+  try {
+    const u = new URL(s);
+    return u.protocol === "https:" && (u.hostname === "drive.google.com" || u.hostname === "docs.google.com");
+  } catch {
+    return false;
+  }
+};
+
+function sniffBuffer(b: Buffer): "pdf" | "docx" | null {
+  if (b.subarray(0, 4).toString("latin1") === "%PDF") return "pdf";
+  if (b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04) return "docx";
+  return null;
+}
+
+const MAX_BYTES = 4 * 1024 * 1024; // 4 MB Vercel limit
 
 function normalizeSupabasePaper(row: any): Paper {
   const spec = row.specialization || row.spec || "";
@@ -48,7 +83,8 @@ async function fetchAllSupabasePapers(client: any): Promise<any[]> {
       .from(PAPERS_TABLE)
       .select("*")
       .range(from, from + pageSize - 1)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
 
     if (error) throw error;
     if (!data || data.length === 0) break;
@@ -60,9 +96,36 @@ async function fetchAllSupabasePapers(client: any): Promise<any[]> {
   return allRows;
 }
 
+async function logAdminActivity(
+  adminClient: any,
+  status: string,
+  name: string,
+  spec: string,
+  adminName: string,
+  meta?: { course?: string; year?: string; semester?: string; exam?: string }
+) {
+  try {
+    const formattedDate = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    await adminClient.from("admin_logs").insert({
+      date: formattedDate,
+      status,
+      name,
+      spec: spec || "",
+      course: meta?.course || "",
+      year: meta?.year || "",
+      semester: meta?.semester || "",
+      exam: meta?.exam || "",
+      admin_name: adminName,
+      created_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("Failed to write admin log:", err);
+  }
+}
+
 let serverPapersCache: { data: Paper[]; expiresAt: number } | null = null;
 
-function invalidateServerPapersCache() {
+export async function invalidateServerPapersCache() {
   serverPapersCache = null;
 }
 
@@ -75,17 +138,10 @@ export async function fetchPapersAction(options?: { force?: boolean }): Promise<
   try {
     const adminClient = createAdminClient();
     const adminData = await fetchAllSupabasePapers(adminClient);
-    if (adminData && adminData.length > 0) {
+    if (Array.isArray(adminData)) {
       const normalized = adminData.map(normalizeSupabasePaper);
       serverPapersCache = { data: normalized, expiresAt: now + 120_000 };
       return { success: true, data: normalized };
-    }
-
-    // Secondary fallback: Google Sheets
-    const sheetRows = await fetchPublicPapersFromSheet();
-    if (sheetRows && sheetRows.length > 0) {
-      serverPapersCache = { data: sheetRows, expiresAt: now + 60_000 };
-      return { success: true, data: sheetRows };
     }
 
     return { success: true, data: [] };
@@ -106,107 +162,166 @@ export async function fetchPapersAction(options?: { force?: boolean }): Promise<
 
 export async function uploadPaperAction(formData: FormData) {
   try {
-    await requireAdminSession("papers:create");
+    const admin = await requireAdminSession("papers:create");
     const adminClient = createAdminClient();
-    const file = formData.get("file") as File | null;
-    const directLink = (formData.get("directLink") as string || "").trim();
-    const paperName = (formData.get("paperName") as string || "").trim();
-    const course = (formData.get("course") as string || "").trim();
-    const year = (formData.get("year") as string || "").trim();
-    const spec = (formData.get("spec") as string || "").trim();
-    const semester = (formData.get("semester") as string || "").trim();
-    const exam = (formData.get("exam") as string || "").trim();
 
-    if (!paperName) {
-      return { success: false, message: "Paper name is required." };
+    const rawExam = pick(formData, "exam").toUpperCase();
+    const parsed = MetaSchema.safeParse({
+      course: pick(formData, "course"),
+      year: pick(formData, "year"),
+      specialization: pick(formData, "specialization", "spec"),
+      semester: pick(formData, "semester", "sem"),
+      exam: rawExam,
+      title: pick(formData, "title", "paperName", "name"),
+    });
+
+    if (!parsed.success) {
+      return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input" };
     }
+    const m = parsed.data;
 
-    let finalLink = directLink;
-    let driveFileId: string | undefined = undefined;
+    const file = formData.get("file");
+    const directLink = pick(formData, "directLink", "link");
+    let driveUrl = "";
+    let driveFileId = "";
+    let uploadedHere = false;
 
-    if (file && file.size > 0) {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const uploadResult = await uploadBufferToGoogleDrive({
-        buffer,
-        fileName: file.name,
-        mimeType: file.type || "application/pdf",
-      });
-      finalLink = uploadResult.webViewLink;
-      driveFileId = uploadResult.fileId;
-    }
-
-    if (!finalLink) {
-      return { success: false, message: "Either a document file or direct link is required." };
-    }
-
-    if (!file && directLink) {
-      let isValidDoc = false;
-      try {
-        const parsed = new URL(directLink);
-        const host = parsed.hostname.toLowerCase();
-        const pathname = parsed.pathname.toLowerCase();
-        const isDriveDoc =
-          (host.includes("drive.google.com") || host.includes("docs.google.com")) &&
-          (pathname.includes("/file/d/") ||
-            pathname.includes("/document/d/") ||
-            pathname.includes("/open") ||
-            pathname.includes("/uc") ||
-            parsed.searchParams.has("id"));
-        const isDirectDoc =
-          pathname.endsWith(".pdf") ||
-          pathname.endsWith(".docx") ||
-          pathname.endsWith(".doc") ||
-          parsed.pathname.includes(".pdf") ||
-          parsed.pathname.includes(".docx");
-        isValidDoc = isDriveDoc || isDirectDoc;
-      } catch {
-        isValidDoc = false;
+    if (file instanceof File && file.size > 0) {
+      if (file.size > MAX_BYTES) {
+        return { success: false, message: "File too large (max 4 MB)." };
       }
-
-      if (!isValidDoc) {
-        return { success: false, message: "Invalid document link. Only direct .pdf, .docx or Google Drive document links are accepted." };
+      const buf = Buffer.from(await file.arrayBuffer());
+      const kind = sniffBuffer(buf);
+      if (!kind || (kind === "docx" && !file.name.toLowerCase().endsWith(".docx"))) {
+        return { success: false, message: "Only PDF or DOCX files are accepted." };
+      }
+      const mime = kind === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      const up = await uploadBufferToGoogleDrive({
+        buffer: buf,
+        fileName: `${m.title}.${kind}`,
+        mimeType: mime,
+      });
+      driveUrl = up.webViewLink;
+      driveFileId = up.fileId;
+      uploadedHere = true;
+    } else if (directLink) {
+      if (!isDriveUrl(directLink)) {
+        return { success: false, message: "Link must be a Google Drive or Docs URL." };
+      }
+      driveUrl = directLink;
+      driveFileId = pick(formData, "driveFileId", "drive_file_id");
+    } else {
+      const existingId = pick(formData, "id", "index");
+      if (!existingId) {
+        return { success: false, message: "Attach a file or paste a Google Drive link." };
       }
     }
 
     const now = new Date().toISOString();
-    const { data, error } = await adminClient.from(PAPERS_TABLE).insert({
-      name: paperName,
-      title: paperName,
-      course,
-      year,
-      spec,
-      specialization: spec,
-      sem: semester,
-      semester,
-      exam,
-      link: finalLink,
-      drive_url: finalLink,
-      drive_file_id: driveFileId,
-      created_at: now,
-      updated_at: now,
-    }).select().single();
+    const paperId = pick(formData, "id", "index");
+    let resultData: any;
 
-    if (error) throw error;
+    if (paperId) {
+      // Update existing paper
+      const updatePayload: any = {
+        course: m.course,
+        year: m.year,
+        specialization: m.specialization,
+        semester: m.semester,
+        exam: m.exam,
+        title: m.title,
+        updated_at: now,
+      };
+      if (driveUrl) {
+        updatePayload.drive_url = driveUrl;
+      }
+      if (driveFileId) {
+        updatePayload.drive_file_id = driveFileId;
+      }
+
+      const { data, error } = await adminClient
+        .from(PAPERS_TABLE)
+        .update(updatePayload)
+        .eq("id", paperId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Paper update failed:", error);
+        if (uploadedHere && driveFileId) {
+          await deleteDriveFile(driveFileId).catch(() => {});
+        }
+        return { success: false, message: error.message || "Could not update the paper." };
+      }
+      resultData = data;
+
+      await logAdminActivity(
+        adminClient,
+        "Updated",
+        m.title,
+        m.specialization,
+        admin.displayName || admin.user?.email?.split("@")[0] || "PU Central-Library",
+        { course: m.course, year: m.year, semester: m.semester, exam: m.exam }
+      );
+    } else {
+      // Insert new paper
+      const insertPayload: any = {
+        course: m.course,
+        year: m.year,
+        specialization: m.specialization,
+        semester: m.semester,
+        exam: m.exam,
+        title: m.title,
+        drive_url: driveUrl,
+        drive_file_id: driveFileId,
+        created_at: now,
+        updated_at: now,
+      };
+
+      const { data, error } = await adminClient
+        .from(PAPERS_TABLE)
+        .insert(insertPayload)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Paper insert failed:", error);
+        if (uploadedHere && driveFileId) {
+          await deleteDriveFile(driveFileId).catch(() => {});
+        }
+        return { success: false, message: error.message || "Could not save the paper." };
+      }
+      resultData = data;
+
+      await logAdminActivity(
+        adminClient,
+        "Added",
+        m.title,
+        m.specialization,
+        admin.displayName || admin.user?.email?.split("@")[0] || "PU Central-Library",
+        { course: m.course, year: m.year, semester: m.semester, exam: m.exam }
+      );
+    }
 
     // Mirror to Google Sheets in background
     mirrorPaperToSheet({
-      course,
-      year,
-      spec,
-      specialization: spec,
-      sem: semester,
-      semester,
-      exam,
-      name: paperName,
-      title: paperName,
-      subject: paperName,
-      link: finalLink,
-      drive_url: finalLink,
+      course: m.course,
+      year: m.year,
+      spec: m.specialization,
+      specialization: m.specialization,
+      sem: m.semester,
+      semester: m.semester,
+      exam: m.exam,
+      name: m.title,
+      title: m.title,
+      subject: m.title,
+      link: driveUrl || resultData.drive_url,
+      drive_url: driveUrl || resultData.drive_url,
     }).catch((err) => console.error("Sheets mirror background error:", err));
 
     invalidateServerPapersCache();
-    return { success: true, data };
+    const paper = normalizeSupabasePaper(resultData);
+    return { success: true, paper, data: paper };
   } catch (error: any) {
     console.error("uploadPaperAction error:", error);
     return { success: false, message: error.message || "Failed to upload paper." };
@@ -215,16 +330,29 @@ export async function uploadPaperAction(formData: FormData) {
 
 export async function bulkDeletePapersAction(ids: (string | number)[]) {
   try {
-    await requireAdminSession("papers:delete");
+    const admin = await requireAdminSession("papers:delete");
     if (!ids || ids.length === 0) return { success: true, count: 0 };
     const adminClient = createAdminClient();
 
-    const { error } = await adminClient
-      .from(PAPERS_TABLE)
-      .delete()
-      .in("id", ids);
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
+      const { error } = await adminClient
+        .from(PAPERS_TABLE)
+        .delete()
+        .in("id", chunk);
 
-    if (error) throw error;
+      if (error) throw error;
+    }
+
+    await logAdminActivity(
+      adminClient,
+      "Bulk Deleted",
+      `${ids.length} papers removed`,
+      "",
+      admin.displayName || admin.user?.email?.split("@")[0] || "PU Central-Library"
+    );
+
     invalidateServerPapersCache();
     return { success: true, count: ids.length };
   } catch (error: any) {
@@ -238,7 +366,7 @@ export async function bulkEditPapersAction(
   updates: Partial<PaperTargetMapping>
 ) {
   try {
-    await requireAdminSession("papers:update");
+    const admin = await requireAdminSession("papers:update");
     if (!ids || ids.length === 0) return { success: true, count: 0 };
     const adminClient = createAdminClient();
 
@@ -248,21 +376,33 @@ export async function bulkEditPapersAction(
     if (updates.course) payload.course = updates.course;
     if (updates.year) payload.year = updates.year;
     if (updates.spec !== undefined && updates.spec !== null) {
-      payload.spec = updates.spec;
       payload.specialization = updates.spec;
     }
     if (updates.semester) {
-      payload.sem = updates.semester;
       payload.semester = updates.semester;
     }
     if (updates.exam) payload.exam = updates.exam;
 
-    const { error } = await adminClient
-      .from(PAPERS_TABLE)
-      .update(payload)
-      .in("id", ids);
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
+      const { error } = await adminClient
+        .from(PAPERS_TABLE)
+        .update(payload)
+        .in("id", chunk);
 
-    if (error) throw error;
+      if (error) throw error;
+    }
+
+    await logAdminActivity(
+      adminClient,
+      "Bulk Edited",
+      `${ids.length} papers modified`,
+      updates.spec || "",
+      admin.displayName || admin.user?.email?.split("@")[0] || "PU Central-Library",
+      { course: updates.course, year: updates.year, semester: updates.semester, exam: updates.exam }
+    );
+
     invalidateServerPapersCache();
     return { success: true, count: ids.length };
   } catch (error: any) {
@@ -273,14 +413,48 @@ export async function bulkEditPapersAction(
 
 export async function deletePaperAction(id: string | number) {
   try {
-    await requireAdminSession("papers:delete");
+    const admin = await requireAdminSession("papers:delete");
     const adminClient = createAdminClient();
+
+    const { data: paperToDelete } = await adminClient
+      .from(PAPERS_TABLE)
+      .select("title, specialization, drive_url, drive_file_id, course, year, semester, exam")
+      .eq("id", id)
+      .maybeSingle();
+
     const { error } = await adminClient
       .from(PAPERS_TABLE)
       .delete()
       .eq("id", id);
 
     if (error) throw error;
+
+    if (paperToDelete) {
+      await logAdminActivity(
+        adminClient,
+        "Deleted",
+        paperToDelete.title || `Paper ID ${id}`,
+        paperToDelete.specialization || "",
+        admin.displayName || admin.user?.email?.split("@")[0] || "PU Central-Library",
+        {
+          course: paperToDelete.course,
+          year: paperToDelete.year,
+          semester: paperToDelete.semester,
+          exam: paperToDelete.exam,
+        }
+      );
+
+      if (paperToDelete.drive_file_id) {
+        const { count } = await adminClient
+          .from(PAPERS_TABLE)
+          .select("id", { count: "exact", head: true })
+          .eq("drive_file_id", paperToDelete.drive_file_id);
+        if (count === 0) {
+          await deleteDriveFile(paperToDelete.drive_file_id).catch(() => {});
+        }
+      }
+    }
+
     invalidateServerPapersCache();
     return { success: true };
   } catch (error: any) {

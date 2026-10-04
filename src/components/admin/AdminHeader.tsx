@@ -1,5 +1,5 @@
 import React from "react";
-import { FiLogOut } from "react-icons/fi";
+import { LogOut } from "lucide-react";
 
 export interface AdminHeaderProps {
   activeTitle: string;
@@ -20,7 +20,10 @@ export default function AdminHeader({ activeTitle, authUser, loggedInLabel, logg
           <span className="text-sm font-bold text-gray-800 max-w-[220px] truncate">{loggedInLabel || "PU Central-Library"}</span>
           <span className="text-[11px] font-semibold text-[#05488b]">{loggedInRoleLabel || "Admin"}</span>
         </div>
-        <button onClick={onLogout} className="flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium text-red-500 bg-[#05488b] hover:bg-[#043a70] transition-all"><FiLogOut className="w-4 h-4" /><span className="hidden sm:inline">Logout</span></button>
+        <button onClick={onLogout} className="flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-semibold text-[#ffc107] bg-[#05488b] hover:bg-[#043a70] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#05488b] cursor-pointer">
+          <LogOut className="w-4 h-4 text-[#ffc107]" />
+          <span className="hidden sm:inline">Logout</span>
+        </button>
       </div>
     </header>
   );

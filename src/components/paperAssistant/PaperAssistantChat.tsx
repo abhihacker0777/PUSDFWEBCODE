@@ -2,7 +2,7 @@
 
 import React, { RefObject } from "react";
 import Image from "next/image";
-import { FiExternalLink } from "react-icons/fi";
+import { ExternalLink } from "lucide-react";
 import { getSafeUrl } from "./assistantAuth";
 import { AssistantMessageItem } from "./useAssistantMessages";
 
@@ -22,7 +22,7 @@ function AssistantResultLink({ paper, resultIndex }: Readonly<{ paper: any; resu
       <span className="flex flex-col gap-0.5 items-start text-left">
         <span className="flex items-center gap-2 font-medium text-[13px]">
           {paper.name || paper.title || "Paper"}
-          {safeLink && <FiExternalLink className="shrink-0 opacity-80" aria-hidden="true" />}
+          {safeLink && <ExternalLink className="shrink-0 opacity-80 w-3.5 h-3.5" aria-hidden="true" />}
         </span>
         <span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">
           {(paper.specialization || paper.spec) ? `${paper.specialization || paper.spec} • ` : ""}{paper.sem || paper.semester} • {paper.exam}
