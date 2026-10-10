@@ -14,7 +14,7 @@ function getGeminiClient(): GoogleGenAI | null {
 
 export async function parseQueryWithGemini(query: string): Promise<ExtractedAIIntent> {
   const client = getGeminiClient();
-  const modelName = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+  const modelName = process.env.GEMINI_MODEL || "";
 
   if (!client) {
     throw new Error("Gemini AI client is not configured (GEMINI_API_KEY missing).");

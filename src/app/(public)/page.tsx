@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Filters from "@/components/Filters";
 import PaperList, { PaperItem } from "@/components/PaperList";
 import PaperAssistant from "@/components/PaperAssistant";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import MaintenanceBanner from "@/components/MaintenanceBanner";
 import { clearPaperCaches, fetchPapers } from "@/services/api";
 import { searchLocalPapers } from "@/utils/localPaperSearch";
@@ -330,6 +331,7 @@ export default function HomePage() {
       </footer>
 
       <PaperAssistant />
+      <PwaInstallPrompt />
     </div>
   );
 }

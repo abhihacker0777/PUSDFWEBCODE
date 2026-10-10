@@ -12,10 +12,13 @@ const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
 });
 
-const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.BASE_URL || "").replace(/\/+$/, "");
+const baseUrl = (
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.BASE_URL || ""
+).replace(/\/+$/, "");
 
 export const metadata: Metadata = {
-  metadataBase: baseUrl ? new URL(baseUrl) : undefined,
+  metadataBase: new URL(baseUrl),
   title: {
     default: "Poornima University — Previous Year Question Papers (PYQP)",
     template: "%s | Poornima University PYQP",
@@ -51,7 +54,7 @@ export const metadata: Metadata = {
       "Official examination question paper archive and student academic resource repository of Poornima University Central Library.",
     images: [
       {
-        url: `${baseUrl}/opengraph-image`,
+        url: `${baseUrl}/og-image.jpg`,
         width: 1200,
         height: 630,
         alt: "Poornima University — Previous Year Question Papers (PYQP)",
@@ -63,7 +66,12 @@ export const metadata: Metadata = {
     title: "Poornima University — Previous Year Question Papers (PYQP)",
     description:
       "Official examination question paper archive and student academic resource repository of Poornima University Central Library.",
-    images: [`${baseUrl}/twitter-image`],
+    images: [`${baseUrl}/og-image.jpg`],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "PU PYQP",
   },
   robots: {
     index: true,
@@ -81,7 +89,7 @@ export const metadata: Metadata = {
     shortcut: "/logo.png",
     apple: "/logo.png",
   },
-other: {
+  other: {
     "strix-verification": "strix-verify-c5bf055c79722c52af8ff596b9a060aa",
   },
 };
@@ -121,11 +129,32 @@ export default function RootLayout({
   return (
     <html lang="en" className={jakarta.variable}>
       <head>
-        <link rel="icon" href="/logo.png" type="image/png" sizes="any" />
+        <link rel="icon" href="/logo.png" type="image/png" />
+        <link rel="shortcut icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="theme-color" content="#05488B" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined') {
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    for (var i = 0; i < regs.length; i++) { regs[i].unregister(); }
+                  });
+                }
+                if ('caches' in window) {
+                  caches.keys().then(function(names) {
+                    for (var i = 0; i < names.length; i++) { caches.delete(names[i]); }
+                  });
+                }
+              }
+            `,
+          }}
         />
       </head>
       <body className={`${jakarta.className} antialiased min-h-screen flex flex-col bg-slate-50 text-slate-900`}>
