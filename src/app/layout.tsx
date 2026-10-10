@@ -81,6 +81,9 @@ export const metadata: Metadata = {
     shortcut: "/logo.png",
     apple: "/logo.png",
   },
+other: {
+    "strix-verification": "strix-verify-c5bf055c79722c52af8ff596b9a060aa",
+  },
 };
 
 const jsonLd = {
