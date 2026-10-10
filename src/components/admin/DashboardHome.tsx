@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
+import { Edit3, Package } from "lucide-react";
 import DashboardPage from "./DashboardPage";
 
-const BulkPaperUpload = dynamic(() => import("./BulkPaperUpload"), {
+const BulkPaperUpload = dynamic(() => import("./forms/BulkPaperUpload"), {
   ssr: false,
   loading: () => (
     <div className="p-8 text-center bg-white rounded-xl shadow-sm border border-gray-200">
@@ -32,7 +33,7 @@ export default function DashboardHome({ coverImg, bulkUploadProps, ...dashboardP
               : "bg-[#05488B] text-[#ffc107] hover:bg-[#215ea0]"
           }`}
         >
-          <span>✏️</span>
+          <Edit3 className="w-4 h-4 shrink-0" />
           <span className="whitespace-nowrap">Edit Data</span>
         </button>
         <button
@@ -44,7 +45,7 @@ export default function DashboardHome({ coverImg, bulkUploadProps, ...dashboardP
               : "bg-[#05488B] text-[#ffc107] hover:bg-[#215ea0]"
           }`}
         >
-          <span>📦</span>
+          <Package className="w-4 h-4 shrink-0" />
           <span className="whitespace-nowrap">Bulk Paper Operations</span>
         </button>
       </div>

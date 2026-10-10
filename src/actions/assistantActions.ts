@@ -24,46 +24,20 @@ async function logStudentQueryTelemetry(
   }
 }
 
-function findCandidatePapers(allPapers: Paper[], query: string, intent: any) {
-  let candidatePapers = searchLocalPapers(allPapers as any[], query);
-  let relaxedSemester = false;
-
-  if (candidatePapers.length === 0 && (intent.semester || /\b(?:sem(?:ester)?|[1-9](?:st|nd|rd|th)?\s+sem)\b/i.test(query))) {
-    const relaxed = searchLocalPapers(allPapers as any[], query, { relaxSemester: true });
-    if (relaxed.length > 0) {
-      candidatePapers = relaxed;
-      relaxedSemester = true;
-    }
-  }
-
-  if (candidatePapers.length === 0 && (intent.exam || /\b(mid|end|mse|ese|mte|ete)\b/i.test(query))) {
-    const relaxedExam = searchLocalPapers(allPapers as any[], query, { relaxSemester: true, relaxExam: true });
-    if (relaxedExam.length > 0) {
-      candidatePapers = relaxedExam;
-      relaxedSemester = true;
-    }
-  }
-
-  return { topPapers: ((candidatePapers || []).slice(0, 8) as unknown) as Paper[], relaxedSemester };
+function findCandidatePapers(allPapers: Paper[], query: string) {
+  const candidatePapers = searchLocalPapers(allPapers as any[], query);
+  return { topPapers: ((candidatePapers || []).slice(0, 8) as unknown) as Paper[] };
 }
 
-function buildAssistantResponse(query: string, topPapers: Paper[], intent: any, relaxedSemester: boolean): string {
+function buildAssistantResponse(query: string, topPapers: Paper[], intent: any, studentEmail?: string): string {
   if (topPapers.length === 0) {
-    return `I couldn't find any papers matching "${query}". Please check the course or subject name, or browse through the course list above!`;
+    const emailNotice = studentEmail ? ` You will receive an email update at ${studentEmail} once this paper is made available.` : "";
+    return `I couldn't find any papers matching "${query}".\n\nIf this paper is not currently available in the central library archive, you can submit feedback below to request it.${emailNotice}`;
   }
 
-  if (relaxedSemester) {
-    const first = topPapers[0];
-    const semName = first.sem || (first as any).semester || "";
-    const courseName = first.course || "";
-    const specName = first.spec || (first as any).specialization || "";
-    const branchInfo = specName ? ` (${specName})` : "";
-    return `I couldn't find matches for "${query}" in the requested semester, but I found ${topPapers.length} paper${topPapers.length > 1 ? "s" : ""} in ${courseName} ${semName}${branchInfo}. You can view or download them directly below:`;
-  }
-
-  const subjectMention = intent.subjectKeywords?.length ? ` for "${intent.subjectKeywords.join(" ")}"` : "";
-  const courseMention = intent.course ? ` in ${intent.course}` : "";
-  const semMention = intent.semester ? ` (${intent.semester})` : "";
+  const subjectMention = intent?.subjectKeywords?.length ? ` for "${intent.subjectKeywords.join(" ")}"` : "";
+  const courseMention = intent?.course ? ` in ${intent.course}` : "";
+  const semMention = intent?.semester ? ` (${intent.semester})` : "";
   return `I found ${topPapers.length} paper${topPapers.length > 1 ? "s" : ""}${subjectMention}${courseMention}${semMention}. You can view or download them directly below:`;
 }
 
@@ -77,11 +51,17 @@ export async function askAssistantAction(query: string, studentEmail?: string) {
 
   try {
     const adminClient = createAdminClient();
+
+    // Direct Gemini AI intent parsing (no custom replies override, no rule-based fallback)
     const intent = await parseQueryWithGemini(query);
 
-    if (intent.intentType && intent.intentType !== "PAPER_SEARCH") {
+    const isPaperSearch =
+      intent.intentType === "PAPER_SEARCH" ||
+      Boolean(intent.course || intent.semester || intent.exam || (intent.subjectKeywords && intent.subjectKeywords.length > 0));
+
+    if (!isPaperSearch) {
       const reply = intent.conversationalReply || 
-        "Hello! Welcome to Poornima University Academic Portal. How can I help you find question papers or explore course materials today? 😊";
+        "Hello! Welcome to the Academic Portal. How can I help you find question papers or explore course materials today? 😊";
 
       await logStudentQueryTelemetry(adminClient, {
         email: studentEmail,
@@ -100,8 +80,8 @@ export async function askAssistantAction(query: string, studentEmail?: string) {
 
     const papersResult = await fetchPapersAction();
     const allPapers = (papersResult.data || []) as Paper[];
-    const { topPapers, relaxedSemester } = findCandidatePapers(allPapers, query, intent);
-    const responseText = buildAssistantResponse(query, topPapers, intent, relaxedSemester);
+    const { topPapers } = findCandidatePapers(allPapers, query);
+    const responseText = buildAssistantResponse(query, topPapers, intent, studentEmail);
 
     await logStudentQueryTelemetry(adminClient, {
       email: studentEmail,
@@ -114,6 +94,8 @@ export async function askAssistantAction(query: string, studentEmail?: string) {
     return {
       message: responseText,
       papers: topPapers,
+      canFeedback: topPapers.length === 0,
+      queryText: query.trim(),
       intent,
     };
   } catch (error: any) {

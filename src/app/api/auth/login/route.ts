@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const identifier = body.identifier || body.username || body.email;
-    const result = await loginAction(identifier, body.password, body.captchaToken);
+    const userAgent = req.headers.get("user-agent") || "Unknown Device";
+    const result = await loginAction(identifier, body.password, body.captchaToken, { ip, userAgent });
 
     if (!result.success) {
       const headers = new Headers();

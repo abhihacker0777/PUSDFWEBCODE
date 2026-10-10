@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Filters from "@/components/Filters";
 import PaperList, { PaperItem } from "@/components/PaperList";
 import PaperAssistant from "@/components/PaperAssistant";
+import MaintenanceBanner from "@/components/MaintenanceBanner";
 import { clearPaperCaches, fetchPapers } from "@/services/api";
 import { searchLocalPapers } from "@/utils/localPaperSearch";
 
@@ -149,16 +150,23 @@ export default function HomePage() {
 
   const handleSelect = useCallback((type: string, value: string) => {
     setSearchQuery("");
+    if (type === "clear") {
+      setSelected({ course: null, year: null, specialization: null, sem: null, exam: null });
+      return;
+    }
+    const val = value && value.trim() ? value : null;
     if (type === "course") {
-      setSelected({ course: value, year: null, specialization: null, sem: null, exam: null });
+      setSelected({ course: val, year: null, specialization: null, sem: null, exam: null });
     } else if (type === "year") {
-      setSelected((prev) => ({ ...prev, year: value, specialization: null, sem: null, exam: null }));
+      setSelected((prev) => ({ ...prev, year: val, specialization: null, sem: null, exam: null }));
     } else if (type === "specialization") {
-      setSelected((prev) => ({ ...prev, specialization: value, sem: null, exam: null }));
+      setSelected((prev) => ({ ...prev, specialization: val, sem: null, exam: null }));
     } else if (type === "sem") {
-      setSelected((prev) => ({ ...prev, sem: value, exam: null }));
+      setSelected((prev) => ({ ...prev, sem: val, exam: null }));
+    } else if (type === "exam") {
+      setSelected((prev) => ({ ...prev, exam: val }));
     } else {
-      setSelected((prev) => ({ ...prev, [type]: value }));
+      setSelected((prev) => ({ ...prev, [type]: val }));
     }
   }, []);
 
@@ -274,6 +282,9 @@ export default function HomePage() {
       <Navbar lastUpdated={lastUpdated} />
 
       <main className="max-w-[1600px] mx-auto px-4 md:px-10 py-6">
+        {/* Module 1: System Maintenance Banner */}
+        <MaintenanceBanner />
+
         {renderFilterContent()}
 
         {searchQuery.trim() ? (
@@ -303,7 +314,7 @@ export default function HomePage() {
           </div>
         ) : (
           selected.exam && (
-            <div className="mt-8">
+            <div className="mt-8" data-paper-section>
               <PaperList papers={filteredPapers} />
             </div>
           )

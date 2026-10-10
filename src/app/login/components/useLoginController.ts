@@ -77,6 +77,15 @@ export default function useLoginController() {
 
   useLoginSessionCheck(() => router.push("/admin"));
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("revoked") === "1") {
+        setError("Your session was terminated/revoked for security. Please log in again.");
+      }
+    }
+  }, []);
+
   // Auto-login only if admin clicked Login and waiting on captcha, and never on wrong credentials
   useEffect(() => {
     const trimmedUser = username.trim();

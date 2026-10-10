@@ -34,10 +34,12 @@ function AssistantResultLink({ paper, resultIndex }: Readonly<{ paper: any; resu
 
 function AssistantMessage({ 
   message, 
-  index: _index
+  index,
+  onSendFeedback
 }: Readonly<{ 
   message: AssistantMessageItem; 
   index: number;
+  onSendFeedback?: (index: number, queryText: string) => void;
 }>) {
   return (
     <div
@@ -61,6 +63,24 @@ function AssistantMessage({
                 />
               ))}
             </div>
+          )}
+
+          {message.canFeedback && (
+            message.feedbackSubmitted ? (
+              <div className="mt-2.5 text-xs font-semibold text-emerald-400 bg-emerald-950/50 border border-emerald-700/60 rounded px-2.5 py-1.5 flex items-center gap-1.5">
+                <span>✓ Request logged! You will receive an email update once this paper is available.</span>
+              </div>
+            ) : (
+              <div className="mt-2.5">
+                <button
+                  type="button"
+                  onClick={() => onSendFeedback?.(index, message.queryText || "")}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#2a275c] hover:bg-[#3d3985] text-amber-200 border border-amber-400/40 rounded-lg px-3 py-1.5 transition-colors shadow-sm"
+                >
+                  <span>📩 Send Missing Paper Feedback / Request</span>
+                </button>
+              </div>
+            )
           )}
         </div>
         {message.time && <div className="pu-assistant-message-time">{message.time}</div>}
@@ -110,6 +130,7 @@ interface PaperAssistantChatProps {
   messagesRef: RefObject<HTMLDivElement | null>;
   onInputChange: (val: string) => void;
   onSubmit: (e?: React.FormEvent, directQuery?: string) => void;
+  onSendFeedback?: (index: number, queryText: string) => void;
 }
 
 export default function PaperAssistantChat({
@@ -118,7 +139,8 @@ export default function PaperAssistantChat({
   messages,
   messagesRef,
   onInputChange,
-  onSubmit
+  onSubmit,
+  onSendFeedback
 }: Readonly<PaperAssistantChatProps>) {
   return (
     <>
@@ -129,6 +151,7 @@ export default function PaperAssistantChat({
               key={`${message.role}-${index}`} 
               message={message} 
               index={index} 
+              onSendFeedback={onSendFeedback}
             />
           ))}
 

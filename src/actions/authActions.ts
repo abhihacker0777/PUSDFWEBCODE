@@ -2,7 +2,7 @@
 
 import { createClient, createAdminClient, getServiceRoleClient } from "@/lib/supabase/server";
 import { verifyTurnstileToken, equalizeLoginTiming } from "@/lib/security";
-import { sendPasswordResetEmail } from "@/lib/email";
+import { sendPasswordResetEmail, sendAdminLoginAlertEmail } from "@/lib/email";
 import {
   getLoginAttempts,
   getLockoutRemainingSeconds,
@@ -11,9 +11,10 @@ import {
 } from "@/lib/redis";
 import { allow } from "@/lib/ratelimit";
 import crypto from "node:crypto";
+import { cookies } from "next/headers";
 
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "").toLowerCase().trim();
-const PASSWORD_RESET_URL = process.env.PASSWORD_RESET_URL || "http://localhost:3000/reset-password";
+const PASSWORD_RESET_URL = process.env.PASSWORD_RESET_URL || (process.env.BASE_URL ? `${process.env.BASE_URL}/reset-password` : "");
 
 function extractCredentials(param1: FormData | string, param2?: string, param3?: string) {
   if (typeof param1 === "string") {
@@ -71,10 +72,20 @@ async function resolveAuthEmail(
   adminSupabase: any,
   cleanIdentifier: string,
   rawIdentifier: string
-): Promise<{ emailToAuth?: string; deactivated?: boolean; notFound?: boolean }> {
+): Promise<{ emailToAuth?: string; deactivated?: boolean; notFound?: boolean; emailNotAllowed?: boolean }> {
   const id = cleanIdentifier.trim().toLowerCase().slice(0, 254);
 
-  // Exact lowercase login_identifier match
+  // If user entered an email address (contains '@')
+  if (id.includes("@")) {
+    // Only Super Admin is permitted to log in with an email address
+    if (ADMIN_EMAIL && id === ADMIN_EMAIL.toLowerCase().trim()) {
+      return { emailToAuth: ADMIN_EMAIL };
+    }
+    // Normal admins must log in with username only!
+    return { emailNotAllowed: true };
+  }
+
+  // Exact lowercase login_identifier (username) match
   const { data: byLogin } = await adminSupabase
     .from("admin_users")
     .select("email, auth_email, is_active")
@@ -88,25 +99,7 @@ async function resolveAuthEmail(
     return { emailToAuth: byLogin.auth_email || byLogin.email || rawIdentifier.trim() };
   }
 
-  // Exact lowercase email match
-  const { data: byEmail } = await adminSupabase
-    .from("admin_users")
-    .select("email, auth_email, is_active")
-    .eq("email", id)
-    .maybeSingle();
-
-  if (byEmail) {
-    if (!byEmail.is_active) {
-      return { deactivated: true };
-    }
-    return { emailToAuth: byEmail.auth_email || byEmail.email || rawIdentifier.trim() };
-  }
-
-  if (!cleanIdentifier.includes("@")) {
-    return { notFound: true };
-  }
-
-  return { emailToAuth: rawIdentifier.trim() };
+  return { notFound: true };
 }
 
 async function verifyActiveAdminStatus(
@@ -132,7 +125,8 @@ async function verifyActiveAdminStatus(
 export async function loginAction(
   param1: FormData | string,
   param2?: string,
-  param3?: string
+  param3?: string,
+  meta?: { ip?: string; userAgent?: string }
 ) {
   const startedAt = Date.now();
   const { identifier, password, captchaToken } = extractCredentials(param1, param2, param3);
@@ -170,6 +164,14 @@ export async function loginAction(
 
     // 3. Resolve login identifier (email or username)
     const resolution = await resolveAuthEmail(adminSupabase, cleanIdentifier, identifier);
+    if (resolution.emailNotAllowed) {
+      await equalizeLoginTiming(startedAt);
+      return {
+        success: false,
+        message: "Normal library admins must log in using their username only.",
+        code: "USERNAME_LOGIN_ONLY",
+      };
+    }
     if (resolution.deactivated) {
       // Record failed attempt and return generic message to avoid enumeration
       return await handleFailedLogin(cleanIdentifier, startedAt);
@@ -200,6 +202,108 @@ export async function loginAction(
       return await handleFailedLogin(cleanIdentifier, startedAt);
     }
 
+    // 7. Enforce real identity / institutional domain
+    const ownerId = process.env.ADMIN_AUTH_USER_ID;
+    const isOwner = Boolean(
+      (ADMIN_EMAIL && emailToAuth.toLowerCase() === ADMIN_EMAIL) ||
+      (ownerId && authData.user.id === ownerId)
+    );
+    const domainSuffix = process.env.ASSISTANT_EMAIL_DOMAIN ? `@${process.env.ASSISTANT_EMAIL_DOMAIN.toLowerCase().trim()}` : "";
+    if (!isOwner && domainSuffix && !emailToAuth.toLowerCase().endsWith(domainSuffix)) {
+      await supabase.auth.signOut();
+      await equalizeLoginTiming(startedAt);
+      return {
+        success: false,
+        message: `Access restricted: Only official ${domainSuffix} university accounts are permitted.`,
+        code: "UNAUTHORIZED_DOMAIN",
+      };
+    }
+
+    // 8. Security Alert & Active Session Tracking (Module 1)
+    try {
+      const clientIpAddr = meta?.ip || "Unknown IP";
+      const clientUserAgent = meta?.userAgent || "Unknown Device";
+
+      // Query prior session for IST comparison before logging current
+      const { data: priorSession } = await adminSupabase
+        .from("admin_sessions")
+        .select("created_at")
+        .eq("email", emailToAuth.toLowerCase())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const revocationToken = crypto.randomBytes(32).toString("hex");
+      const currentIst = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+      const priorIst = priorSession?.created_at
+        ? new Date(priorSession.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+        : undefined;
+
+      // Resolve admin display name
+      const { data: adminRecord } = await adminSupabase
+        .from("admin_users")
+        .select("display_name")
+        .eq("email", emailToAuth.toLowerCase())
+        .maybeSingle();
+
+      const displayName = isOwner ? (process.env.ADMIN_DISPLAY_NAME || "") : (adminRecord?.display_name || emailToAuth.split("@")[0]);
+
+      // Record active session
+      await adminSupabase.from("admin_sessions").insert({
+        auth_user_id: authData.user.id,
+        email: emailToAuth.toLowerCase(),
+        display_name: displayName,
+        ip_address: clientIpAddr,
+        user_agent: clientUserAgent,
+        revocation_token: revocationToken,
+        is_revoked: false,
+        last_active: new Date().toISOString(),
+      });
+
+      try {
+        const cookieStore = await cookies();
+        cookieStore.set("admin_session_token", revocationToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 60 * 60 * 24 * 7,
+        });
+      } catch (cookieErr) {
+        console.warn("Could not set admin_session_token cookie:", cookieErr);
+      }
+
+      // Construct 1-click revocation link
+      const origin = (process.env.NEXT_PUBLIC_APP_URL || process.env.BASE_URL || "").replace(/\/+$/, "");
+      const revokeUrl = `${origin}/api/auth/revoke-session?token=${revocationToken}`;
+
+      // Check if alert email should be sent:
+      // Super Admin (isOwner): ALWAYS sent.
+      // Normal Admin: OFF by default, only sent if 'admin_login_notify' is enabled by Super Admin.
+      let shouldSendAlert = isOwner;
+      if (!isOwner) {
+        const { data: settingRow } = await adminSupabase
+          .from("system_settings")
+          .select("value")
+          .eq("key", "admin_login_notify")
+          .maybeSingle();
+        shouldSendAlert = Boolean(settingRow?.value?.enabled);
+      }
+
+      if (shouldSendAlert) {
+        void sendAdminLoginAlertEmail({
+          to: emailToAuth,
+          adminName: displayName,
+          loginTimeIST: currentIst,
+          priorLoginTimeIST: priorIst,
+          ip: clientIpAddr,
+          userAgent: clientUserAgent,
+          revokeUrl,
+        });
+      }
+    } catch (sessionErr) {
+      console.error("Session recording or alert email failed:", sessionErr);
+    }
 
     await equalizeLoginTiming(startedAt);
     return {
@@ -218,6 +322,10 @@ export async function loginAction(
 export async function logoutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete("admin_session_token");
+  } catch {}
   return { success: true };
 }
 

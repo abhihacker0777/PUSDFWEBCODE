@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
 import { uploadBufferToGoogleDrive, deleteDriveFile } from "@/lib/drive";
 import { Paper, PaperTargetMapping } from "@/types/paper";
-import { fetchPublicPapersFromSheet, mirrorPaperToSheet } from "@/lib/sheets";
+import { mirrorPaperToSheet } from "@/lib/sheets";
 import { requireAdminSession } from "@/lib/authCheck";
 
 const PAPERS_TABLE = process.env.SUPABASE_PAPERS_TABLE || "papers";
@@ -147,15 +147,6 @@ export async function fetchPapersAction(options?: { force?: boolean }): Promise<
     return { success: true, data: [] };
   } catch (error: any) {
     console.error("fetchPapersAction error:", error?.message || error);
-    try {
-      const sheetRows = await fetchPublicPapersFromSheet();
-      if (sheetRows && sheetRows.length > 0) {
-        serverPapersCache = { data: sheetRows, expiresAt: now + 60_000 };
-        return { success: true, data: sheetRows };
-      }
-    } catch (sheetErr: any) {
-      console.error("Google Sheets fallback error:", sheetErr?.message || sheetErr);
-    }
     return { success: false, data: [], error: error.message };
   }
 }
@@ -195,6 +186,7 @@ export async function uploadPaperAction(formData: FormData) {
       if (!kind || (kind === "docx" && !file.name.toLowerCase().endsWith(".docx"))) {
         return { success: false, message: "Only PDF or DOCX files are accepted." };
       }
+
       const mime = kind === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
       const up = await uploadBufferToGoogleDrive({
         buffer: buf,

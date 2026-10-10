@@ -102,3 +102,261 @@ export async function sendPasswordResetEmail({
     return false;
   }
 }
+
+export async function sendAdminLoginAlertEmail({
+  to,
+  adminName = "Administrator",
+  loginTimeIST,
+  priorLoginTimeIST,
+  ip,
+  userAgent,
+  revokeUrl,
+}: {
+  to: string;
+  adminName?: string;
+  loginTimeIST: string;
+  priorLoginTimeIST?: string;
+  ip: string;
+  userAgent: string;
+  revokeUrl: string;
+}): Promise<boolean> {
+  if (!SMTP_USER || !SMTP_PASSWORD) {
+    console.warn("SMTP credentials not configured; admin login alert skipped.");
+    return false;
+  }
+
+  const transport = getEmailTransporter();
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+    .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 14px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 14px rgba(5, 72, 139, 0.08); }
+    .header { background: #05488B; padding: 24px; text-align: center; }
+    .header h1 { margin: 0; color: #ffc107; font-size: 20px; font-weight: 800; }
+    .header p { margin: 4px 0 0 0; color: #ffffff; font-size: 13px; opacity: 0.9; }
+    .content { padding: 26px 24px; }
+    .alert-banner { background: #eff6ff; border-left: 4px solid #05488B; padding: 12px 16px; margin-bottom: 20px; border-radius: 6px; font-size: 14px; color: #1e3a8a; }
+    .meta-table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+    .meta-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+    .meta-label { font-weight: 600; color: #64748b; width: 35%; }
+    .meta-value { font-weight: 600; color: #0f172a; word-break: break-all; }
+    .btn-container { text-align: center; margin: 26px 0 16px 0; }
+    .btn-revoke { display: inline-block; background-color: #dc2626; color: #ffffff !important; text-decoration: none; padding: 12px 28px; font-weight: 700; font-size: 14px; border-radius: 8px; box-shadow: 0 3px 8px rgba(220, 38, 38, 0.25); }
+    .footer { background: #f8fafc; padding: 18px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Poornima University</h1>
+      <p>Security Alert: Admin Sign-In Detected</p>
+    </div>
+    <div class="content">
+      <div class="alert-banner">
+        Hello <strong>${adminName}</strong>, your administrator account was just signed in.
+      </div>
+
+      <table class="meta-table">
+        <tr>
+          <td class="meta-label">Sign-In Time (IST):</td>
+          <td class="meta-value">${loginTimeIST}</td>
+        </tr>
+        <tr>
+          <td class="meta-label">Prior Session (IST):</td>
+          <td class="meta-value">${priorLoginTimeIST || "First recorded session"}</td>
+        </tr>
+        <tr>
+          <td class="meta-label">Client IP Address:</td>
+          <td class="meta-value">${ip}</td>
+        </tr>
+        <tr>
+          <td class="meta-label">Browser / Device:</td>
+          <td class="meta-value">${userAgent}</td>
+        </tr>
+      </table>
+
+      <p style="font-size: 13px; color: #475569; line-height: 1.5;">
+        If this was you, you can safely ignore this security notification. If you do not recognize this activity, click below immediately to terminate this session:
+      </p>
+
+      <div class="btn-container">
+        <a href="${revokeUrl}" class="btn-revoke" target="_blank">Revoke This Session Now</a>
+      </div>
+    </div>
+    <div class="footer">
+      &copy; ${new Date().getFullYear()} Poornima University IT & Central Library Security.<br>
+      Jaipur, Rajasthan
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  try {
+    await transport.sendMail({
+      from: PASSWORD_RESET_FROM,
+      to,
+      subject: `[Security Alert] New Admin Sign-In Detected - ${adminName}`,
+      html: htmlContent,
+    });
+    return true;
+  } catch (error) {
+    console.error("sendAdminLoginAlertEmail error:", error);
+    return false;
+  }
+}
+
+export async function sendLibraryAdminInviteEmail({
+  to,
+  adminName = "Library Staff",
+  role = "Full",
+  loginUrl,
+}: {
+  to: string;
+  adminName?: string;
+  role?: string;
+  loginUrl: string;
+}): Promise<boolean> {
+  if (!SMTP_USER || !SMTP_PASSWORD) {
+    console.warn("SMTP credentials not configured; invite email skipped.");
+    return false;
+  }
+
+  const transport = getEmailTransporter();
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+    .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 14px; overflow: hidden; border: 1px solid #e2e8f0; }
+    .header { background: #05488B; padding: 24px; text-align: center; }
+    .header h1 { margin: 0; color: #ffc107; font-size: 20px; font-weight: 800; }
+    .header p { margin: 4px 0 0 0; color: #ffffff; font-size: 13px; }
+    .content { padding: 26px 24px; }
+    .role-badge { display: inline-block; background: #dbeafe; color: #1e40af; font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+    .btn-container { text-align: center; margin: 26px 0; }
+    .btn { display: inline-block; background-color: #05488B; color: #ffc107 !important; text-decoration: none; padding: 12px 28px; font-weight: 700; font-size: 14px; border-radius: 8px; }
+    .footer { background: #f8fafc; padding: 18px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Poornima University</h1>
+      <p>Central Library PYQP Portal</p>
+    </div>
+    <div class="content">
+      <p>Hello <strong>${adminName}</strong>,</p>
+      <p>You have been onboarded as a library administrator with the role <span class="role-badge">${role}</span> on the Poornima University Examination Question Paper Portal.</p>
+      <p>You can sign in using your institutional Google account or designated login credentials.</p>
+      <div class="btn-container">
+        <a href="${loginUrl}" class="btn" target="_blank">Access Admin Portal</a>
+      </div>
+    </div>
+    <div class="footer">
+      &copy; ${new Date().getFullYear()} Poornima University Central Library
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  try {
+    await transport.sendMail({
+      from: PASSWORD_RESET_FROM,
+      to,
+      subject: `Welcome to Poornima PYQP Portal — Admin Access Granted (${role})`,
+      html: htmlContent,
+    });
+    return true;
+  } catch (error) {
+    console.error("sendLibraryAdminInviteEmail error:", error);
+    return false;
+  }
+}
+
+export async function sendPaperFulfilledNotificationEmail({
+  to,
+  subjectName,
+  subjectCode,
+  course,
+  semester,
+  paperUrl,
+}: {
+  to: string;
+  subjectName: string;
+  subjectCode: string;
+  course: string;
+  semester: string;
+  paperUrl: string;
+}): Promise<boolean> {
+  if (!SMTP_USER || !SMTP_PASSWORD) {
+    console.warn("SMTP credentials not configured; paper fulfilled email skipped.");
+    return false;
+  }
+
+  const transport = getEmailTransporter();
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+    .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 14px; overflow: hidden; border: 1px solid #e2e8f0; }
+    .header { background: #05488B; padding: 24px; text-align: center; }
+    .header h1 { margin: 0; color: #ffc107; font-size: 20px; font-weight: 800; }
+    .header p { margin: 4px 0 0 0; color: #ffffff; font-size: 13px; }
+    .content { padding: 26px 24px; }
+    .paper-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin: 16px 0; }
+    .btn-container { text-align: center; margin: 24px 0; }
+    .btn { display: inline-block; background-color: #05488B; color: #ffc107 !important; text-decoration: none; padding: 12px 28px; font-weight: 700; font-size: 14px; border-radius: 8px; }
+    .footer { background: #f8fafc; padding: 18px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Poornima University</h1>
+      <p>PYQP Paper Request Fulfilled</p>
+    </div>
+    <div class="content">
+      <p>Hello Student,</p>
+      <p>Great news! The question paper you previously requested has been uploaded to the university portal by the Central Library team.</p>
+      <div class="paper-box">
+        <div style="font-weight: 700; color: #166534; font-size: 15px;">${subjectName} ${subjectCode ? `(${subjectCode})` : ""}</div>
+        <div style="font-size: 13px; color: #374151; margin-top: 4px;">Course: <strong>${course}</strong> | Semester: <strong>${semester}</strong></div>
+      </div>
+      <div class="btn-container">
+        <a href="${paperUrl}" class="btn" target="_blank">View / Download Paper</a>
+      </div>
+    </div>
+    <div class="footer">
+      &copy; ${new Date().getFullYear()} Poornima University Central Library
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  try {
+    await transport.sendMail({
+      from: PASSWORD_RESET_FROM,
+      to,
+      subject: `[Paper Available] ${subjectName} is now ready on the PYQP Portal`,
+      html: htmlContent,
+    });
+    return true;
+  } catch (error) {
+    console.error("sendPaperFulfilledNotificationEmail error:", error);
+    return false;
+  }
+}

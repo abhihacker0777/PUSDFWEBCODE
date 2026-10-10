@@ -4,19 +4,21 @@ const CLIENT_ID = process.env.CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_SIGNIN
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const DRIVE_REFRESH_TOKEN = process.env.DRIVE_REFRESH_TOKEN;
 const GOOGLE_SIGNIN_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_SIGNIN_CLIENT_ID || process.env.GOOGLE_SIGNIN_CLIENT_ID || CLIENT_ID;
-const ASSISTANT_EMAIL_DOMAIN = process.env.ASSISTANT_EMAIL_DOMAIN || "poornima.edu.in";
+const ASSISTANT_EMAIL_DOMAIN = (process.env.ASSISTANT_EMAIL_DOMAIN || "").trim().replace(/^@/, "");
 
 let googleServiceAuthClient: any = null;
 const googleSignInClient = new google.auth.OAuth2(GOOGLE_SIGNIN_CLIENT_ID);
 
 export function isAllowedAssistantEmail(email: string): boolean {
   if (!email) return false;
+  if (!ASSISTANT_EMAIL_DOMAIN) return true;
   return email.toLowerCase().trim().endsWith(`@${ASSISTANT_EMAIL_DOMAIN.toLowerCase()}`);
 }
 
 export async function verifyAssistantGoogleCredential(idToken: string) {
   if (!idToken) {
-    const err = new Error("Please sign in with your Poornima Google account.");
+    const domainMsg = ASSISTANT_EMAIL_DOMAIN ? ` with your @${ASSISTANT_EMAIL_DOMAIN}` : "";
+    const err = new Error(`Please sign in${domainMsg} Google account.`);
     (err as any).code = "SIGN_IN_REQUIRED";
     throw err;
   }
@@ -28,7 +30,8 @@ export async function verifyAssistantGoogleCredential(idToken: string) {
       audience: GOOGLE_SIGNIN_CLIENT_ID,
     });
   } catch (verifyErr) {
-    const err = new Error("Please sign in again with your Poornima Google account.");
+    const domainMsg = ASSISTANT_EMAIL_DOMAIN ? ` with your @${ASSISTANT_EMAIL_DOMAIN}` : "";
+    const err = new Error(`Please sign in again${domainMsg} Google account.`);
     (err as any).code = "INVALID_GOOGLE_TOKEN";
     throw err;
   }
@@ -45,7 +48,7 @@ export async function verifyAssistantGoogleCredential(idToken: string) {
   }
 
   if (!isAllowedAssistantEmail(email)) {
-    const err = new Error(`Please sign in with your ${ASSISTANT_EMAIL_DOMAIN} Google Account.`);
+    const err = new Error(`Please sign in with your @${ASSISTANT_EMAIL_DOMAIN} Google Account.`);
     (err as any).code = "INVALID_EMAIL_DOMAIN";
     throw err;
   }

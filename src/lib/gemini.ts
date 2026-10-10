@@ -16,12 +16,19 @@ export async function parseQueryWithGemini(query: string): Promise<ExtractedAIIn
   const client = getGeminiClient();
   const modelName = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
-  if (!client || !query.trim()) {
-    return extractRuleBasedIntent(query);
+  if (!client) {
+    throw new Error("Gemini AI client is not configured (GEMINI_API_KEY missing).");
   }
 
-  try {
-    const prompt = `You are the Official Academic Query Assistant for Poornima University Previous Year Question Paper (PYQP) Portal.
+  if (!query.trim()) {
+    return {
+      intentType: "ADMISSION_OR_GENERAL",
+      conversationalReply: "Please enter your query to begin.",
+      subjectKeywords: [],
+    };
+  }
+
+  const prompt = `You are the Official Academic Query Assistant for Poornima University Previous Year Question Paper (PYQP) Portal.
 Analyze the student's natural language input: "${query}".
 
 Classify the intent into one of the following:
@@ -48,198 +55,36 @@ If intentType is "PAPER_SEARCH":
 - subjectKeywords: Array of subject name keywords mentioned (e.g. ["mathematics"], ["operating system"], ["cyber security"]). Normalize abbreviations (e.g. "math" or "maths" -> "mathematics", "os" -> "operating system", "dbms" or "rdbms" -> "database management", "cn" -> "computer networks", "dsa" -> "data structures", "se" -> "software engineering"). Keep words lowercase and concise.
 - academicYear: E.g. "2023-24", "2024-25" or null if not mentioned.`;
 
-    const response = await client.models.generateContent({
-      model: modelName,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            intentType: { type: Type.STRING },
-            conversationalReply: { type: Type.STRING, nullable: true },
-            course: { type: Type.STRING, nullable: true },
-            specialization: { type: Type.STRING, nullable: true },
-            semester: { type: Type.STRING, nullable: true },
-            exam: { type: Type.STRING, nullable: true },
-            subjectKeywords: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-            },
-            academicYear: { type: Type.STRING, nullable: true },
+  const response = await client.models.generateContent({
+    model: modelName,
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          intentType: { type: Type.STRING },
+          conversationalReply: { type: Type.STRING, nullable: true },
+          course: { type: Type.STRING, nullable: true },
+          specialization: { type: Type.STRING, nullable: true },
+          semester: { type: Type.STRING, nullable: true },
+          exam: { type: Type.STRING, nullable: true },
+          subjectKeywords: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
           },
-          required: ["intentType", "subjectKeywords"],
+          academicYear: { type: Type.STRING, nullable: true },
         },
+        required: ["intentType", "subjectKeywords"],
       },
-    });
+    },
+  });
 
-    const text = response.text;
-    if (!text) return extractRuleBasedIntent(query);
-    const parsed = JSON.parse(text) as ExtractedAIIntent;
-    return parsed;
-  } catch (error) {
-    console.error("Gemini query parsing error, falling back to rule extraction:", error);
-    return extractRuleBasedIntent(query);
-  }
-}
-
-const COURSE_PATTERNS: Array<[RegExp, string]> = [
-  [/\bbca\b/i, "BCA"],
-  [/\bmca\b/i, "MCA"],
-  [/\b(btech|b\.tech|b\s*tech)\b/i, "B.Tech"],
-  [/\bmba\b/i, "MBA"],
-  [/\bbba\b/i, "BBA"],
-  [/\b(bsc|b\.sc)\b/i, "B.Sc"],
-  [/\b(bdes|b\.des)\b/i, "B.Des"],
-  [/\b(barch|b\.arch)\b/i, "B.Arch"],
-  [/\bbph\b/i, "BPH"],
-];
-
-const SPEC_PATTERNS: Array<[string[], string]> = [
-  [["cyber"], "CYBER SECURITY"],
-  [["aids", "data science"], "ARTIFICIAL INTELLIGENCE AND DATA SCIENCE"],
-  [["aiml", "machine learning"], "ARTIFICIAL INTELLIGENCE & MACHINE LEARNING"],
-  [["cloud"], "CLOUD TECHNOLOGY"],
-  [["cse", "computer science"], "COMPUTER SCIENCE & ENGINEERING"],
-  [["civil"], "CIVIL ENGINEERING"],
-  [["mechanical"], "MECHANICAL ENGINEERING"],
-];
-
-function parseCourse(norm: string): string | null {
-  for (const [pattern, course] of COURSE_PATTERNS) {
-    if (pattern.test(norm)) return course;
-  }
-  return null;
-}
-
-function parseSpecialization(norm: string): string | null {
-  for (const [keywords, spec] of SPEC_PATTERNS) {
-    if (keywords.some((k) => norm.includes(k))) return spec;
-  }
-  return null;
-}
-
-function parseCourseAndSpec(norm: string) {
-  return {
-    course: parseCourse(norm),
-    specialization: parseSpecialization(norm),
-  };
-}
-
-function parseSemesterAndExam(norm: string) {
-  let semester: string | null = null;
-  let exam: string | null = null;
-
-  const semMatch = /(?:sem|semester)\s*([1-8])|([1-8])(?:st|nd|rd|th)?\s*(?:sem|semester)/i.exec(norm);
-  if (semMatch) {
-    const s = semMatch[1] || semMatch[2];
-    semester = `Sem ${s}`;
-  } else {
-    const yearMatch = /([1-4])(?:st|nd|rd|th)?\s*year/i.exec(norm);
-    if (yearMatch) {
-      const yr = Number(yearMatch[1]);
-      semester = `Sem ${yr * 2 - 1}`;
-    }
+  const text = response.text;
+  if (!text) {
+    throw new Error("No response returned from Gemini AI.");
   }
 
-  if (norm.includes("mte") || norm.includes("mid") || norm.includes("mse")) exam = "MSE";
-  else if (norm.includes("ete") || norm.includes("end") || norm.includes("final") || norm.includes("ese")) exam = "ESE";
-
-  return { semester, exam };
-}
-
-const STOPWORD_PATTERN_1 = /\b(bca|mca|bba|mba|b\.?tech|year|mte|ete|mse|ese|papers?|exam|previous|university|poornima)\b/gi;
-const STOPWORD_PATTERN_2 = /\b(semester|sem\s*\d|\d\s*(?:sem|year))\b/gi;
-
-function extractSubjectKeywords(norm: string) {
-  const keywords: string[] = [];
-  if (norm.includes("math") || norm.includes("maths") || norm.includes("mathematics")) keywords.push("mathematics");
-  if (norm.includes("os") || norm.includes("operating system")) keywords.push("operating system");
-  if (norm.includes("dbms") || norm.includes("rdbms") || norm.includes("database")) keywords.push("database");
-  if (norm.includes("cn") || norm.includes("network") || norm.includes("networking")) keywords.push("network");
-  if (norm.includes("dsa") || norm.includes("data structure")) keywords.push("data structures");
-  if (norm.includes("cyber")) keywords.push("cyber security");
-  if (norm.includes("python")) keywords.push("python");
-  if (norm.includes("java")) keywords.push("java");
-  if (norm.includes("physics")) keywords.push("physics");
-  if (norm.includes("chemistry")) keywords.push("chemistry");
-
-  const subjectTokens = norm
-    .replace(STOPWORD_PATTERN_1, "")
-    .replace(STOPWORD_PATTERN_2, "")
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && !["for", "and", "the", "get", "show", "give", "want", "need"].includes(w));
-
-  return Array.from(new Set([...keywords, ...subjectTokens]));
-}
-
-function isCoursesQuery(norm: string): boolean {
-  if (norm.includes("courses available") || norm.includes("available courses")) return true;
-  return /\b(top(?:\s+\d+)?|best|which|list)\s+course/i.test(norm);
-}
-
-export function extractRuleBasedIntent(query: string): ExtractedAIIntent {
-  const norm = query.toLowerCase().trim();
-
-  // 1. Detect greetings
-  if (/^(hi|hello|hey|hyy|hy|namaste|good\s*(?:morning|afternoon|evening)|hola)[!\s]*$/i.test(norm)) {
-    return {
-      intentType: "GREETING",
-      conversationalReply: "Hello! Welcome to Poornima University Academic Portal. How can I help you today? 😊",
-      subjectKeywords: [],
-    };
-  }
-
-  // 2. Detect "who are you" / "help"
-  if (/who\s+are\s+you|what\s+can\s+you\s+do|help\s*me|what\s+is\s+this/i.test(norm)) {
-    return {
-      intentType: "ABOUT",
-      conversationalReply: "I'm your Poornima University Academic & Exam Assistant! 🎓 I can help you find previous year question papers, mid-term & end-term exams across all courses (BCA, B.Tech, MBA, etc.), and answer university academic queries. What paper are you looking for?",
-      subjectKeywords: [],
-    };
-  }
-
-  // 3. Detect top courses / general questions
-  if (isCoursesQuery(norm)) {
-    return {
-      intentType: "ADMISSION_OR_GENERAL",
-      conversationalReply: "Poornima University offers top-tier, industry-recognized programs! The top 3 most popular and high-demand courses are:\n1. B.Tech in Computer Science & Engineering (Specializations: AI & ML, Data Science, Cyber Security, Cloud Technology)\n2. BCA (Bachelor of Computer Applications) with advanced industry specializations in AI, Cloud, and Full-Stack Development\n3. MBA & MCA for professional management and advanced computing careers.\n\nLet me know if you would like previous year question papers or semester syllabus for any of these courses! 😊",
-      subjectKeywords: [],
-    };
-  }
-
-  // 4. Detect general university queries (fees, admission, hostel)
-  if (/fee|fees|admission|hostel|scholarship/i.test(norm)) {
-    return {
-      intentType: "ADMISSION_OR_GENERAL",
-      conversationalReply: "For admissions, fee structure, and scholarships, please visit the official Poornima University portal at https://poornima.edu.in/. If you need exam question papers for any course, just let me know your course and semester! 😊",
-      subjectKeywords: [],
-    };
-  }
-
-  const { course, specialization } = parseCourseAndSpec(norm);
-  const { semester, exam } = parseSemesterAndExam(norm);
-  const allKeywords = extractSubjectKeywords(norm);
-
-  const hasPaperIntent = Boolean(
-    course || semester || exam || allKeywords.length > 0 ||
-    /\b(paper|papers|pyqp|exam|question|test|mid\s*term|end\s*term|syllabus)\b/i.test(norm)
-  );
-
-  if (!hasPaperIntent) {
-    return {
-      intentType: "ADMISSION_OR_GENERAL",
-      conversationalReply: "I'm here to help with your academic queries and question papers! You can search for question papers by specifying your course, semester, or subject (e.g., 'BCA 1st sem OS paper' or 'B.Tech CSE mid-term papers'), or ask any academic question. How can I help you today? 😊",
-      subjectKeywords: [],
-    };
-  }
-
-  return {
-    intentType: "PAPER_SEARCH",
-    course,
-    specialization,
-    semester,
-    exam,
-    subjectKeywords: allKeywords,
-  };
+  const parsed = JSON.parse(text) as ExtractedAIIntent;
+  return parsed;
 }

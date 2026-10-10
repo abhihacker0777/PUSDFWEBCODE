@@ -80,7 +80,7 @@ export default function LoginForm({
               onChange={(e) => updateUsername(e.target.value)}
               onFocus={() => setFocusedField("user")}
               onBlur={() => setFocusedField(null)}
-              placeholder="Username or email"
+              placeholder="Enter your username"
               className={`w-full border-0 border-b pb-2 text-gray-700 placeholder-gray-500 text-base sm:text-sm bg-transparent outline-none focus:outline-none focus:ring-0 focus-visible:outline-none transition-colors duration-300 ${focusedField === "user" ? "border-[#ffc107]" : "border-[#05488b]"}`}
             />
           </div>

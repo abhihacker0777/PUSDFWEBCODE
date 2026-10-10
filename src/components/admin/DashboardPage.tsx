@@ -1,6 +1,7 @@
 import React from "react";
-import { cleanStatusMessage, isErrorStatus } from "./adminHelpers";
-import { CustomDropdown } from "./AdminShared";
+import { Loader2 } from "lucide-react";
+import { cleanStatusMessage, isErrorStatus } from "./utils/adminHelpers";
+import { CustomDropdown } from "./utils/AdminShared";
 
 export interface DashboardPageProps {
   fileName: string;
@@ -49,14 +50,15 @@ export interface DashboardPageProps {
 
 const DashboardPage: React.FC<DashboardPageProps> = ({
   fileName, setFile, setFileName, directLink, setDirectLink, courses, years, specs, semesters, exams, papers, course, setCourse, year, setYear, spec, setSpec, semester, setSemester, exam, setExam, paper, setPaper, paperName, setPaperName, handleUpload, handleDelete, handleSyncToWebsite, openDropdown, setOpenDropdown, setSelectedPaperIndex, fileError, setFileError, isLoading, uploadStatus, setUploadStatus, deleteStatus, canCreatePapers, canEditPapers, canDeletePapers, canSyncPapers, canUploadFiles
-}) => (
+}) => {
+  return (
   <div className="w-full">
     <div className="bg-white rounded-xl shadow-md p-4 sm:p-5 w-full border relative">
       <div className="space-y-3.5 flex flex-col items-center">
         {isLoading && (
-          <div className="absolute inset-0 bg-white/50 z-50 flex items-center justify-center rounded-xl">
-            <div className="w-8 h-8 border-4 border-[#05488B] border-t-transparent rounded-full animate-spin"></div>
-            <span className="ml-3 font-bold text-[#05488B]">⏳ Processing...</span>
+          <div className="absolute inset-0 bg-white/80 z-50 flex items-center justify-center rounded-xl backdrop-blur-sm">
+            <Loader2 className="w-6 h-6 text-[#05488B] animate-spin shrink-0" />
+            <span className="ml-2.5 text-sm font-bold text-[#05488B]">Processing...</span>
           </div>
         )}
 
@@ -143,16 +145,17 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
             {deleteStatus && !fileError && !uploadStatus && <span className="text-[14px] md:text-[15px] font-medium text-[#0d9488] tracking-wide"><span className={isErrorStatus(deleteStatus) ? "text-[#f43f5e] font-bold mr-1" : "text-[#22c55e] font-bold mr-1"}>{isErrorStatus(deleteStatus) ? "❌" : "✅"}</span>{cleanStatusMessage(deleteStatus)}</span>}
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-6 w-full lg:w-auto order-1 lg:order-2">
-            {(canCreatePapers || canEditPapers) && <button onClick={handleUpload} className="w-full sm:w-auto bg-[#05488B] hover:bg-[#215ea0] text-[#ffc107] px-6 py-2 rounded shadow-sm font-medium">{canCreatePapers ? "📤 Upload & Update" : "Update Data"}</button>}
-            {canDeletePapers && <button onClick={handleDelete} className="w-full sm:w-auto bg-[#E31E24] hover:bg-[#c11018] text-white px-6 py-2 rounded shadow-sm font-medium">🗑️ Delete</button>}
+            {(canCreatePapers || canEditPapers) && <button onClick={handleUpload} className="w-full sm:w-auto bg-[#05488B] hover:bg-[#215ea0] text-[#ffc107] px-6 py-2 rounded shadow-sm font-medium whitespace-nowrap shrink-0">{canCreatePapers ? "📤 Upload & Update" : "Update Data"}</button>}
+            {canDeletePapers && <button onClick={handleDelete} className="w-full sm:w-auto bg-[#E31E24] hover:bg-[#c11018] text-white px-6 py-2 rounded shadow-sm font-medium whitespace-nowrap shrink-0">🗑️ Delete</button>}
           </div>
           <div className="w-full lg:flex-1 flex items-center justify-center lg:justify-end order-3">
-            {canSyncPapers && <button onClick={handleSyncToWebsite} className="w-full sm:w-auto text-center bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded shadow-sm font-medium transition-colors" title="Deletes every paper in the live database and replaces it with whatever is currently in the Google Sheet backup.">⚠️ Restore From Sheet Backup</button>}
+            {canSyncPapers && <button onClick={handleSyncToWebsite} className="w-full sm:w-auto text-center bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded shadow-sm font-medium transition-colors whitespace-nowrap shrink-0" title="Deletes every paper in the live database and replaces it with whatever is currently in the Google Sheet backup.">⚠️ Restore From Sheet Backup</button>}
           </div>
         </div>
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default DashboardPage;

@@ -29,11 +29,12 @@ export async function POST(req: NextRequest) {
     // Require verified Google institutional credential
     const credential = String(body?.credential ?? "").trim();
     if (!credential) {
+      const domain = (process.env.ASSISTANT_EMAIL_DOMAIN || "").trim().replace(/^@/, "");
       return NextResponse.json(
         {
           success: false,
           code: "SIGN_IN_REQUIRED",
-          message: "Please sign in with your Poornima University Google account to continue.",
+          message: domain ? `Please sign in with your @${domain} Google account to continue.` : "Please sign in with your Google account to continue.",
         },
         { status: 401 }
       );
@@ -82,26 +83,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check custom_replies
-    const { data: replies } = await db
-      .from("custom_replies")
-      .select("keyword, reply");
-
-    const qLower = question.toLowerCase();
-    const matchedCustom = (replies || []).find(
-      (r: any) => r.keyword && qLower.includes(String(r.keyword).trim().toLowerCase())
-    );
-
-    if (matchedCustom) {
-      return NextResponse.json({
-        success: true,
-        message: matchedCustom.reply,
-        results: [],
-        papers: [],
-        status: "success",
-      });
-    }
-
     const result = await askAssistantAction(question, studentEmail);
 
     return NextResponse.json({
@@ -109,6 +90,8 @@ export async function POST(req: NextRequest) {
       message: result.message,
       results: result.papers || [],
       papers: result.papers || [],
+      canFeedback: Boolean(result.canFeedback),
+      queryText: result.queryText || question,
       status: "success",
     });
   } catch (error: any) {

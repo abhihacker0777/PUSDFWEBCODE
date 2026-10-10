@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { FileText } from "lucide-react";
 
 export interface PaperItem {
   id?: string | number;
@@ -64,9 +65,11 @@ export default function PaperList({ papers, isSearchResult = false }: Readonly<P
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-800">
             Papers{" "}
-            <span className="ml-2 text-sm font-medium text-[#0d6efd]">
-              Access By poornima.edu.in Email.
-            </span>
+            {process.env.NEXT_PUBLIC_ASSISTANT_EMAIL_DOMAIN ? (
+              <span className="ml-2 text-sm font-medium text-[#0d6efd]">
+                Access By @{process.env.NEXT_PUBLIC_ASSISTANT_EMAIL_DOMAIN.replace(/^@/, "")} Email.
+              </span>
+            ) : null}
           </h2>
         </div>
       )}
@@ -83,9 +86,9 @@ export default function PaperList({ papers, isSearchResult = false }: Readonly<P
               key={`${p.course}-${paperDisplayName}-${p.index ?? p.link ?? idx}`} 
               className="bg-white p-4 border-l-[6px] border-[#ffca2c] rounded-lg shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3"
             >
-              <span className="text-xl text-gray-400 shrink-0" role="img" aria-label="paper icon">
-                📄
-              </span>
+              <div className="w-8 h-8 rounded-lg bg-[#05488b]/10 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-[#05488b]" />
+              </div>
               
               <div className="flex flex-col flex-grow min-w-0">
                 {safeLink ? (

@@ -37,6 +37,7 @@ interface PaperAssistantPanelProps {
   closeAssistant: () => void;
   config: AssistantConfig;
   googleButtonRef: RefObject<HTMLDivElement | null>;
+  handleSendFeedback?: (index: number, queryText: string) => void;
   handleSubmit: (e?: React.FormEvent, directQuery?: string) => void;
   input: string;
   isLoading: boolean;
@@ -55,6 +56,7 @@ export default function PaperAssistantPanel({
   closeAssistant,
   config,
   googleButtonRef,
+  handleSendFeedback,
   handleSubmit,
   input,
   isLoading,
@@ -123,6 +125,7 @@ export default function PaperAssistantPanel({
           messagesRef={messagesRef}
           onInputChange={setInput}
           onSubmit={handleSubmit}
+          onSendFeedback={handleSendFeedback}
         />
       )}
       {view === "chat" && <PoweredFooter />}

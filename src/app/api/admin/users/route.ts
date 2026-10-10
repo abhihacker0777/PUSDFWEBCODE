@@ -10,7 +10,25 @@ async function verifyCanManageAdmins() {
 
   const adminEmail = (process.env.ADMIN_EMAIL || "").toLowerCase().trim();
   const callerEmail = (user.email || "").toLowerCase().trim();
-  const isOwner = Boolean(adminEmail && callerEmail === adminEmail);
+  const ownerId = process.env.ADMIN_AUTH_USER_ID;
+
+  let isOwner = Boolean(
+    (adminEmail && callerEmail === adminEmail) ||
+    (ownerId && user.id === ownerId)
+  );
+
+  if (!isOwner) {
+    const adminClient = createAdminClient();
+    const { data: adminRow } = await adminClient
+      .from("admin_users")
+      .select("login_identifier")
+      .or(`email.ilike.${callerEmail},login_identifier.ilike.${callerEmail}`)
+      .maybeSingle();
+
+    if (adminRow?.login_identifier?.toLowerCase() === "superadmin") {
+      isOwner = true;
+    }
+  }
 
   if (!isOwner) {
     return { authorized: false, status: 403, message: "Forbidden: Only Primary Admin can manage admin accounts" };
@@ -50,8 +68,8 @@ function getAdminPermissionsList(role: string, isOwner = false): string[] {
 
 function resolveAdminDisplayName(u: any, isOwner: boolean): string {
   if (u.display_name) return u.display_name;
-  if (isOwner) return process.env.ADMIN_DISPLAY_NAME || "PU Central-Library";
-  return u.email || "Admin";
+  if (isOwner) return process.env.ADMIN_DISPLAY_NAME || "";
+  return u.email || "";
 }
 
 export async function GET() {
@@ -78,7 +96,11 @@ export async function GET() {
     // Map rows to public admin user shape
     const users = rows.map((u: any) => {
       const email = (u.email || u.login_identifier || "").toLowerCase().trim();
-      const isOwner = Boolean(adminEmail && email === adminEmail);
+      const isOwner = Boolean(
+        (adminEmail && email === adminEmail) ||
+        (process.env.ADMIN_AUTH_USER_ID && u.auth_user_id === process.env.ADMIN_AUTH_USER_ID) ||
+        u.login_identifier?.toLowerCase() === "superadmin"
+      );
       const role = formatRole(u.role, isOwner);
 
       return {
@@ -94,22 +116,6 @@ export async function GET() {
         createdAt: u.created_at
       };
     });
-
-    // Ensure the Owner Admin is always present even if not yet in database
-    if (adminEmail && !users.some((u) => u.email?.toLowerCase().trim() === adminEmail)) {
-      users.unshift({
-        id: "owner-root",
-        email: adminEmail,
-        loginIdentifier: adminEmail,
-        username: adminEmail.split("@")[0],
-        displayName: process.env.ADMIN_DISPLAY_NAME || "PU Central-Library",
-        role: "Full",
-        isOwner: true,
-        isActive: true,
-        permissions: getAdminPermissionsList("Full", true),
-        createdAt: new Date().toISOString()
-      });
-    }
 
     return NextResponse.json({ success: true, users });
   } catch (error: any) {
@@ -127,12 +133,18 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { username, displayName, role, password } = body;
     const loginIdentifier = (username || body.email || "").trim().toLowerCase();
-    let email = (body.email || "").trim().toLowerCase();
+    let email = (body.email || loginIdentifier || "").trim().toLowerCase();
 
-    if (!email) {
-      email = loginIdentifier.includes("@")
-        ? loginIdentifier
-        : `${loginIdentifier}@pyqp.local`;
+    // Enforce real identity & institutional domain
+    if (!email || !email.includes("@")) {
+      return NextResponse.json({ success: false, message: "A valid email address is required." }, { status: 400 });
+    }
+    const allowedDomain = (process.env.ASSISTANT_EMAIL_DOMAIN || "").trim().replace(/^@/, "");
+    if (allowedDomain && !email.endsWith(`@${allowedDomain}`)) {
+      return NextResponse.json({
+        success: false,
+        message: `Only official @${allowedDomain} institutional email addresses are permitted.`,
+      }, { status: 400 });
     }
 
     const adminClient = createAdminClient();
@@ -171,8 +183,38 @@ export async function POST(req: NextRequest) {
 
     const roleFormatted = formatRole(roleDb);
 
+    // Module 1: Check library_admin_invite_notify setting (default: false)
+    let inviteSent = false;
+    try {
+      const { data: settingRow } = await adminClient
+        .from("system_settings")
+        .select("value")
+        .eq("key", "library_admin_invite_notify")
+        .maybeSingle();
+
+      if (settingRow?.value?.enabled === true) {
+        const { sendLibraryAdminInviteEmail } = await import("@/lib/email");
+        const origin = (process.env.NEXT_PUBLIC_APP_URL || process.env.BASE_URL || "").replace(/\/+$/, "");
+        void sendLibraryAdminInviteEmail({
+          to: email,
+          adminName: displayName || loginIdentifier,
+          role: roleFormatted,
+          loginUrl: `${origin}/login`,
+        });
+        inviteSent = true;
+      }
+    } catch (inviteErr) {
+      console.warn("Could not dispatch admin invite email:", inviteErr);
+    }
+
+    const message = inviteSent
+      ? `Admin user added. Onboarding invite email has been sent to ${email}.`
+      : "Admin user added successfully.";
+
     return NextResponse.json({
       success: true,
+      message,
+      inviteSent,
       user: {
         id: newUser.id,
         email: newUser.email,
@@ -221,6 +263,13 @@ export async function PATCH(req: NextRequest) {
       await adminClient.auth.admin.updateUserById(updated.auth_user_id, {
         password,
       });
+    }
+
+    if (isActive === false && updated.email) {
+      await adminClient
+        .from("admin_sessions")
+        .update({ is_revoked: true })
+        .eq("email", updated.email.toLowerCase());
     }
 
     const roleFormatted = formatRole(updated.role);

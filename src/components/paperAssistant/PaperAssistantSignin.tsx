@@ -20,10 +20,12 @@ export default function PaperAssistantSignin({
     <div className="pu-assistant-pattern pu-assistant-choice-bg">
       <div className="pu-assistant-choice-shell text-center">
         <div className="pu-assistant-choice-title">
-          <h3 className="!text-[#22c55e] font-bold text-xl drop-shadow-sm">Verify Your Poornima Email</h3>
+          <h3 className="!text-[#22c55e] font-bold text-xl drop-shadow-sm">
+            Verify Your {config.emailDomain ? `@${config.emailDomain} ` : "Institutional "}Email
+          </h3>
         </div>
         <p className="mx-auto mt-2 max-w-[340px] text-sm leading-relaxed text-white font-medium drop-shadow-xs">
-          Sign In With Google Using Your {config.emailDomain} Account To Use This Assistant.
+          Sign In With Google Using Your {config.emailDomain ? `@${config.emailDomain}` : "Institutional"} Account To Use This Assistant.
         </p>
 
         <div className="mx-auto mt-8 w-full max-w-[360px] rounded-[18px]">

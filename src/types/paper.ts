@@ -48,7 +48,7 @@ export interface PaperFiltersState {
 }
 
 export interface ExtractedAIIntent {
-  intentType?: "GREETING" | "ABOUT" | "ADMISSION_OR_GENERAL" | "PAPER_SEARCH";
+  intentType?: "GREETING" | "ABOUT" | "ADMISSION_OR_GENERAL" | "PAPER_SEARCH" | "OUT_OF_SCOPE";
   conversationalReply?: string | null;
   course?: string | null;
   specialization?: string | null;

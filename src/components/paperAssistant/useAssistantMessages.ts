@@ -10,6 +10,9 @@ export interface AssistantMessageItem {
   results?: any[];
   status?: string;
   isWelcome?: boolean;
+  canFeedback?: boolean;
+  queryText?: string;
+  feedbackSubmitted?: boolean;
 }
 
 export default function useAssistantMessages(savedUser: any, isLoading: boolean) {
@@ -41,6 +44,12 @@ export default function useAssistantMessages(savedUser: any, isLoading: boolean)
     ]);
   }, []);
 
+  const markFeedbackSubmitted = useCallback((index: number) => {
+    setMessages((prev) =>
+      prev.map((msg, i) => (i === index ? { ...msg, feedbackSubmitted: true } : msg))
+    );
+  }, []);
+
   const resetMessages = useCallback((user: any) => {
     setMessages(buildInitialMessages(user));
   }, []);
@@ -49,6 +58,7 @@ export default function useAssistantMessages(savedUser: any, isLoading: boolean)
     messages,
     messagesRef,
     pushMessage,
+    markFeedbackSubmitted,
     resetMessages
   };
 }

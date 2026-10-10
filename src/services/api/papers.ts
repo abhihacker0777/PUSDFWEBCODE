@@ -1,4 +1,4 @@
-import { BACKEND_URL } from "./backendConfig";
+import { fetchPapersAction } from "@/actions/paperActions";
 export { clearPaperCaches } from "./paperCache";
 import {
   getPapersUpdatedAt,
@@ -16,31 +16,26 @@ import {
   PaperOption
 } from "./paperCache";
 
+/**
+ * Modern Next.js 16 Direct Server Action Service
+ * Eliminates legacy 4-layer HTTP rewrite hop (client fetch -> rewrite -> route handler -> action -> DB)
+ * Direct RPC call to fetchPapersAction with local caching.
+ */
 export const fetchPapers = async ({ force = false }: { force?: boolean } = {}): Promise<NormalizedPaper[]> => {
   const cachedPapers = !force ? readPapersCache(false) : null;
   if (cachedPapers) return cachedPapers;
 
   try {
-    const response = await fetch(force ? `${BACKEND_URL}/papers?t=${Date.now()}` : `${BACKEND_URL}/papers`, {
-      method: "GET",
-      cache: force ? "no-store" : "default",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch: ${response.status}`);
+    const res = await fetchPapersAction({ force });
+    if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      const normalized = normalizePapers(res.data);
+      writePapersCache(normalized);
+      return normalized;
     }
-
-    const papers = normalizePapers(await response.json());
-    if (papers.length > 0) {
-      writePapersCache(papers);
-    }
-    return papers;
+    return [];
   } catch (error) {
-    console.error("Error Fetching Papers:", error);
-    return readPapersCache(true) || [];
+    console.error("Error fetching papers via Server Action:", error);
+    return [];
   }
 };
 
@@ -49,24 +44,26 @@ export const fetchPaperOptions = async ({ force = false }: { force?: boolean } =
   if (cachedOptions) return cachedOptions;
 
   try {
-    const response = await fetch(force ? `${BACKEND_URL}/paper-options?t=${Date.now()}` : `${BACKEND_URL}/paper-options`, {
-      method: "GET",
-      cache: force ? "no-store" : "default",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch options: ${response.status}`);
+    const res = await fetchPapersAction({ force });
+    if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      const options = normalizePaperOptions(
+        res.data.map((p) => ({
+          course: p.course || "",
+          year: p.year || "",
+          specialization: p.specialization || p.spec || "",
+          spec: p.specialization || p.spec || "",
+          sem: p.semester || p.sem || "",
+          semester: p.semester || p.sem || "",
+          exam: p.exam || "",
+        }))
+      );
+      writePaperOptionsCache(options);
+      return options;
     }
-
-    const options = normalizePaperOptions(await response.json());
-    writePaperOptionsCache(options);
-    return options;
+    return [];
   } catch (error) {
-    console.error("Error Fetching Paper Options:", error);
-    return readPaperOptionsCache(true) || [];
+    console.error("Error fetching paper options via Server Action:", error);
+    return [];
   }
 };
 
@@ -77,34 +74,26 @@ export const searchPapers = async (filters: Record<string, any> = {}, { force = 
     : null;
   if (cachedPapers) return cachedPapers;
 
-  const params = new URLSearchParams();
-  if (filters.course) params.set("course", filters.course);
-  if (filters.year) params.set("year", filters.year);
-  if (filters.specialization || filters.spec) params.set("specialization", filters.specialization || filters.spec);
-  if (filters.sem || filters.semester) params.set("sem", filters.sem || filters.semester);
-  if (filters.exam) params.set("exam", filters.exam);
-
   try {
-    const queryString = params.toString();
-    const cacheBuster = force ? `&t=${Date.now()}` : "";
-    const url = `${BACKEND_URL}/papers/search?${queryString}${cacheBuster}`;
-    const response = await fetch(url, {
-      method: "GET",
-      cache: force ? "no-store" : "default",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to search papers: ${response.status}`);
+    const res = await fetchPapersAction({ force });
+    if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      const all = normalizePapers(res.data);
+      const filtered = all.filter((p) => {
+        if (filters.course && p.course?.toLowerCase() !== filters.course.toLowerCase()) return false;
+        if (filters.year && p.year?.toLowerCase() !== filters.year.toLowerCase()) return false;
+        const s = (filters.specialization || filters.spec || "").toLowerCase();
+        if (s && (p.specialization || p.spec || "").toLowerCase() !== s) return false;
+        const sem = (filters.sem || filters.semester || "").toLowerCase();
+        if (sem && (p.semester || p.sem || "").toLowerCase() !== sem) return false;
+        if (filters.exam && p.exam?.toLowerCase() !== filters.exam.toLowerCase()) return false;
+        return true;
+      });
+      writeJsonCache(cacheKey, `${cacheKey}:time`, filtered);
+      return filtered;
     }
-
-    const papers = normalizePapers(await response.json());
-    writeJsonCache(cacheKey, `${cacheKey}:time`, papers);
-    return papers;
+    return [];
   } catch (error) {
-    console.error("Error Searching Papers:", error);
-    return readJsonCache<NormalizedPaper[]>(cacheKey, `${cacheKey}:time`, PAPERS_CACHE_TTL_MS, true, getPapersUpdatedAt()) || [];
+    console.error("Error searching papers via Server Action:", error);
+    return [];
   }
 };

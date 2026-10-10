@@ -88,12 +88,12 @@ export async function requireAdminSession(requiredPermission?: string): Promise<
   const ownerEmail = (process.env.ADMIN_EMAIL ?? "").toLowerCase().trim();
   const callerEmail = (user.email ?? "").toLowerCase().trim();
   const isOwner = Boolean(
-    (ownerId && user.id === ownerId) ||
-    (!ownerId && ownerEmail && callerEmail === ownerEmail)
+    (ownerEmail && callerEmail === ownerEmail) ||
+    (ownerId && user.id === ownerId)
   );
 
   if (isOwner) {
-    const ownerName = process.env.ADMIN_DISPLAY_NAME || user.user_metadata?.display_name || user.user_metadata?.name || user.email?.split("@")[0] || "abhishek";
+    const ownerName = process.env.ADMIN_DISPLAY_NAME || user.user_metadata?.display_name || user.user_metadata?.name || (user.email ? user.email.split("@")[0] : "");
     return {
       user,
       isOwner: true,

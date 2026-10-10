@@ -2,7 +2,10 @@ const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET;
 const CAPTCHA_VERIFY_URL = process.env.CAPTCHA_VERIFY_URL || "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 export async function verifyTurnstileToken(token: string, remoteIp?: string): Promise<boolean> {
-  if (!CAPTCHA_SECRET) return true; // bypass if not configured
+  if (!CAPTCHA_SECRET) {
+    console.error("CAPTCHA_SECRET is not configured in environment variables.");
+    return false;
+  }
   if (!token) return false;
 
   try {

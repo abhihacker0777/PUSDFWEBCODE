@@ -75,3 +75,28 @@ export async function deleteDriveFile(fileId: string): Promise<boolean> {
   }
 }
 
+export function extractDriveFileId(url: string): string | null {
+  if (!url) return null;
+  const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
+export async function downloadBufferFromGoogleDrive(fileId: string): Promise<{ buffer: Buffer; mimeType: string }> {
+  const drive = await getServiceDrive();
+  const res = await drive.files.get(
+    { fileId, alt: "media", supportsAllDrives: true },
+    { responseType: "arraybuffer" }
+  );
+  let mimeType = "application/pdf";
+  try {
+    const meta = await drive.files.get({ fileId, fields: "mimeType" });
+    if (meta.data.mimeType) mimeType = meta.data.mimeType;
+  } catch {
+    // default to pdf
+  }
+  return {
+    buffer: Buffer.from(res.data as ArrayBuffer),
+    mimeType,
+  };
+}
+

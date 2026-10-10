@@ -1,6 +1,6 @@
 const AUTH_STORAGE_KEY = "puAssistantGoogleAuth";
 const GOOGLE_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
-const DEFAULT_DOMAIN = "poornima.edu.in";
+const DEFAULT_DOMAIN = (process.env.NEXT_PUBLIC_ASSISTANT_EMAIL_DOMAIN || "").trim().replace(/^@/, "");
 
 let googleScriptPromise: Promise<void> | null = null;
 
@@ -104,8 +104,8 @@ export const buildInitialMessages = (user?: any, time?: string) => {
     {
       role: "bot" as const,
       text: user?.email
-        ? `${greeting}\n\nHello! Welcome to Poornima University Academic Portal. How can I help you today? 😊`
-        : "Sign in with your Poornima Google account to ask for papers.",
+        ? `${greeting}\n\nHello! Welcome to the Academic Portal. How can I help you today? 😊`
+        : `Sign in with your ${DEFAULT_DOMAIN ? `@${DEFAULT_DOMAIN} ` : ""}Google account to ask for papers.`,
       time: time || "",
       isWelcome: true,
     }

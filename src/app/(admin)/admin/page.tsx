@@ -1,19 +1,20 @@
 "use client";
 
 import React from "react";
-import AdminHeader from "@/components/admin/AdminHeader";
-import AdminModals from "@/components/admin/AdminModals";
-import AdminSidebar from "@/components/admin/AdminSidebar";
-import AdminUsersPanel from "@/components/admin/AdminUsersPanel";
-import AssistantSettingsPanel from "@/components/admin/AssistantSettingsPanel";
-import DashboardHome from "@/components/admin/DashboardHome";
-import RecentActionsPanel from "@/components/admin/RecentActionsPanel";
-import StudentQueriesHome from "@/components/admin/StudentQueriesHome";
-import useAdminPageController from "@/components/admin/useAdminPageController";
+import {
+  AdminHeader,
+  AdminModals,
+  AdminSidebar,
+  AdminUsersPanel,
+  DashboardHome,
+  RecentActionsPanel,
+  StudentQueriesHome,
+  SystemSettingsPanel,
+  useAdminPageController
+} from "@/components/admin";
 
 const coverImg = "/pucoverlogo.webp";
 const newQueryGif = "/punew.gif";
-
 
 function renderActivePanel(
   activeNav: string,
@@ -26,7 +27,6 @@ function renderActivePanel(
     studentQueriesProps: any;
     newQueryGif: string;
     insightsProps: any;
-    assistantSettingsProps: any;
     adminUsersPanelProps: any;
   }
 ) {
@@ -39,11 +39,11 @@ function renderActivePanel(
   if (activeNav === "queries" && permissions.canMonitor) {
     return <StudentQueriesHome {...props.studentQueriesProps} newQueryGif={props.newQueryGif} insightsProps={props.insightsProps} />;
   }
-  if (activeNav === "assistant" && permissions.canReadAssistant) {
-    return <AssistantSettingsPanel {...props.assistantSettingsProps} />;
-  }
   if (activeNav === "admins" && permissions.canManageAdmins) {
     return <AdminUsersPanel {...props.adminUsersPanelProps} />;
+  }
+  if (activeNav === "settings" && permissions.canManageAdmins) {
+    return <SystemSettingsPanel />;
   }
   return null;
 }
@@ -59,13 +59,12 @@ export default function AdminPage() {
     recentActionsProps,
     studentQueriesProps,
     insightsProps,
-    assistantSettingsProps,
     adminUsersPanelProps,
     modalProps
   } = useAdminPageController();
 
   return (
-    <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-white" style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+    <div className="flex flex-col md:flex-row h-screen h-[100dvh] min-h-[100dvh] overflow-hidden bg-white" style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
       <AdminSidebar {...sidebarProps} newQueryGif={newQueryGif} />
 
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -80,7 +79,6 @@ export default function AdminPage() {
             studentQueriesProps,
             newQueryGif,
             insightsProps,
-            assistantSettingsProps,
             adminUsersPanelProps,
           })}
         </main>

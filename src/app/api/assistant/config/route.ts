@@ -8,7 +8,7 @@ export function GET() {
 
   return NextResponse.json({
     googleClientId,
-    emailDomain: process.env.ASSISTANT_EMAIL_DOMAIN || "poornima.edu.in",
+    emailDomain: (process.env.ASSISTANT_EMAIL_DOMAIN || "").trim().replace(/^@/, ""),
     aiProvider: "gemini",
     geminiEnabled: true,
     sarvamEnabled: false

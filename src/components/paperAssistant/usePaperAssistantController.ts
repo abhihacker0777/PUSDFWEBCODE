@@ -28,6 +28,7 @@ export default function usePaperAssistantController() {
     messages,
     messagesRef,
     pushMessage,
+    markFeedbackSubmitted,
     resetMessages
   } = useAssistantMessages(auth?.user, isLoading);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
@@ -134,6 +135,23 @@ export default function usePaperAssistantController() {
     setSignInError("");
   }, []);
 
+  const handleSendFeedback = async (index: number, queryText: string) => {
+    if (!auth?.user?.email) return;
+    try {
+      markFeedbackSubmitted(index);
+      await fetch("/api/assistant/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentEmail: auth.user.email,
+          query: queryText
+        })
+      });
+    } catch (err) {
+      console.warn("Feedback submission error:", err);
+    }
+  };
+
   const handleSubmit = async (event?: React.FormEvent, directQuery?: string) => {
     if (event) event.preventDefault();
     const value = (directQuery || input).trim();
@@ -161,7 +179,9 @@ export default function usePaperAssistantController() {
         role: "bot",
         text: answer.message,
         results: Array.isArray(answer.results) ? answer.results : [],
-        status: answer.status
+        status: answer.status,
+        canFeedback: Boolean((answer as any).canFeedback),
+        queryText: (answer as any).queryText || value
       });
     } catch (error: any) {
       if (isAuthError(error.code)) {
@@ -185,6 +205,7 @@ export default function usePaperAssistantController() {
     closeAssistant,
     config,
     googleButtonRef,
+    handleSendFeedback,
     handleSubmit,
     input,
     isLoading,

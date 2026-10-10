@@ -28,12 +28,66 @@ const STOP_WORDS = new Set([
 ]);
 
 export const KNOWN_SPECS = [
-  "cyber security", "artificial intelligence & data science", "artificial intelligence and data science",
-  "artificial intelligence & machine learning", "artificial intelligence and machine learning",
-  "cloud technology & devops", "cloud technology and devops", "cloud technology",
-  "computer science and engineering", "computer science & engineering", "computer science",
-  "electrical & computer engineering", "electrical and computer engineering",
-  "mechanical engineering", "civil engineering", "data science", "full stack"
+  // Computer Science & IT
+  "cyber security",
+  "artificial intelligence & data science",
+  "artificial intelligence and data science",
+  "artificial intelligence & machine learning",
+  "artificial intelligence and machine learning",
+  "cloud technology & devops",
+  "cloud technology and devops",
+  "cloud technology",
+  "full stack development & mobile application",
+  "full stack",
+  "mobile application",
+  "computer science and engineering",
+  "computer science & engineering",
+  "computer engineering",
+  "computer science",
+  "ai & cyber security",
+
+  // Core Engineering
+  "electrical & computer engineering",
+  "electrical and computer engineering",
+  "electronics & communication engineering",
+  "civil engineering",
+  "mechanical engineering",
+  "power system",
+  "structural engineering",
+  "transportation engineering",
+  "construction technology",
+  "product design and manufacturing",
+  "vlsi and embedded systems",
+
+  // Design, Arts & Architecture
+  "architecture",
+  "fashion & textile design",
+  "interior design",
+  "animation & vfx",
+  "gaming, augmented & virtual reality",
+  "applied arts",
+  "painting",
+  "performing arts",
+  "journalism & mass communication",
+
+  // Management & Commerce
+  "finance & accounting",
+  "banking & finance",
+  "business analytics",
+  "digital marketing",
+  "sports management",
+  "global business",
+  "audit taxation",
+  "insurance banking",
+  "health & hospital management",
+  "international business",
+
+  // Sciences, Hotel Management & Public Health
+  "forensic science",
+  "hospitality & hotel administration",
+  "public health",
+  "yogic studies",
+  "environmental science",
 ];
 
 export interface LocalSearchOptions {

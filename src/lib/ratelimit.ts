@@ -20,53 +20,38 @@ const limiters = {
   papers: mk(60, "1 m", "papers"),
 };
 
-// In-memory fallback if Redis is not configured or throws
-const memoryBuckets = new Map<string, { count: number; resetAt: number }>();
-
-function pruneMemoryBuckets() {
-  const now = Date.now();
-  for (const [k, v] of memoryBuckets.entries()) {
-    if (v.resetAt <= now) memoryBuckets.delete(k);
-  }
-}
-
 export function clientIp(req: Request): string {
-  return (
+  const ip =
+    req.headers.get("cf-connecting-ip")?.trim() ??
+    req.headers.get("x-real-ip")?.trim() ??
+    req.headers.get("x-client-ip")?.trim() ??
     req.headers.get("x-vercel-forwarded-for")?.split(",")[0].trim() ??
     req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-    "127.0.0.1"
-  );
+    "127.0.0.1";
+
+  if (ip === "::1" || ip === "::ffff:127.0.0.1") {
+    return "127.0.0.1";
+  }
+  return ip;
 }
 
 export async function allow(
   kind: keyof typeof limiters,
   key: string,
-  maxInMemory = 20,
-  windowMs = 60000
+  _limit?: number,
+  _windowMs?: number
 ): Promise<boolean> {
   const l = limiters[kind];
-  if (l) {
-    try {
-      const res = await l.limit(key);
-      return res.success;
-    } catch (e) {
-      console.error("Upstash ratelimit error, falling back to memory:", e);
-    }
+  if (!l) {
+    console.error(`Rate limiter for '${kind}' is unavailable: Upstash Redis is not configured.`);
+    return false;
   }
 
-  // Graceful bounded in-memory fallback
-  if (memoryBuckets.size > 2000) {
-    pruneMemoryBuckets();
+  try {
+    const res = await l.limit(key);
+    return res.success;
+  } catch (e) {
+    console.error(`Upstash ratelimit error for '${kind}':`, e);
+    return false;
   }
-  const now = Date.now();
-  const bucketKey = `${kind}:${key}`;
-  const bucket = memoryBuckets.get(bucketKey);
-
-  if (!bucket || bucket.resetAt <= now) {
-    memoryBuckets.set(bucketKey, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-
-  bucket.count += 1;
-  return bucket.count <= maxInMemory;
 }

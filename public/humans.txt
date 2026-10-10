@@ -1,0 +1,18 @@
+/* TEAM */
+Developer: Abhishek Sankhla
+Faculty: BCA (Cyber Security)
+Institution: Poornima University, Jaipur
+
+/* INSTITUTION */
+Organization: Poornima University Central Library
+Location: Jaipur, Rajasthan, India
+Website: https://poornima.edu.in
+
+/* THANKS */
+Thanks to the Controller of Examinations (COE) and the Central Library Advisory Committee.
+
+/* SITE */
+Standards: HTML5, CSS3, Next.js 16, TypeScript, Tailwind CSS
+Backend: Supabase, Upstash Redis, Google Drive API
+Language: English, Hindi
+Doctype: HTML5

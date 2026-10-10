@@ -2,9 +2,9 @@
 const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://accounts.google.com https://va.vercel-scripts.com",
-  "style-src 'self' 'unsafe-inline' https://accounts.google.com",
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com",
   "img-src 'self' data: blob: https://*.googleusercontent.com",
-  "font-src 'self' data:",
+  "font-src 'self' data: https://fonts.gstatic.com",
   "connect-src 'self' https://challenges.cloudflare.com https://accounts.google.com https://vitals.vercel-insights.com https://va.vercel-scripts.com",
   "frame-src https://challenges.cloudflare.com https://accounts.google.com",
   "frame-ancestors 'self'",
@@ -79,18 +79,6 @@ const nextConfig = {
         destination: "/api/admin/settings/unblock",
       },
       {
-        source: "/admin/settings/replies",
-        destination: "/api/admin/settings/replies",
-      },
-      {
-        source: "/admin/settings/reply",
-        destination: "/api/admin/settings/reply",
-      },
-      {
-        source: "/admin/settings/reply/delete",
-        destination: "/api/admin/settings/reply/delete",
-      },
-      {
         source: "/admin/queries",
         destination: "/api/admin/queries",
       },
@@ -109,6 +97,10 @@ const nextConfig = {
       {
         source: "/assistant/search",
         destination: "/api/assistant",
+      },
+      {
+        source: "/assistant/feedback",
+        destination: "/api/assistant/feedback",
       },
       {
         source: "/assistant/google/verify",

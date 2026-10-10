@@ -1,0 +1,232 @@
+import React from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { FilterLinesIcon, SearchIcon } from "../utils/AdminIcons";
+import { PaginationFooter } from "../utils/AdminShared";
+import { normalizeQueryEmail } from "../utils/adminHelpers";
+
+export interface StudentQueriesPanelProps {
+  querySearch: string;
+  setQuerySearch: (query: string) => void;
+  setShowQueryFilter: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowAllMenu: (show: boolean) => void;
+  setShowFilter: (show: boolean) => void;
+  showQueryFilter: boolean;
+  setQuerySortType: (sort: string) => void;
+  groupedQueriesArray: any[];
+  queryCurrentPage: number;
+  queryDisplayCount: number;
+  blockedEmails: string[];
+  expandedEmails: Set<string>;
+  blockLoadingEmail: string;
+  newStudentQueryEmails: Set<string>;
+  rememberStudentQueryEmail: (email: string) => void;
+  toggleEmailExpanded: (email: string) => void;
+  newQueryGif?: any;
+  canBlockAssistant: boolean;
+  handleUnblockUser: (email: string) => Promise<void>;
+  handleBlockUser: (email: string) => Promise<void>;
+  setQueryCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+  setQueryDisplayCount: (count: number) => void;
+}
+
+const getQueryStatusBadgeClass = (status: string) => {
+  if (status === "found") return "bg-green-100 text-green-700";
+  if (status === "info") return "bg-blue-100 text-blue-700";
+  return "bg-red-100 text-red-700";
+};
+
+const renderUserActionButton = (
+  canBlockAssistant: boolean,
+  isBlocked: boolean,
+  isBlockLoading: boolean,
+  email: string,
+  handleUnblockUser: (email: string) => Promise<void>,
+  handleBlockUser: (email: string) => Promise<void>
+) => {
+  if (!canBlockAssistant) {
+    return <span className="text-xs font-semibold text-gray-400">View only</span>;
+  }
+  if (isBlocked) {
+    return (
+      <button
+        onClick={() => void handleUnblockUser(email)}
+        disabled={isBlockLoading}
+        className="bg-white border border-green-500 text-green-600 px-3 py-1.5 rounded-md text-xs font-bold hover:bg-green-50 transition-colors shadow-sm whitespace-nowrap disabled:opacity-60 disabled:cursor-wait"
+      >
+        {isBlockLoading ? "Unblocking..." : "Unblock Access"}
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={() => void handleBlockUser(email)}
+      disabled={isBlockLoading}
+      className="bg-white border border-red-500 text-[#E31E24] px-4 py-1.5 rounded-md text-xs font-bold hover:bg-red-50 transition-colors shadow-sm whitespace-nowrap disabled:opacity-60 disabled:cursor-wait"
+    >
+      {isBlockLoading ? "Blocking..." : "Block Access"}
+    </button>
+  );
+};
+
+export default function StudentQueriesPanel({
+  querySearch,
+  setQuerySearch,
+  setShowQueryFilter,
+  setShowAllMenu,
+  setShowFilter,
+  showQueryFilter,
+  setQuerySortType,
+  groupedQueriesArray,
+  queryCurrentPage,
+  queryDisplayCount,
+  blockedEmails,
+  expandedEmails,
+  blockLoadingEmail,
+  newStudentQueryEmails,
+  rememberStudentQueryEmail,
+  toggleEmailExpanded,
+  newQueryGif,
+  canBlockAssistant,
+  handleUnblockUser,
+  handleBlockUser,
+  setQueryCurrentPage,
+  setQueryDisplayCount
+}: Readonly<StudentQueriesPanelProps>) {
+  return (
+    <>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 gap-3 md:gap-0">
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-2 border border-blue-200 bg-blue-50/60 rounded-lg px-4 py-1.5 w-full sm:w-60"><SearchIcon /><input className="bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 w-full" placeholder="Search Query or Email" value={querySearch} onChange={e => setQuerySearch(e.target.value)} /></div>
+          <div className="relative w-full sm:w-auto">
+            <button onClick={(e) => { e.stopPropagation(); setShowQueryFilter(prev => !prev); setShowAllMenu(false); setShowFilter(false); }} className="w-full justify-center p-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 shadow-sm"><FilterLinesIcon /></button>
+            {showQueryFilter && (
+              <div className="absolute right-0 mt-2 w-full sm:w-44 bg-white border border-gray-200 rounded-lg shadow-xl z-20 overflow-hidden">
+                <div className="px-4 py-2 text-xs text-gray-400 font-semibold">SORT BY</div>
+                {[["new","New → Old"],["old","Old → New"]].map(([val, label]) => (<button key={val} onClick={() => { setQuerySortType(val); setShowQueryFilter(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">{label}</button>))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="border border-gray-200 rounded-2xl shadow-sm bg-white overflow-hidden isolate">
+        <div className="w-full overflow-x-auto pb-2 rounded-t-2xl [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-[#ffc107] hover:[&::-webkit-scrollbar-thumb]:bg-[#05488B] [&::-webkit-scrollbar-thumb]:rounded-full">
+          <table className="w-full text-sm min-w-[800px] border-separate border-spacing-0">
+            <thead>
+              <tr className="border-b-2 border-gray-100 bg-gray-50 sticky top-0 z-10 shadow-xs">
+                <th className="px-4 py-3 text-left text-gray-600 font-semibold w-12 rounded-tl-2xl bg-gray-50 border-b border-gray-100"></th>
+                <th className="px-4 py-3 text-left text-gray-600 font-semibold bg-gray-50 border-b border-gray-100">Student Name / Email</th>
+                <th className="px-4 py-3 text-left text-gray-600 font-semibold bg-gray-50 border-b border-gray-100">Total Queries</th>
+                <th className="px-4 py-3 text-left text-gray-600 font-semibold bg-gray-50 border-b border-gray-100">Last Active</th>
+                <th className="px-4 py-3 text-center text-gray-600 font-semibold w-32 bg-gray-50 border-b border-gray-100">Status</th>
+                <th className="px-4 py-3 text-center text-gray-600 font-semibold w-32 rounded-tr-2xl bg-gray-50 border-b border-gray-100">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {groupedQueriesArray.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">No Queries Found.</td></tr>}
+              {groupedQueriesArray.slice((queryCurrentPage - 1) * queryDisplayCount, queryCurrentPage * queryDisplayCount).map((group) => {
+                const isBlocked = blockedEmails.includes(group.email);
+                const isExpanded = expandedEmails.has(group.email);
+                const isBlockLoading = blockLoadingEmail === group.email;
+                const hasNewQuery = newStudentQueryEmails.has(normalizeQueryEmail(group.email));
+                return (
+                  <React.Fragment key={group.email}>
+                    <tr className={`transition-colors cursor-pointer ${isExpanded ? "bg-blue-50/40" : "bg-white hover:bg-gray-50"}`} onClick={() => { rememberStudentQueryEmail(group.email); toggleEmailExpanded(group.email); }}>
+                      <td className="px-4 py-3 text-gray-400 text-center">
+                        {isExpanded ? <ChevronDown className="w-5 h-5 text-[#05488B]" /> : <ChevronRight className="w-5 h-5" />}
+                      </td>
+                      <td className="px-4 py-3 text-gray-800">
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-bold text-sm text-gray-900 truncate">
+                              {group.studentName || group.email}
+                            </span>
+                            {hasNewQuery && (
+                              <img src={newQueryGif?.src || newQueryGif} alt="New query" className="h-6 w-6 shrink-0 object-contain" />
+                            )}
+                          </div>
+                          {group.studentName && group.studentName !== group.email && (
+                            <span className="text-xs text-gray-500 font-normal truncate lowercase">
+                              {group.email}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-bold text-xs">
+                          {group.totalCount} Queries
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{group.lastActiveDate}</td>
+                      <td className="px-4 py-3 text-center">
+                        {isBlocked ? (
+                          <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">Blocked</span>
+                        ) : (
+                          <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">Active</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        {renderUserActionButton(
+                          canBlockAssistant,
+                          isBlocked,
+                          isBlockLoading,
+                          group.email,
+                          handleUnblockUser,
+                          handleBlockUser
+                        )}
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={6} className="p-0 border-b border-gray-200">
+                          <div className="bg-gray-50 px-6 py-4 shadow-inner">
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">
+                                Query History for <span className="text-[#05488B] lowercase">{group.email}</span>
+                              </h3>
+                              <span className="text-xs font-semibold bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full">
+                                {group.queries?.length || 0} Records
+                              </span>
+                            </div>
+                            <div className="border border-gray-200 rounded-xl overflow-x-auto overflow-y-auto max-h-[380px] bg-white shadow-xs [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-[#ffc107] hover:[&::-webkit-scrollbar-thumb]:bg-[#05488B] [&::-webkit-scrollbar-thumb]:rounded-full">
+                              <table className="w-full text-sm border-separate border-spacing-0">
+                                <thead className="bg-gray-100 border-b border-gray-200 sticky top-0 z-10 shadow-xs">
+                                  <tr>
+                                    <th className="px-4 py-2.5 text-left text-gray-600 font-semibold w-1/4 bg-gray-100 border-b border-gray-200">Date & Time</th>
+                                    <th className="px-4 py-2.5 text-left text-gray-600 font-semibold w-1/3 bg-gray-100 border-b border-gray-200">Question Asked</th>
+                                    <th className="px-4 py-2.5 text-center text-gray-600 font-semibold bg-gray-100 border-b border-gray-200">Status</th>
+                                    <th className="px-4 py-2.5 text-left text-gray-600 font-semibold bg-gray-100 border-b border-gray-200">Result Served</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                  {(group.queries || []).map((q: any) => (
+                                    <tr key={q.id} className="hover:bg-gray-50 transition-colors">
+                                      <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{q.date}</td>
+                                      <td className="px-4 py-2.5 text-gray-800 italic">"{q.question}"</td>
+                                      <td className="px-4 py-2.5 text-center">
+                                        <span className={`inline-flex items-center rounded-full text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider ${getQueryStatusBadgeClass(q.status)}`}>
+                                          {q.status}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-2.5 text-[#05488b] font-medium">{q.paperName || "-"}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <PaginationFooter total={groupedQueriesArray.length} currentPage={queryCurrentPage} displayCount={queryDisplayCount} setCurrentPage={setQueryCurrentPage} setDisplayCount={setQueryDisplayCount} />
+      </div>
+    </>
+  );
+}
+
