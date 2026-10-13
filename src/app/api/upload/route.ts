@@ -1,0 +1,24 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminSession, AuthError } from "@/lib/authCheck";
+import { uploadPaperAction } from "@/actions/paperActions";
+
+export const runtime = "nodejs";
+const MAX_BODY = 4_400_000;
+
+export async function POST(req: NextRequest) {
+  try {
+    await requireAdminSession("papers:create");
+    if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY) {
+      return NextResponse.json({ success: false, message: "File Too Large (Max 4 MB)." }, { status: 413 });
+    }
+    const formData = await req.formData();
+    const result = await uploadPaperAction(formData);
+    return NextResponse.json(result, { status: result.success ? 200 : 400 });
+  } catch (error: any) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ success: false, message: error.message }, { status: error.statusCode });
+    }
+    console.error("Upload Failed:", error);
+    return NextResponse.json({ success: false, message: error.message || "Upload Failed." }, { status: 500 });
+  }
+}

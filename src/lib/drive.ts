@@ -1,0 +1,100 @@
+import { Readable } from "node:stream";
+import { getServiceDrive } from "./googleAuth";
+
+const DRIVE_FOLDER_ID = process.env.DRIVE_FOLDER_ID;
+
+export async function uploadBufferToGoogleDrive({
+  buffer,
+  fileName,
+  mimeType,
+}: {
+  buffer: Buffer;
+  fileName: string;
+  mimeType: string;
+}): Promise<{ fileId: string; webViewLink: string; webContentLink?: string }> {
+  const drive = await getServiceDrive();
+
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
+
+  const fileMetadata: any = {
+    name: fileName,
+  };
+
+  if (DRIVE_FOLDER_ID) {
+    fileMetadata.parents = [DRIVE_FOLDER_ID];
+  }
+
+  const response = await drive.files.create({
+    requestBody: fileMetadata,
+    media: {
+      mimeType: mimeType || "application/pdf",
+      body: stream,
+    },
+    fields: "id, name, webViewLink, webContentLink",
+  });
+
+  const fileId = response.data.id;
+  if (!fileId) {
+    throw new Error("Failed to receive Google Drive file ID.");
+  }
+
+  try {
+    await drive.permissions.create({
+      fileId,
+      requestBody: {
+        role: "reader",
+        type: "anyone",
+      },
+    });
+  } catch (permError) {
+    console.warn("Could Not Set Anyone/Reader Permission On Drive File:", permError);
+  }
+
+  const webViewLink = response.data.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
+  const webContentLink = response.data.webContentLink || undefined;
+
+  return {
+    fileId,
+    webViewLink,
+    webContentLink,
+  };
+}
+
+export async function deleteDriveFile(fileId: string): Promise<boolean> {
+  if (!fileId) return false;
+  try {
+    const drive = await getServiceDrive();
+    await drive.files.delete({ fileId, supportsAllDrives: true });
+    return true;
+  } catch (error) {
+    console.error("Failed To Delete Google Drive File:", fileId, error);
+    return false;
+  }
+}
+
+export function extractDriveFileId(url: string): string | null {
+  if (!url) return null;
+  const match = /\/d\/([a-zA-Z0-9_-]+)/.exec(url) || /[?&]id=([a-zA-Z0-9_-]+)/.exec(url);
+  return match ? match[1] : null;
+}
+
+export async function downloadBufferFromGoogleDrive(fileId: string): Promise<{ buffer: Buffer; mimeType: string }> {
+  const drive = await getServiceDrive();
+  const res = await drive.files.get(
+    { fileId, alt: "media", supportsAllDrives: true },
+    { responseType: "arraybuffer" }
+  );
+  let mimeType = "application/pdf";
+  try {
+    const meta = await drive.files.get({ fileId, fields: "mimeType" });
+    if (meta.data.mimeType) mimeType = meta.data.mimeType;
+  } catch {
+  }
+  return {
+    buffer: Buffer.from(res.data as ArrayBuffer),
+    mimeType,
+  };
+}
+

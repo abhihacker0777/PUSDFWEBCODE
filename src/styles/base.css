@@ -1,0 +1,25 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+input::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+}
+
+input::-webkit-caps-lock-indicator {
+  display: none !important;
+}

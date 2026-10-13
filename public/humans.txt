@@ -1,0 +1,22 @@
+/* TEAM */
+Developer: Abhishek Sankhla
+Faculty: BCA (Cyber Security)
+Institution: Poornima University, Jaipur
+
+/* INSTITUTION */
+Organization: Poornima University Central Library
+Location: Jaipur, Rajasthan, India
+Website: https://poornima.edu.in
+
+/* THANKS */
+Thanks To The Controller Of Examinations (COE) And The Central Library Advisory.
+
+/* SITE */
+Frontend: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4
+Backend & Database: Supabase (PostgreSQL), Upstash Redis
+AI & Search: Google Gemini AI (@google/genai)
+Storage: Google Drive API (PYQP PDF Archive)
+Security: Cloudflare Turnstile, Upstash Rate Limiting
+Hosting & Analytics: Vercel Edge Network
+Language: English (Primary), Hindi (Branding)
+Doctype: HTML5
