@@ -46,7 +46,7 @@ const rewriteEntries = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  serverExternalPackages: ["nodemailer"],
+  serverExternalPackages: ["nodemailer", "web-push"],
   images: {
     formats: ["image/avif", "image/webp"],
   },

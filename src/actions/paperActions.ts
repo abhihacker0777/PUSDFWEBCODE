@@ -7,6 +7,7 @@ import { Paper, PaperTargetMapping } from "@/types/paper";
 import { mirrorPaperToSheet } from "@/lib/sheets";
 import { requireAdminSession } from "@/lib/authCheck";
 import { getSafeRedisClient } from "@/lib/redis";
+import { notifyCourseSubscribersForNewPaper } from "@/lib/pushNotifications";
 
 const PAPERS_TABLE = process.env.SUPABASE_PAPERS_TABLE || "papers";
 
@@ -359,6 +360,15 @@ export async function uploadPaperAction(formData: FormData) {
         await deleteDriveFile(driveFileId).catch(() => {});
       }
       return { success: false, message: persistResult.error || "Failed To Save Paper." };
+    }
+
+    if (!paperId) {
+      void notifyCourseSubscribersForNewPaper({
+        course: m.course,
+        semester: m.semester,
+        exam: m.exam,
+        title: m.title,
+      });
     }
 
     const resultData = persistResult.data;

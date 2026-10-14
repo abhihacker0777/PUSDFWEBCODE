@@ -10,6 +10,7 @@ import {
   getStoredAuth,
   isAuthError,
   loadGoogleScript,
+  registerCoursePushOnce,
   saveStoredAuth
 } from "./assistantAuth";
 import useAssistantConfig from "./useAssistantConfig";
@@ -39,6 +40,7 @@ export default function usePaperAssistantController() {
       setAuth(saved);
       setView("chat");
       resetMessages(saved.user);
+      void registerCoursePushOnce(saved.credential, saved.user?.email);
     }
   }, [resetMessages]);
 
@@ -77,6 +79,7 @@ export default function usePaperAssistantController() {
       setAuth(nextAuth);
       resetMessages(verified.user);
       setView("chat");
+      void registerCoursePushOnce(credential, verified.user.email);
     } catch (error: any) {
       setSignInError(error.message || `Please Sign In With Your ${config.emailDomain} Google Account.`);
     } finally {

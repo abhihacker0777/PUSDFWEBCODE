@@ -1,8 +1,67 @@
+import { csrfFetch } from "@/services/api";
+
 const AUTH_STORAGE_KEY = "puAssistantGoogleAuth";
+const PUSH_SUBSCRIBED_EMAIL_KEY = "pu_pwa_push_subscribed_email";
 const GOOGLE_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 const DEFAULT_DOMAIN = (process.env.NEXT_PUBLIC_ASSISTANT_EMAIL_DOMAIN || "").trim().replace(/^@/, "");
 
 let googleScriptPromise: Promise<void> | null = null;
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+}
+
+export async function registerCoursePushOnce(credential: string, userEmail: string): Promise<void> {
+  if (typeof window === "undefined") return;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
+
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!vapidPublicKey || !userEmail) return;
+
+  const cleanEmail = userEmail.toLowerCase().trim();
+
+  try {
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+
+    let subscription = await registration.pushManager.getSubscription();
+
+    // Skip if already subscribed with this exact email
+    if (subscription && localStorage.getItem(PUSH_SUBSCRIBED_EMAIL_KEY) === cleanEmail) {
+      return;
+    }
+
+    if (Notification.permission !== "granted") {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") return;
+    }
+
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+    }
+
+    const res = await csrfFetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        credential,
+        subscription: subscription.toJSON(),
+      }),
+    });
+
+    if (res.ok) {
+      localStorage.setItem(PUSH_SUBSCRIBED_EMAIL_KEY, cleanEmail);
+    }
+  } catch (err) {
+    console.warn("Push notification registration skipped:", err);
+  }
+}
 
 export const getSafeUrl = (url?: string | null): string | null => {
   if (!url) return null;
