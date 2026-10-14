@@ -34,3 +34,13 @@ export async function equalizeLoginTiming(startedAt: number, targetMinMs = 400) 
     await new Promise((resolve) => setTimeout(resolve, targetMinMs - elapsed));
   }
 }
+
+export function escapeHtml(str: string | null | undefined): string {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}

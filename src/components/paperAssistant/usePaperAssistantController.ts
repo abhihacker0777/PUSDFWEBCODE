@@ -142,6 +142,7 @@ export default function usePaperAssistantController() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentEmail: auth.user.email,
+          credential: auth.credential,
           query: queryText
         })
       });

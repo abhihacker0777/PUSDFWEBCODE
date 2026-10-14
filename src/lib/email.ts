@@ -1,4 +1,5 @@
 import nodemailer, { type Transporter } from "nodemailer";
+import { escapeHtml } from "./security";
 
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
 const SMTP_PORT = Number.parseInt(process.env.SMTP_PORT || "587", 10);
@@ -38,6 +39,9 @@ export async function sendPasswordResetEmail({
     return false;
   }
 
+  const safeRecipientName = escapeHtml(recipientName);
+  const safeResetUrl = escapeHtml(resetUrl);
+
   const transport = getEmailTransporter();
 
   const htmlContent = `
@@ -66,11 +70,11 @@ export async function sendPasswordResetEmail({
       <p>Previous Year Question Papers Portal (PYQP)</p>
     </div>
     <div class="content">
-      <div class="greeting">Hello, ${recipientName}</div>
+      <div class="greeting">Hello, ${safeRecipientName}</div>
       <p>We received a request to reset the password for your administrator account on the Poornima University PYQP Portal.</p>
       
       <div class="btn-container">
-        <a href="${resetUrl}" class="btn" target="_blank">Reset Your Password</a>
+        <a href="${safeResetUrl}" class="btn" target="_blank">Reset Your Password</a>
       </div>
 
       <div class="notice">
@@ -78,7 +82,7 @@ export async function sendPasswordResetEmail({
       </div>
 
       <p style="font-size: 13px; color: #64748b;">If the button above does not work, copy and paste this URL into your browser:<br>
-      <a href="${resetUrl}" style="color: #05488B; word-break: break-all;">${resetUrl}</a></p>
+      <a href="${safeResetUrl}" style="color: #05488B; word-break: break-all;">${safeResetUrl}</a></p>
     </div>
     <div class="footer">
       &copy; ${new Date().getFullYear()} Poornima University Central Library. All rights reserved.<br>
@@ -125,6 +129,13 @@ export async function sendAdminLoginAlertEmail({
     return false;
   }
 
+  const safeAdminName = escapeHtml(adminName);
+  const safeLoginTime = escapeHtml(loginTimeIST);
+  const safePriorLogin = escapeHtml(priorLoginTimeIST || "First Recorded Session");
+  const safeIp = escapeHtml(ip);
+  const safeUserAgent = escapeHtml(userAgent);
+  const safeRevokeUrl = escapeHtml(revokeUrl);
+
   const transport = getEmailTransporter();
 
   const htmlContent = `
@@ -157,25 +168,25 @@ export async function sendAdminLoginAlertEmail({
     </div>
     <div class="content">
       <div class="alert-banner">
-        Hello <strong>${adminName}</strong>, your administrator account was just signed in.
+        Hello <strong>${safeAdminName}</strong>, your administrator account was just signed in.
       </div>
 
       <table class="meta-table">
         <tr>
           <td class="meta-label">Sign-In Time (IST):</td>
-          <td class="meta-value">${loginTimeIST}</td>
+          <td class="meta-value">${safeLoginTime}</td>
         </tr>
         <tr>
           <td class="meta-label">Prior Session (IST):</td>
-          <td class="meta-value">${priorLoginTimeIST || "First Recorded Session"}</td>
+          <td class="meta-value">${safePriorLogin}</td>
         </tr>
         <tr>
           <td class="meta-label">Client IP Address:</td>
-          <td class="meta-value">${ip}</td>
+          <td class="meta-value">${safeIp}</td>
         </tr>
         <tr>
           <td class="meta-label">Browser / Device:</td>
-          <td class="meta-value">${userAgent}</td>
+          <td class="meta-value">${safeUserAgent}</td>
         </tr>
       </table>
 
@@ -184,7 +195,7 @@ export async function sendAdminLoginAlertEmail({
       </p>
 
       <div class="btn-container">
-        <a href="${revokeUrl}" class="btn-revoke" target="_blank">Revoke This Session Now</a>
+        <a href="${safeRevokeUrl}" class="btn-revoke" target="_blank">Revoke This Session Now</a>
       </div>
     </div>
     <div class="footer">
@@ -226,6 +237,10 @@ export async function sendLibraryAdminInviteEmail({
     return false;
   }
 
+  const safeAdminName = escapeHtml(adminName);
+  const safeRole = escapeHtml(role);
+  const safeLoginUrl = escapeHtml(loginUrl);
+
   const transport = getEmailTransporter();
 
   const htmlContent = `
@@ -253,11 +268,11 @@ export async function sendLibraryAdminInviteEmail({
       <p>Central Library PYQP Portal</p>
     </div>
     <div class="content">
-      <p>Hello <strong>${adminName}</strong>,</p>
-      <p>You have been onboarded as a library administrator with the role <span class="role-badge">${role}</span> on the Poornima University Examination Question Paper Portal.</p>
+      <p>Hello <strong>${safeAdminName}</strong>,</p>
+      <p>You have been onboarded as a library administrator with the role <span class="role-badge">${safeRole}</span> on the Poornima University Examination Question Paper Portal.</p>
       <p>You can sign in using your institutional Google account or designated login credentials.</p>
       <div class="btn-container">
-        <a href="${loginUrl}" class="btn" target="_blank">Access Admin Portal</a>
+        <a href="${safeLoginUrl}" class="btn" target="_blank">Access Admin Portal</a>
       </div>
     </div>
     <div class="footer">
@@ -272,7 +287,7 @@ export async function sendLibraryAdminInviteEmail({
     await transport.sendMail({
       from: PASSWORD_RESET_FROM,
       to,
-      subject: `Welcome To Poornima PYQP Portal — Admin Access Granted (${role})`,
+      subject: `Welcome To Poornima PYQP Portal — Admin Access Granted (${safeRole})`,
       html: htmlContent,
     });
     return true;
@@ -301,6 +316,12 @@ export async function sendPaperFulfilledNotificationEmail({
     console.warn("SMTP Credentials Not Configured; Paper Fulfilled Email Skipped.");
     return false;
   }
+
+  const safeSubjectName = escapeHtml(subjectName);
+  const safeSubjectCode = escapeHtml(subjectCode);
+  const safeCourse = escapeHtml(course);
+  const safeSemester = escapeHtml(semester);
+  const safePaperUrl = escapeHtml(paperUrl);
 
   const transport = getEmailTransporter();
 
@@ -332,11 +353,11 @@ export async function sendPaperFulfilledNotificationEmail({
       <p>Hello Student,</p>
       <p>Great news! The question paper you previously requested has been uploaded to the university portal by the Central Library team.</p>
       <div class="paper-box">
-        <div style="font-weight: 700; color: #166534; font-size: 15px;">${subjectName} ${subjectCode ? `(${subjectCode})` : ""}</div>
-        <div style="font-size: 13px; color: #374151; margin-top: 4px;">Course: <strong>${course}</strong> | Semester: <strong>${semester}</strong></div>
+        <div style="font-weight: 700; color: #166534; font-size: 15px;">${safeSubjectName} ${safeSubjectCode ? `(${safeSubjectCode})` : ""}</div>
+        <div style="font-size: 13px; color: #374151; margin-top: 4px;">Course: <strong>${safeCourse}</strong> | Semester: <strong>${safeSemester}</strong></div>
       </div>
       <div class="btn-container">
-        <a href="${paperUrl}" class="btn" target="_blank">View / Download Paper</a>
+        <a href="${safePaperUrl}" class="btn" target="_blank">View / Download Paper</a>
       </div>
     </div>
     <div class="footer">

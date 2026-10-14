@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { allow, clientIp } from "@/lib/ratelimit";
+import { verifyGoogleInstitutionalToken, isAllowedAssistantEmail } from "@/lib/googleAuth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,16 +15,31 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const studentEmail = String(body?.studentEmail || body?.email || "").trim().toLowerCase();
-    const query = String(body?.query || body?.paperName || "").trim().slice(0, 300);
+    const credential = String(body?.credential ?? "").trim();
+    let studentEmail = "";
 
-    if (!studentEmail) {
-      return NextResponse.json(
-        { success: false, message: "Student Institutional Email Is Required." },
-        { status: 400 }
-      );
+    if (credential) {
+      try {
+        const student = await verifyGoogleInstitutionalToken(credential);
+        studentEmail = student.email.toLowerCase().trim();
+      } catch {
+        return NextResponse.json(
+          { success: false, message: "Invalid Or Expired Google Session. Please Sign In Again." },
+          { status: 401 }
+        );
+      }
+    } else {
+      const rawEmail = String(body?.studentEmail || body?.email || "").trim().toLowerCase();
+      if (!rawEmail || !isAllowedAssistantEmail(rawEmail)) {
+        return NextResponse.json(
+          { success: false, message: "Valid University Google Account Authentication Required." },
+          { status: 401 }
+        );
+      }
+      studentEmail = rawEmail;
     }
 
+    const query = String(body?.query || body?.paperName || "").trim().slice(0, 300);
     if (!query) {
       return NextResponse.json(
         { success: false, message: "Paper Query Details Are Required." },
@@ -32,6 +48,19 @@ export async function POST(req: NextRequest) {
     }
 
     const db = createAdminClient();
+
+    const { data: blocked } = await db
+      .from("blocked_users")
+      .select("email")
+      .eq("email", studentEmail)
+      .maybeSingle();
+
+    if (blocked) {
+      return NextResponse.json(
+        { success: false, message: "Your Access Has Been Disabled By The Administrator." },
+        { status: 403 }
+      );
+    }
 
     const { error } = await db.from("student_queries").insert({
       email: studentEmail,

@@ -21,3 +21,10 @@ DROP VIEW IF EXISTS public.question_papers CASCADE;
 DROP INDEX IF EXISTS public.admin_sessions_revocation_token_idx;
 
 ALTER FUNCTION public.set_updated_at() SET search_path = public;
+
+-- Revoke all mutating privileges from anon & authenticated
+REVOKE ALL ON public.papers FROM anon, authenticated;
+REVOKE ALL ON public.student_queries FROM anon, authenticated;
+
+-- Grant only read-only SELECT on public.papers to anon & authenticated
+GRANT SELECT ON public.papers TO anon, authenticated;

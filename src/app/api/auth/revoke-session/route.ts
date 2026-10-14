@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { escapeHtml } from "@/lib/security";
+
+const HTML_SECURITY_HEADERS = {
+  "Content-Type": "text/html; charset=utf-8",
+  "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+};
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token")?.trim();
@@ -7,7 +15,7 @@ export async function GET(req: NextRequest) {
   if (!token) {
     return new NextResponse(
       renderHtml("Invalid Request", "No revocation token provided.", false),
-      { status: 400, headers: { "Content-Type": "text/html" } }
+      { status: 400, headers: HTML_SECURITY_HEADERS }
     );
   }
 
@@ -22,14 +30,18 @@ export async function GET(req: NextRequest) {
     if (error || !session) {
       return new NextResponse(
         renderHtml("Session Not Found", "This session revocation link is invalid or expired.", false),
-        { status: 404, headers: { "Content-Type": "text/html" } }
+        { status: 404, headers: HTML_SECURITY_HEADERS }
       );
     }
 
+    const safeEmail = escapeHtml(session.email);
+    const safeIp = escapeHtml(session.ip_address);
+    const safeUserAgent = escapeHtml(session.user_agent);
+
     if (session.is_revoked) {
       return new NextResponse(
-        renderHtml("Session Already Revoked", `The session for ${session.email} from IP ${session.ip_address} has already been terminated.`, true),
-        { status: 200, headers: { "Content-Type": "text/html" } }
+        renderHtml("Session Already Revoked", `The session for ${safeEmail} from IP ${safeIp} has already been terminated.`, true),
+        { status: 200, headers: HTML_SECURITY_HEADERS }
       );
     }
 
@@ -41,15 +53,15 @@ export async function GET(req: NextRequest) {
     return new NextResponse(
       renderHtml(
         "Session Revoked Successfully",
-        `Access for <strong>${session.email}</strong> from IP <code>${session.ip_address}</code> (${session.user_agent}) has been immediately revoked.`,
+        `Access for <strong>${safeEmail}</strong> from IP <code>${safeIp}</code> (${safeUserAgent}) has been immediately revoked.`,
         true
       ),
-      { status: 200, headers: { "Content-Type": "text/html" } }
+      { status: 200, headers: HTML_SECURITY_HEADERS }
     );
   } catch (err: any) {
     return new NextResponse(
-      renderHtml("Error", err.message || "Failed to process session revocation.", false),
-      { status: 500, headers: { "Content-Type": "text/html" } }
+      renderHtml("Error", escapeHtml(err.message || "Failed to process session revocation."), false),
+      { status: 500, headers: HTML_SECURITY_HEADERS }
     );
   }
 }
@@ -57,13 +69,14 @@ export async function GET(req: NextRequest) {
 function renderHtml(title: string, message: string, isSuccess: boolean) {
   const badgeColor = isSuccess ? "#16a34a" : "#dc2626";
   const icon = isSuccess ? "🛡️" : "⚠️";
+  const safeTitle = escapeHtml(title);
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title} - PYQP Portal</title>
+  <title>${safeTitle} - PYQP Portal</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f1f5f9; margin: 0; padding: 40px 20px; display: flex; align-items: center; justify-content: center; min-height: 80vh; }
     .card { background: #ffffff; border-radius: 16px; max-width: 500px; width: 100%; padding: 36px 28px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); text-align: center; border: 1px solid #e2e8f0; }
@@ -83,7 +96,7 @@ function renderHtml(title: string, message: string, isSuccess: boolean) {
   <div class="card">
     <div class="icon">${icon}</div>
     <div class="status-badge">${isSuccess ? "Security Action Confirmed" : "Notice"}</div>
-    <h1>${title}</h1>
+    <h1>${safeTitle}</h1>
     <p>${message}</p>
     <div class="actions">
       <a href="/reset-password" class="btn btn-danger">Reset Password Immediately</a>
