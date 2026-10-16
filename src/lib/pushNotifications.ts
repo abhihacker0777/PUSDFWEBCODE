@@ -79,10 +79,13 @@ export async function notifyCourseSubscribersForNewPaper(paper: {
 
     if (!subs || subs.length === 0) return;
 
+    const directSearchUrl = `/?search=${encodeURIComponent(paper.title)}&course=${encodeURIComponent(paper.course)}&source=pwa_push`;
+
     const payload = JSON.stringify({
-      title: `New ${paper.course} (${paper.exam}) Paper Uploaded!`,
-      body: `${paper.title} (${paper.semester}) is now available on the PYQP Portal.`,
-      url: "/?source=pwa",
+      title: `🔔 New ${paper.course} (${paper.exam}) Paper Uploaded!`,
+      body: `${paper.title} (${paper.semester}) is now available on the PYQP Portal. Tap to open.`,
+      url: directSearchUrl,
+      tag: `paper-${Date.now()}`,
     });
 
     await Promise.allSettled(
@@ -93,7 +96,11 @@ export async function notifyCourseSubscribersForNewPaper(paper: {
               endpoint: sub.endpoint,
               keys: { p256dh: sub.p256dh, auth: sub.auth },
             },
-            payload
+            payload,
+            {
+              urgency: "high",
+              TTL: 86400,
+            }
           );
         } catch (err: any) {
           if (err?.statusCode === 404 || err?.statusCode === 410) {

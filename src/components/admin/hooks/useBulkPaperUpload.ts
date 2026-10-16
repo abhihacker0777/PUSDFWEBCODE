@@ -323,6 +323,7 @@ export default function useBulkPaperUpload({
 
     let succeeded = 0;
     let failed = 0;
+    const successfulPapers: any[] = [];
 
     await bulkFiles.reduce(async (prevPromise, row) => {
       await prevPromise;
@@ -334,6 +335,18 @@ export default function useBulkPaperUpload({
       const status = result.success ? "success" : "error";
       if (result.success) {
         succeeded += 1;
+        (row.targets || []).forEach((t: any) => {
+          successfulPapers.push({
+            title: row.paperName,
+            name: row.paperName,
+            course: t.course,
+            year: t.year,
+            specialization: t.spec,
+            spec: t.spec,
+            semester: t.semester,
+            exam: t.exam,
+          });
+        });
       } else {
         failed += 1;
       }
@@ -341,6 +354,22 @@ export default function useBulkPaperUpload({
         current.map((item) => (item.id === row.id ? { ...item, status, message: result.message } : item))
       );
     }, Promise.resolve());
+
+    if (succeeded > 1 && successfulPapers.length > 0) {
+      try {
+        await fetch("/api/logs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "Bulk Added",
+            name: `${successfulPapers.length} papers added`,
+            spec: JSON.stringify(successfulPapers),
+          }),
+        });
+      } catch (err) {
+        console.warn("Failed to log bulk added summary:", err);
+      }
+    }
 
     if (succeeded > 0) {
       clearPapersCache();

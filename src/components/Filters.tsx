@@ -100,14 +100,14 @@ export default function Filters({
   };
 
   const handleMouseEnterPill = (type: string, item: string) => {
-    if (!isDesktop) return;
+    if (!isDesktop || searchQuery?.trim()) return;
     if (selected[type as keyof SelectedFilters] !== item) {
       handleSelect(type, item);
     }
   };
 
   const handleMouseLeavePill = (type: string, e: React.MouseEvent) => {
-    if (!isDesktop) return;
+    if (!isDesktop || searchQuery?.trim()) return;
 
     const next = e.relatedTarget as HTMLElement | null;
     if (!next) {
@@ -156,8 +156,10 @@ export default function Filters({
 
   const handleMouseLeaveContainer = (e: React.MouseEvent) => {
     if (!isDesktop) return;
-    const next = e.relatedTarget as HTMLElement | null;
+    if (searchQuery?.trim()) return;
 
+    const next = e.relatedTarget as HTMLElement | null;
+    if (next?.closest("[data-search-results]")) return;
     if (selected.exam && next?.closest("[data-paper-section]")) return;
 
     if (!lockedValues.course) {

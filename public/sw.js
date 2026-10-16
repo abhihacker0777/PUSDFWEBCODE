@@ -11,7 +11,11 @@ self.addEventListener("push", function (event) {
       data: {
         url: data.url || "/?source=pwa",
       },
-      vibrate: [150, 75, 150],
+      vibrate: [300, 100, 400, 100, 300, 100, 400],
+      tag: data.tag || `paper-${Date.now()}`,
+      renotify: true,
+      requireInteraction: true,
+      silent: false,
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
@@ -25,10 +29,15 @@ self.addEventListener("notificationclick", function (event) {
   const targetUrl = event.notification.data?.url || "/";
 
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (clientList) {
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(async function (clientList) {
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && "focus" in client) {
-          return client.focus();
+        if (client.url.includes(self.location.origin)) {
+          if ("navigate" in client) {
+            await client.navigate(targetUrl);
+          }
+          if ("focus" in client) {
+            return client.focus();
+          }
         }
       }
       if (clients.openWindow) {

@@ -4,10 +4,11 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
 import { uploadBufferToGoogleDrive, deleteDriveFile } from "@/lib/drive";
 import { Paper, PaperTargetMapping } from "@/types/paper";
-import { mirrorPaperToSheet } from "@/lib/sheets";
+import { mirrorPaperToSheet, mirrorDeletePaperFromSheet, mirrorBulkDeletePapersFromSheet, mirrorAdminLogToSheet } from "@/lib/sheets";
 import { requireAdminSession } from "@/lib/authCheck";
 import { getSafeRedisClient } from "@/lib/redis";
 import { notifyCourseSubscribersForNewPaper } from "@/lib/pushNotifications";
+import { pruneExpiredSupabaseRecords } from "@/lib/retention";
 
 const PAPERS_TABLE = process.env.SUPABASE_PAPERS_TABLE || "papers";
 
@@ -108,7 +109,7 @@ async function logAdminActivity(
 ) {
   try {
     const formattedDate = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-    await adminClient.from("admin_logs").insert({
+    const { data: inserted } = await adminClient.from("admin_logs").insert({
       date: formattedDate,
       status,
       name,
@@ -119,7 +120,23 @@ async function logAdminActivity(
       exam: meta?.exam || "",
       admin_name: adminName,
       created_at: new Date().toISOString(),
+    }).select("id").maybeSingle();
+
+    // Mirror to Google Sheets secondary database
+    void mirrorAdminLogToSheet({
+      id: inserted?.id,
+      course: meta?.course,
+      year: meta?.year,
+      spec: spec || "",
+      semester: meta?.semester,
+      exam: meta?.exam,
+      status,
+      date: formattedDate,
+      name,
     });
+
+    // Run 30-day retention pruning asynchronously
+    void pruneExpiredSupabaseRecords(30);
   } catch (err) {
     console.error("Failed To Write Admin Log:", err);
   }
@@ -402,6 +419,12 @@ export async function bulkDeletePapersAction(ids: (string | number)[]) {
     if (!ids || ids.length === 0) return { success: true, count: 0 };
     const adminClient = createAdminClient();
 
+    // Fetch paper metadata before deletion for Sheets mirroring and detailed logging
+    const { data: papersToDelete } = await adminClient
+      .from(PAPERS_TABLE)
+      .select("id, title, course, year, semester, exam, specialization, drive_file_id, drive_url")
+      .in("id", ids);
+
     const CHUNK_SIZE = 100;
     const deleteChunks: (string | number)[][] = [];
     for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
@@ -417,11 +440,31 @@ export async function bulkDeletePapersAction(ids: (string | number)[]) {
       })
     );
 
+    // Delete matching rows from Google Sheets secondary database
+    if (papersToDelete && papersToDelete.length > 0) {
+      void mirrorBulkDeletePapersFromSheet(papersToDelete);
+    }
+
+    // Clean up orphan drive files
+    if (papersToDelete && papersToDelete.length > 0) {
+      const fileIds = [...new Set(papersToDelete.map((p) => p.drive_file_id).filter(Boolean))];
+      for (const fid of fileIds) {
+        const { count } = await adminClient
+          .from(PAPERS_TABLE)
+          .select("id", { count: "exact", head: true })
+          .eq("drive_file_id", fid);
+        if (count === 0) {
+          await deleteDriveFile(fid).catch(() => {});
+        }
+      }
+    }
+
+    // Detailed activity log with affected papers JSON stored in spec for expandable UI
     await logAdminActivity(
       adminClient,
       "Bulk Deleted",
       `${ids.length} papers removed`,
-      "",
+      JSON.stringify(papersToDelete || []),
       admin.displayName || admin.user?.email?.split("@")[0] || "PU Central-Library"
     );
 
@@ -435,25 +478,34 @@ export async function bulkDeletePapersAction(ids: (string | number)[]) {
 
 export async function bulkEditPapersAction(
   ids: (string | number)[],
-  updates: Partial<PaperTargetMapping>
+  updates: Partial<PaperTargetMapping> & { title?: string; paperName?: string; name?: string }
 ) {
   try {
     const admin = await requireAdminSession("papers:update");
     if (!ids || ids.length === 0) return { success: true, count: 0 };
     const adminClient = createAdminClient();
 
+    // Fetch previous papers for Sheets update and detailed audit logging
+    const { data: previousPapers } = await adminClient
+      .from(PAPERS_TABLE)
+      .select("id, title, course, year, semester, exam, specialization, drive_url")
+      .in("id", ids);
+
     const payload: any = {
       updated_at: new Date().toISOString()
     };
     if (updates.course) payload.course = updates.course;
     if (updates.year) payload.year = updates.year;
-    if (updates.spec !== undefined && updates.spec !== null) {
+    if (updates.spec !== undefined && updates.spec !== null && updates.spec !== "") {
       payload.specialization = updates.spec;
     }
     if (updates.semester) {
       payload.semester = updates.semester;
     }
     if (updates.exam) payload.exam = updates.exam;
+    if (updates.title || updates.paperName || updates.name) {
+      payload.title = (updates.title || updates.paperName || updates.name)!.trim();
+    }
 
     const CHUNK_SIZE = 100;
     const updateChunks: (string | number)[][] = [];
@@ -470,11 +522,32 @@ export async function bulkEditPapersAction(
       })
     );
 
+    // Mirror updates to Google Sheets secondary database
+    if (previousPapers && previousPapers.length > 0) {
+      for (const p of previousPapers) {
+        void mirrorPaperToSheet(
+          {
+            ...p,
+            ...payload,
+            name: payload.title || p.title,
+            title: payload.title || p.title,
+            subject: payload.title || p.title,
+            spec: payload.specialization || p.specialization,
+            specialization: payload.specialization || p.specialization,
+            sem: payload.semester || p.semester,
+            semester: payload.semester || p.semester,
+          },
+          p
+        );
+      }
+    }
+
+    // Detailed activity log with affected papers JSON stored in spec for expandable UI
     await logAdminActivity(
       adminClient,
       "Bulk Edited",
       `${ids.length} papers modified`,
-      updates.spec || "",
+      JSON.stringify(previousPapers || []),
       admin.displayName || admin.user?.email?.split("@")[0] || "PU Central-Library",
       { course: updates.course, year: updates.year, semester: updates.semester, exam: updates.exam }
     );
@@ -506,6 +579,17 @@ export async function deletePaperAction(id: string | number) {
     if (error) throw error;
 
     if (paperToDelete) {
+      // Delete from Google Sheets secondary database
+      void mirrorDeletePaperFromSheet({
+        course: paperToDelete.course,
+        year: paperToDelete.year,
+        sem: paperToDelete.semester,
+        semester: paperToDelete.semester,
+        exam: paperToDelete.exam,
+        name: paperToDelete.title,
+        title: paperToDelete.title,
+      });
+
       await logAdminActivity(
         adminClient,
         "Deleted",

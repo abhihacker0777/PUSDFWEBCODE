@@ -59,6 +59,16 @@ export default function HomePage() {
   });
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlQuery = params.get("search") || params.get("paper");
+      if (urlQuery && urlQuery.trim()) {
+        setSearchQuery(urlQuery.trim());
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     let disposed = false;
 
     async function load({ force = false } = {}) {
@@ -150,11 +160,11 @@ export default function HomePage() {
   }, [papersData, searchQuery]);
 
   const handleSelect = useCallback((type: string, value: string) => {
-    setSearchQuery("");
     if (type === "clear") {
       setSelected({ course: null, year: null, specialization: null, sem: null, exam: null });
       return;
     }
+    setSearchQuery("");
     const val = value?.trim() ? value : null;
     if (type === "course") {
       setSelected({ course: val, year: null, specialization: null, sem: null, exam: null });
@@ -289,7 +299,7 @@ export default function HomePage() {
         {renderFilterContent()}
 
         {searchQuery.trim() ? (
-          <div className="mt-4">
+          <div className="mt-4" data-search-results>
             <div className="mb-4 bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-gray-800">

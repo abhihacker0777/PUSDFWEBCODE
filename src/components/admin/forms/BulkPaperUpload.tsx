@@ -298,6 +298,7 @@ const BulkPapersDbTable = ({
   setDbPage,
   accentColor = "accent-[#05488B]",
   activeRowBg = "bg-amber-50",
+  onInlineRename,
 }: any) => {
   const allSelected =
     pagedDbPapers.length > 0 &&
@@ -355,7 +356,25 @@ const BulkPapersDbTable = ({
                       />
                     </td>
                     <td className="p-2.5 font-semibold text-gray-800">
-                      {paper.name}
+                      <div className="flex items-center gap-1.5 group">
+                        <span className="truncate">{paper.name}</span>
+                        {onInlineRename && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const newName = window.prompt("Edit Paper Name:", paper.name);
+                              if (newName && newName.trim() && newName.trim() !== paper.name) {
+                                onInlineRename(paper, newName.trim());
+                              }
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-[#05488B] transition-opacity cursor-pointer shrink-0"
+                            title="Click To Rename Paper Name"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="p-2.5 text-gray-600">{paper.course}</td>
                     <td className="p-2.5 text-gray-600">
@@ -427,6 +446,7 @@ interface BulkEditModeViewProps {
   setEditUpdates: (val: any) => void;
   isDbActionLoading: boolean;
   handleExecuteBulkEdit: () => void;
+  executeBulkEdit?: (papersToEdit: any[], updates: any) => void;
   pagedDbPapers: any[];
   dbSelectedIds: Set<any>;
   toggleAllDbPapers: () => void;
@@ -460,6 +480,7 @@ const BulkEditModeView: React.FC<BulkEditModeViewProps> = ({
   setEditUpdates,
   isDbActionLoading,
   handleExecuteBulkEdit,
+  executeBulkEdit,
   pagedDbPapers,
   dbSelectedIds,
   toggleAllDbPapers,
@@ -505,7 +526,18 @@ const BulkEditModeView: React.FC<BulkEditModeViewProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <div>
+            <label htmlFor="bulk-edit-drawer-name" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Paper Name</label>
+            <input
+              id="bulk-edit-drawer-name"
+              placeholder={selectedDbPapersList.length === 1 ? (selectedDbPapersList[0].name || "(Keep Same)") : "(Keep Same)"}
+              value={editUpdates.title || ""}
+              onChange={(e) => setEditUpdates({ ...editUpdates, title: e.target.value })}
+              className="w-full bg-white border border-[#ffc107] rounded-lg px-3 py-2 text-xs md:text-sm font-medium shadow-xs outline-none text-[#215ea0] placeholder:text-gray-400"
+            />
+          </div>
+
           <div>
             <label htmlFor="bulk-edit-drawer-course" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Course</label>
             <CustomDropdown
@@ -598,6 +630,7 @@ const BulkEditModeView: React.FC<BulkEditModeViewProps> = ({
       setDbPage={setDbPage}
       accentColor="accent-[#05488B]"
       activeRowBg="bg-amber-50"
+      onInlineRename={executeBulkEdit ? (paper: any, newTitle: string) => executeBulkEdit([paper], { title: newTitle }) : undefined}
     />
   </div>
 );
@@ -1199,7 +1232,7 @@ export default function BulkPaperUpload({
   const [dbPage, setDbPage] = useState(1);
   const dbPageSize = 25;
 
-  const [editUpdates, setEditUpdates] = useState({ course: "", year: "", spec: "", semester: "", exam: "" });
+  const [editUpdates, setEditUpdates] = useState({ title: "", course: "", year: "", spec: "", semester: "", exam: "" });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const mainInputRef = useRef<HTMLInputElement>(null);
@@ -1369,6 +1402,7 @@ export default function BulkPaperUpload({
           setEditUpdates={setEditUpdates}
           isDbActionLoading={isDbActionLoading}
           handleExecuteBulkEdit={handleExecuteBulkEdit}
+          executeBulkEdit={executeBulkEdit}
           pagedDbPapers={pagedDbPapers}
           dbSelectedIds={dbSelectedIds}
           toggleAllDbPapers={toggleAllDbPapers}

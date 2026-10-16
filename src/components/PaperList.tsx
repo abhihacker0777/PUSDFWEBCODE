@@ -79,7 +79,14 @@ export default function PaperList({ papers, isSearchResult = false }: Readonly<P
           return (
             <div 
               key={`${p.course}-${paperDisplayName}-${p.index ?? p.link ?? idx}`} 
-              className="bg-white p-4 border-l-[6px] border-[#ffca2c] rounded-lg shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3"
+              onClick={() => {
+                if (safeLink && typeof window !== "undefined") {
+                  window.open(safeLink, "_blank", "noopener,noreferrer");
+                }
+              }}
+              className={`bg-white p-4 border-l-[6px] border-[#ffca2c] rounded-lg shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3 ${
+                safeLink ? "cursor-pointer" : ""
+              }`}
             >
               <div className="w-8 h-8 rounded-lg bg-[#05488b]/10 flex items-center justify-center shrink-0">
                 <FileText className="w-4 h-4 text-[#05488b]" />

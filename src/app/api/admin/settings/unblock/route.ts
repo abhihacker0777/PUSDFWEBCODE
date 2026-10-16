@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireAdminSession, handleApiError } from "@/lib/authCheck";
+import { mirrorUnblockUserInSheet } from "@/lib/sheets";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,6 +13,7 @@ export async function POST(req: NextRequest) {
 
     const adminClient = createAdminClient();
     await adminClient.from("blocked_users").delete().eq("email", email);
+    void mirrorUnblockUserInSheet(email);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return handleApiError(error);

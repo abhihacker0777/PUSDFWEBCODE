@@ -82,6 +82,52 @@ export async function GET() {
   }
 }
 
+export async function POST(req: Request) {
+  try {
+    const admin = await requireAdminSession("logs:write");
+    const body = await req.json();
+    const adminClient = createAdminClient();
+    const adminName = admin.displayName || admin.user?.email?.split("@")[0] || "PU Central-Library";
+
+    const formattedDate = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    const { data: inserted, error } = await adminClient
+      .from("admin_logs")
+      .insert({
+        date: formattedDate,
+        status: body.status || "Bulk Added",
+        name: body.name || "Bulk action completed",
+        spec: typeof body.spec === "string" ? body.spec : JSON.stringify(body.spec || []),
+        course: body.course || "",
+        year: body.year || "",
+        semester: body.semester || "",
+        exam: body.exam || "",
+        admin_name: adminName,
+        created_at: new Date().toISOString(),
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (error) throw error;
+
+    const { mirrorAdminLogToSheet } = await import("@/lib/sheets");
+    void mirrorAdminLogToSheet({
+      id: inserted?.id,
+      status: body.status || "Bulk Added",
+      date: formattedDate,
+      name: body.name || "Bulk action completed",
+      spec: typeof body.spec === "string" ? body.spec : JSON.stringify(body.spec || []),
+      course: body.course,
+      year: body.year,
+      semester: body.semester,
+      exam: body.exam,
+    });
+
+    return NextResponse.json({ success: true, id: inserted?.id });
+  } catch (error: any) {
+    return handleApiError(error);
+  }
+}
+
 export async function DELETE() {
   try {
     await requireAdminSession("logs:write");

@@ -5,12 +5,24 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { fetchPapersAction } from "@/actions/paperActions";
 import { searchLocalPapers } from "@/utils/localPaperSearch";
 import { Paper } from "@/types/paper";
+import { mirrorStudentQueryToSheet } from "@/lib/sheets";
 
 async function logStudentQueryTelemetry(
   adminClient: any,
-  data: { email?: string; question: string; status: string; message: string; paperName: string }
+  data: {
+    email?: string;
+    question: string;
+    status: string;
+    message: string;
+    paperName: string;
+    course?: string;
+    year?: string;
+    semester?: string;
+    link?: string;
+  }
 ) {
   try {
+    const formattedDate = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
     await adminClient.from("student_queries").insert({
       email: data.email || "anonymous",
       question: data.question,
@@ -18,6 +30,20 @@ async function logStudentQueryTelemetry(
       message: data.message,
       paper_name: data.paperName,
       created_at: new Date().toISOString(),
+    });
+
+    // Mirror to Google Sheets AI Requests tab
+    void mirrorStudentQueryToSheet({
+      date: formattedDate,
+      email: data.email || "anonymous",
+      question: data.question,
+      status: data.status,
+      message: data.message,
+      paperName: data.paperName,
+      course: data.course || "",
+      year: data.year || "",
+      semester: data.semester || "",
+      link: data.link || "",
     });
   } catch (logErr) {
     console.error("Failed To Log Query Telemetry:", logErr);

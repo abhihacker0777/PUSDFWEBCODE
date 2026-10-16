@@ -40,8 +40,9 @@ export interface RecentActionsPanelProps {
 }
 
 function getStatusBadgeClass(status?: string) {
-  if (status === "Deleted") return "bg-red-500";
-  if (status === "Updated") return "bg-blue-500";
+  if (status === "Deleted" || status === "Bulk Deleted") return "bg-red-500";
+  if (status === "Updated" || status === "Bulk Edited") return "bg-blue-500";
+  if (status === "Added" || status === "Bulk Added") return "bg-green-500";
   return "bg-green-500";
 }
 
@@ -49,6 +50,18 @@ function getRowBgClass(isSelected: boolean, idx: number) {
   if (isSelected) return "bg-amber-50";
   if (idx === 0) return "bg-gray-50/80";
   return "bg-white hover:bg-gray-50/60";
+}
+
+function parseLogPapers(spec?: string): any[] | null {
+  if (!spec || typeof spec !== "string") return null;
+  const trimmed = spec.trim();
+  if (!trimmed.startsWith("[")) return null;
+  try {
+    const parsed = JSON.parse(trimmed);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 export default function RecentActionsPanel({
@@ -87,6 +100,17 @@ export default function RecentActionsPanel({
   setCurrentPage,
   setDisplayCount
 }: Readonly<RecentActionsPanelProps>) {
+  const [expandedLogs, setExpandedLogs] = React.useState<Set<any>>(new Set());
+
+  const toggleExpandLog = (id: any) => {
+    setExpandedLogs((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <>
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 gap-3 md:gap-0">
@@ -142,30 +166,110 @@ export default function RecentActionsPanel({
               {filteredLogs.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-gray-400">No Recent Actions Found.</td></tr>}
               {filteredLogs.slice((currentPage - 1) * displayCount, currentPage * displayCount).map((row, idx) => {
                 const isSelected = selected.has(row.id);
+                const subPapers = parseLogPapers(row.spec);
+                const isExpandable = (subPapers && subPapers.length > 0) || row.status?.startsWith("Bulk");
+                const isExpanded = expandedLogs.has(row.id);
+
                 return (
-                  <tr key={row.id} className={`transition-colors ${getRowBgClass(isSelected, idx)}`}>
-                    <td className="px-4 py-2.5 text-center"><input type="checkbox" checked={isSelected} onChange={() => toggleRow(row.id)} disabled={!canClearLogs} className="w-4 h-4 rounded accent-amber-500 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" /></td>
-                    <td className="px-4 py-2.5 text-center text-gray-700 font-medium">{row.name}</td>
-                    <td className="px-4 py-2.5 text-center text-gray-500">{row.semester}</td>
-                    <td className="px-4 py-2.5 text-center text-gray-700 font-medium">{row.year}</td>
-                    <td className="px-4 py-2.5 text-center text-gray-500">{row.exam}</td>
-                    <td className="px-4 py-2.5 text-center text-gray-500">{row.date}</td>
-                    <td className="px-4 py-2.5 text-center"><span className={`inline-flex items-center justify-center rounded-full text-white text-xs font-semibold px-4 py-1 min-w-[96px] whitespace-nowrap ${getStatusBadgeClass(row.status)}`}>{row.status}</span></td>
-                    <td className="px-4 py-2.5 text-center text-gray-500">{row.adminName || "-"}</td>
-                    <td className="px-4 py-2.5 text-center">
-                      {canEditPapers && row.status !== "Deleted" ? (
-                        <div className="relative inline-block">
-                          <button onClick={(e) => { e.stopPropagation(); setOpenAction(openAction === row.id ? null : row.id); }} className="p-1 rounded hover:bg-gray-100 transition-colors"><DotsIcon /></button>
-                          {openAction === row.id && (
-                            <div className="absolute right-8 top-0 w-28 bg-white border border-gray-200 rounded-lg shadow-2xl z-[100] overflow-hidden">
-                              <button onClick={() => { setCourse(row.course || ""); setYear(row.year || ""); setSpec(row.spec || ""); setSemester(row.semester || ""); setExam(row.exam || ""); setPaper(row.name || ""); setPaperName(row.name || ""); setSelectedPaperIndex(row.index || null); setActiveNav("dashboard"); setOpenAction(null); }} className="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg transition-colors">Edit</button>
-                              {canDeletePapers && <button onClick={() => { setListDeleteConfirm({ show: true, row }); setOpenAction(null); }} className="block w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-b-lg transition-colors">🗑️ Delete</button>}
-                            </div>
+                  <React.Fragment key={row.id}>
+                    <tr className={`transition-colors ${getRowBgClass(isSelected, idx)}`}>
+                      <td className="px-4 py-2.5 text-center"><input type="checkbox" checked={isSelected} onChange={() => toggleRow(row.id)} disabled={!canClearLogs} className="w-4 h-4 rounded accent-amber-500 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" /></td>
+                      <td className="px-4 py-2.5 text-center text-gray-700 font-medium">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {isExpandable && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpandLog(row.id);
+                              }}
+                              className="inline-flex items-center justify-center p-1 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-100 transition-colors cursor-pointer shrink-0"
+                              title={isExpanded ? "Collapse Details" : "Show Affected Papers"}
+                            >
+                              <svg
+                                className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? "rotate-90" : "rotate-0"}`}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
                           )}
+                          <span className="truncate max-w-[240px]">{row.name}</span>
                         </div>
-                      ) : <span className="text-gray-400 text-xs italic">Removed</span>}
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-4 py-2.5 text-center text-gray-500">{row.semester}</td>
+                      <td className="px-4 py-2.5 text-center text-gray-700 font-medium">{row.year}</td>
+                      <td className="px-4 py-2.5 text-center text-gray-500">{row.exam}</td>
+                      <td className="px-4 py-2.5 text-center text-gray-500">{row.date}</td>
+                      <td className="px-4 py-2.5 text-center"><span className={`inline-flex items-center justify-center rounded-full text-white text-xs font-semibold px-4 py-1 min-w-[96px] whitespace-nowrap ${getStatusBadgeClass(row.status)}`}>{row.status}</span></td>
+                      <td className="px-4 py-2.5 text-center text-gray-500">{row.adminName || "-"}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        {canEditPapers && row.status !== "Deleted" && !row.status?.startsWith("Bulk") ? (
+                          <div className="relative inline-block">
+                            <button onClick={(e) => { e.stopPropagation(); setOpenAction(openAction === row.id ? null : row.id); }} className="p-1 rounded hover:bg-gray-100 transition-colors"><DotsIcon /></button>
+                            {openAction === row.id && (
+                              <div className="absolute right-8 top-0 w-28 bg-white border border-gray-200 rounded-lg shadow-2xl z-[100] overflow-hidden">
+                                <button onClick={() => { setCourse(row.course || ""); setYear(row.year || ""); setSpec(row.spec || ""); setSemester(row.semester || ""); setExam(row.exam || ""); setPaper(row.name || ""); setPaperName(row.name || ""); setSelectedPaperIndex(row.index || null); setActiveNav("dashboard"); setOpenAction(null); }} className="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg transition-colors">Edit</button>
+                                {canDeletePapers && <button onClick={() => { setListDeleteConfirm({ show: true, row }); setOpenAction(null); }} className="block w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-b-lg transition-colors">🗑️ Delete</button>}
+                              </div>
+                            )}
+                          </div>
+                        ) : <span className="text-gray-400 text-xs italic">{row.status?.startsWith("Bulk") ? "Bulk Operation" : "Removed"}</span>}
+                      </td>
+                    </tr>
+                    {isExpanded && isExpandable && subPapers && subPapers.length > 0 && (
+                      <tr key={`${row.id}-details`} className="bg-blue-50/40">
+                        <td colSpan={9} className="px-6 py-3 border-t border-b border-blue-100">
+                          <div className="bg-white rounded-xl border border-blue-200 overflow-hidden shadow-xs">
+                            <div className="px-3.5 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200 text-xs font-bold text-[#05488B] flex items-center justify-between">
+                              <span className="flex items-center gap-1.5">
+                                <span>📑</span>
+                                <span>Papers In {row.status} ({subPapers.length})</span>
+                              </span>
+                              <span className="text-[11px] font-normal text-gray-500">
+                                Performed by: <strong className="text-gray-700">{row.adminName || "PU Central-Library"}</strong> • {row.date}
+                              </span>
+                            </div>
+                            <div className="max-h-60 overflow-y-auto">
+                              <table className="w-full text-xs text-left">
+                                <thead className="bg-gray-100 text-gray-700 font-semibold sticky top-0 border-b">
+                                  <tr>
+                                    <th className="px-3 py-2 w-10 text-center">#</th>
+                                    <th className="px-3 py-2">Paper Name</th>
+                                    <th className="px-3 py-2">Course</th>
+                                    <th className="px-3 py-2">Specialization</th>
+                                    <th className="px-3 py-2 text-center">Semester</th>
+                                    <th className="px-3 py-2 text-center">Year</th>
+                                    <th className="px-3 py-2 text-center">Exam</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                  {subPapers.map((paper: any, pIdx: number) => (
+                                    <tr key={pIdx} className="hover:bg-blue-50/30 transition-colors">
+                                      <td className="px-3 py-2 text-center text-gray-400 font-mono text-[11px]">{pIdx + 1}</td>
+                                      <td className="px-3 py-2 font-semibold text-gray-800">{paper.title || paper.name || "-"}</td>
+                                      <td className="px-3 py-2 text-gray-600">{paper.course || "-"}</td>
+                                      <td className="px-3 py-2 text-gray-600">{paper.specialization || paper.spec || "-"}</td>
+                                      <td className="px-3 py-2 text-center text-gray-600">{paper.semester || paper.sem || "-"}</td>
+                                      <td className="px-3 py-2 text-center text-gray-600">{paper.year || "-"}</td>
+                                      <td className="px-3 py-2 text-center">
+                                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                                          {paper.exam || "-"}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
