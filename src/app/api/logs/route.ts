@@ -110,17 +110,22 @@ export async function POST(req: Request) {
     if (error) throw error;
 
     const { mirrorAdminLogToSheet } = await import("@/lib/sheets");
-    void mirrorAdminLogToSheet({
-      id: inserted?.id,
-      status: body.status || "Bulk Added",
-      date: formattedDate,
-      name: body.name || "Bulk action completed",
-      spec: typeof body.spec === "string" ? body.spec : JSON.stringify(body.spec || []),
-      course: body.course,
-      year: body.year,
-      semester: body.semester,
-      exam: body.exam,
-    });
+    try {
+      await mirrorAdminLogToSheet({
+        id: inserted?.id,
+        status: body.status || "Bulk Added",
+        date: formattedDate,
+        name: body.name || "Bulk action completed",
+        spec: typeof body.spec === "string" ? body.spec : JSON.stringify(body.spec || []),
+        course: body.course,
+        year: body.year,
+        semester: body.semester,
+        exam: body.exam,
+        admin_name: adminName,
+      });
+    } catch (sheetErr) {
+      console.error("Failed to mirror log to Google Sheets:", sheetErr);
+    }
 
     return NextResponse.json({ success: true, id: inserted?.id });
   } catch (error: any) {

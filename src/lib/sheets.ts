@@ -253,6 +253,39 @@ export async function mirrorBulkDeletePapersFromSheet(papers: Partial<Paper>[]) 
   }
 }
 
+const verifiedSheetTabs = new Set<string>();
+
+async function ensureSheetTab(sheets: any, title: string, headers: string[]) {
+  if (verifiedSheetTabs.has(title)) return;
+  try {
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+    const exists = spreadsheet.data.sheets?.some(
+      (s: any) => s.properties?.title?.toLowerCase() === title.toLowerCase()
+    );
+
+    if (!exists) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title } } }]
+        }
+      });
+
+      if (headers && headers.length > 0) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SHEET_ID,
+          range: `${title}!A1`,
+          valueInputOption: SHEET_WRITE_MODE,
+          requestBody: { values: [headers] }
+        });
+      }
+    }
+    verifiedSheetTabs.add(title);
+  } catch (err) {
+    console.warn(`Could not ensure sheet tab "${title}":`, err);
+  }
+}
+
 export async function mirrorAdminLogToSheet(log: {
   id?: any;
   course?: string;
@@ -263,10 +296,13 @@ export async function mirrorAdminLogToSheet(log: {
   status: string;
   date: string;
   name: string;
+  admin_name?: string;
 }) {
   if (!SHEET_ID) return;
   try {
     const sheets = await getServiceSheets();
+    await ensureSheetTab(sheets, "Logs", ["ID", "Course", "Year", "Spec", "Semester", "Exam", "Status", "Date", "Name", "Admin"]);
+
     const rowValues = [
       String(log.id || Date.now()),
       log.course || "",
@@ -276,12 +312,13 @@ export async function mirrorAdminLogToSheet(log: {
       log.exam || "",
       log.status || "",
       log.date || new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
-      log.name || ""
+      log.name || "",
+      log.admin_name || ""
     ];
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
-      range: "Logs!A:I",
+      range: "Logs!A:J",
       valueInputOption: SHEET_WRITE_MODE,
       requestBody: { values: [rowValues] }
     });
@@ -305,6 +342,8 @@ export async function mirrorStudentQueryToSheet(query: {
   if (!SHEET_ID) return;
   try {
     const sheets = await getServiceSheets();
+    await ensureSheetTab(sheets, "AI Requests", ["Date", "Email", "Question", "Status", "Message", "Paper Name", "Course", "Year", "Semester", "Link"]);
+
     const rowValues = [
       query.date || new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
       query.email || "anonymous",
@@ -336,13 +375,24 @@ export async function mirrorBlockedUserToSheet(email: string, date?: string) {
     const cleanEmail = email.trim().toLowerCase();
     const logDate = date || new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
 
-    // Check if already in Blocked Users tab
+    await ensureSheetTab(sheets, "Blocked Users", ["Email", "Blocked At (IST)"]);
+
     const existing = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: "Blocked Users!A:B"
     });
     const rows = existing.data.values || [];
-    const alreadyBlocked = rows.some((r, idx) => idx > 0 && String(r[0] || "").trim().toLowerCase() === cleanEmail);
+
+    if (rows.length === 0) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: "Blocked Users!A1:B1",
+        valueInputOption: SHEET_WRITE_MODE,
+        requestBody: { values: [["Email", "Blocked At (IST)"]] }
+      });
+    }
+
+    const alreadyBlocked = rows.some((r: any[]) => String(r[0] || "").trim().toLowerCase() === cleanEmail);
     if (alreadyBlocked) return;
 
     await sheets.spreadsheets.values.append({
@@ -362,16 +412,18 @@ export async function mirrorUnblockUserInSheet(email: string) {
     const sheets = await getServiceSheets();
     const cleanEmail = email.trim().toLowerCase();
 
+    await ensureSheetTab(sheets, "Blocked Users", ["Email", "Blocked At (IST)"]);
+
     const sheetData = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: "Blocked Users!A:B"
     });
     const rows = sheetData.data.values || [];
-    const rowIndex = rows.findIndex((r, idx) => idx > 0 && String(r[0] || "").trim().toLowerCase() === cleanEmail);
-    if (rowIndex <= 0) return;
+    const rowIndex = rows.findIndex((r: any[]) => String(r[0] || "").trim().toLowerCase() === cleanEmail);
+    if (rowIndex < 0) return;
 
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
-    const blockedSheet = spreadsheet.data.sheets?.find(s => s.properties?.title === "Blocked Users");
+    const blockedSheet = spreadsheet.data.sheets?.find((s: any) => s.properties?.title?.toLowerCase() === "blocked users");
     const sheetId = blockedSheet?.properties?.sheetId;
     if (sheetId === undefined) return;
 

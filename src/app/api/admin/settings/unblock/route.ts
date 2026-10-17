@@ -13,7 +13,13 @@ export async function POST(req: NextRequest) {
 
     const adminClient = createAdminClient();
     await adminClient.from("blocked_users").delete().eq("email", email);
-    void mirrorUnblockUserInSheet(email);
+
+    try {
+      await mirrorUnblockUserInSheet(email);
+    } catch (sheetErr) {
+      console.error("Sheets mirror error on unblock:", sheetErr);
+    }
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return handleApiError(error);

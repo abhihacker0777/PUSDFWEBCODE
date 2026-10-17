@@ -13,7 +13,15 @@ export async function POST(req: NextRequest) {
 
     const adminClient = createAdminClient();
     await adminClient.from("blocked_users").upsert({ email }, { onConflict: "email" });
-    void mirrorBlockedUserToSheet(email);
+
+    const formattedDate = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+
+    try {
+      await mirrorBlockedUserToSheet(email, formattedDate);
+    } catch (sheetErr) {
+      console.error("Sheets mirror error on block:", sheetErr);
+    }
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return handleApiError(error);

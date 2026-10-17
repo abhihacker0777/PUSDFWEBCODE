@@ -33,18 +33,22 @@ async function logStudentQueryTelemetry(
     });
 
     // Mirror to Google Sheets AI Requests tab
-    void mirrorStudentQueryToSheet({
-      date: formattedDate,
-      email: data.email || "anonymous",
-      question: data.question,
-      status: data.status,
-      message: data.message,
-      paperName: data.paperName,
-      course: data.course || "",
-      year: data.year || "",
-      semester: data.semester || "",
-      link: data.link || "",
-    });
+    try {
+      await mirrorStudentQueryToSheet({
+        date: formattedDate,
+        email: data.email || "anonymous",
+        question: data.question,
+        status: data.status,
+        message: data.message,
+        paperName: data.paperName,
+        course: data.course || "",
+        year: data.year || "",
+        semester: data.semester || "",
+        link: data.link || "",
+      });
+    } catch (sheetErr) {
+      console.error("Sheets student query mirror error:", sheetErr);
+    }
   } catch (logErr) {
     console.error("Failed To Log Query Telemetry:", logErr);
   }

@@ -123,17 +123,22 @@ async function logAdminActivity(
     }).select("id").maybeSingle();
 
     // Mirror to Google Sheets secondary database
-    void mirrorAdminLogToSheet({
-      id: inserted?.id,
-      course: meta?.course,
-      year: meta?.year,
-      spec: spec || "",
-      semester: meta?.semester,
-      exam: meta?.exam,
-      status,
-      date: formattedDate,
-      name,
-    });
+    try {
+      await mirrorAdminLogToSheet({
+        id: inserted?.id,
+        course: meta?.course,
+        year: meta?.year,
+        spec: spec || "",
+        semester: meta?.semester,
+        exam: meta?.exam,
+        status,
+        date: formattedDate,
+        name,
+        admin_name: adminName,
+      });
+    } catch (sheetErr) {
+      console.error("Sheets mirror error on admin log:", sheetErr);
+    }
 
     // Run 30-day retention pruning asynchronously
     void pruneExpiredSupabaseRecords(30);
@@ -391,20 +396,24 @@ export async function uploadPaperAction(formData: FormData) {
     }
 
     const resultData = persistResult.data;
-    void mirrorPaperToSheet({
-      course: m.course,
-      year: m.year,
-      spec: m.specialization,
-      specialization: m.specialization,
-      sem: m.semester,
-      semester: m.semester,
-      exam: m.exam,
-      name: m.title,
-      title: m.title,
-      subject: m.title,
-      link: driveUrl || resultData.drive_url,
-      drive_url: driveUrl || resultData.drive_url,
-    }).catch((err) => console.error("Sheets Mirror Background Error:", err));
+    try {
+      await mirrorPaperToSheet({
+        course: m.course,
+        year: m.year,
+        spec: m.specialization,
+        specialization: m.specialization,
+        sem: m.semester,
+        semester: m.semester,
+        exam: m.exam,
+        name: m.title,
+        title: m.title,
+        subject: m.title,
+        link: driveUrl || resultData.drive_url,
+        drive_url: driveUrl || resultData.drive_url,
+      });
+    } catch (sheetErr) {
+      console.error("Sheets mirror error on upload paper:", sheetErr);
+    }
 
     await invalidateServerPapersCache();
     const paper = normalizeSupabasePaper(resultData);
@@ -444,7 +453,11 @@ export async function bulkDeletePapersAction(ids: (string | number)[]) {
 
     // Delete matching rows from Google Sheets secondary database
     if (papersToDelete?.length) {
-      void mirrorBulkDeletePapersFromSheet(papersToDelete);
+      try {
+        await mirrorBulkDeletePapersFromSheet(papersToDelete);
+      } catch (sheetErr) {
+        console.error("Sheets mirror error on bulk delete:", sheetErr);
+      }
     }
 
     // Clean up orphan drive files
@@ -563,20 +576,24 @@ export async function bulkEditPapersAction(
     if (previousPapers?.length) {
       for (const p of previousPapers) {
         const specificTitle = (updates.titlesById?.[p.id] ?? updates.titlesById?.[String(p.id)] ?? payload.title ?? p.title)?.trim();
-        void mirrorPaperToSheet(
-          {
-            ...p,
-            ...payload,
-            name: specificTitle,
-            title: specificTitle,
-            subject: specificTitle,
-            spec: payload.specialization || p.specialization,
-            specialization: payload.specialization || p.specialization,
-            sem: payload.semester || p.semester,
-            semester: payload.semester || p.semester,
-          },
-          p
-        );
+        try {
+          await mirrorPaperToSheet(
+            {
+              ...p,
+              ...payload,
+              name: specificTitle,
+              title: specificTitle,
+              subject: specificTitle,
+              spec: payload.specialization || p.specialization,
+              specialization: payload.specialization || p.specialization,
+              sem: payload.semester || p.semester,
+              semester: payload.semester || p.semester,
+            },
+            p
+          );
+        } catch (sheetErr) {
+          console.error("Sheets mirror error on bulk edit:", sheetErr);
+        }
       }
     }
 
@@ -618,15 +635,19 @@ export async function deletePaperAction(id: string | number) {
 
     if (paperToDelete) {
       // Delete from Google Sheets secondary database
-      void mirrorDeletePaperFromSheet({
-        course: paperToDelete.course,
-        year: paperToDelete.year,
-        sem: paperToDelete.semester,
-        semester: paperToDelete.semester,
-        exam: paperToDelete.exam,
-        name: paperToDelete.title,
-        title: paperToDelete.title,
-      });
+      try {
+        await mirrorDeletePaperFromSheet({
+          course: paperToDelete.course,
+          year: paperToDelete.year,
+          sem: paperToDelete.semester,
+          semester: paperToDelete.semester,
+          exam: paperToDelete.exam,
+          name: paperToDelete.title,
+          title: paperToDelete.title,
+        });
+      } catch (sheetErr) {
+        console.error("Sheets mirror error on delete paper:", sheetErr);
+      }
 
       await logAdminActivity(
         adminClient,
