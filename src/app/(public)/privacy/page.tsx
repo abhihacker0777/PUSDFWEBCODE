@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 function isValidContactEmail(email: string): boolean {
   if (!email || email.includes(" ")) return false;
   const atIdx = email.indexOf("@");
-  if (atIdx <= 0 || email.indexOf("@", atIdx + 1) !== -1) return false;
+  if (atIdx <= 0 || email.slice(atIdx + 1).includes("@")) return false;
   const dotIdx = email.lastIndexOf(".");
   return dotIdx > atIdx + 1 && dotIdx < email.length - 1;
 }

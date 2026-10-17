@@ -306,7 +306,17 @@ const BulkPapersDbTable = ({
   activeRowBg = "bg-amber-50",
   onInlineRename,
 }: any) => {
-  const [renameModalPaper, setRenameModalPaper] = useState<any | null>(null);
+  const [renameModalPaper, setRenameModalPaper] = useState<{
+    id?: string | number;
+    index?: string | number;
+    name?: string;
+    course?: string;
+    sem?: string;
+    semester?: string;
+    exam?: string;
+    spec?: string;
+    specialization?: string;
+  } | null>(null);
   const [renameModalValue, setRenameModalValue] = useState("");
 
   const allSelected =
@@ -438,19 +448,18 @@ const BulkPapersDbTable = ({
 
       {renameModalPaper && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bulk-rename-title"
           className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 transition-opacity animate-fade-in"
-          onClick={() => setRenameModalPaper(null)}
         >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 md:p-7 max-w-md w-full transform transition-all border-t-8 border-[#05488B]"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-7 max-w-md w-full transform transition-all border-t-8 border-[#05488B]">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-[#05488B]/10 text-[#05488B] flex items-center justify-center text-xl shrink-0 font-bold">
                 ✏️
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Edit Paper Name</h3>
+                <h3 id="bulk-rename-title" className="text-lg font-bold text-gray-900">Edit Paper Name</h3>
                 <p className="text-xs text-gray-500">
                   {renameModalPaper.course || "Paper"} • Sem {renameModalPaper.sem || renameModalPaper.semester || "-"} • {renameModalPaper.exam || "Exam"}
                 </p>
@@ -474,7 +483,6 @@ const BulkPapersDbTable = ({
                     setRenameModalPaper(null);
                   }
                 }}
-                autoFocus
                 className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-300 focus:border-[#05488B] focus:ring-2 focus:ring-[#05488B]/20 outline-none transition-all text-gray-900 shadow-xs"
                 placeholder="Enter paper name"
               />
