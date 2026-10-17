@@ -1,9 +1,23 @@
 import { getServiceSheets } from "./googleAuth";
 import { Paper } from "@/types/paper";
+import { toSafeUrl } from "@/lib/urlSecurity";
 
 const SHEET_ID = process.env.SHEET_ID || "";
 const SHEET_URL = process.env.SHEET_URL || "";
 const SHEET_WRITE_MODE = "RAW" as const;
+const SHEET_ALLOWED_HOSTS = new Set(["docs.google.com", "docs.googleusercontent.com", "spreadsheets.google.com"]);
+
+function getSafePublishedSheetUrl(rawUrl: string): string {
+  const parsed = toSafeUrl(rawUrl, {
+    allowedProtocols: ["https:"],
+    allowedHosts: SHEET_ALLOWED_HOSTS,
+    allowLocalNetwork: false
+  });
+  if (!parsed.pathname.toLowerCase().includes("/spreadsheets/")) {
+    throw new Error("SHEET_URL must point to a Google Sheets resource");
+  }
+  return parsed.toString();
+}
 
 function sanitize(str: any, maxLen = 160): string {
   if (typeof str !== "string") return "";
@@ -58,11 +72,12 @@ export function paperFromSheetRow(row: any[] = [], index: string | number | null
 
 export async function fetchPublicPapersFromSheet(): Promise<Paper[]> {
   if (!SHEET_URL) return [];
+  const safeSheetUrl = getSafePublishedSheetUrl(SHEET_URL);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
-    const response = await fetch(SHEET_URL, { signal: controller.signal });
+    const response = await fetch(safeSheetUrl, { signal: controller.signal, redirect: "error" });
     if (!response.ok) throw new Error(`Sheet fetch failed: ${response.status}`);
     const text = await response.text();
     if (text.length > 5 * 1024 * 1024) throw new Error("Sheet response too large");

@@ -1,100 +1,105 @@
-import { BACKEND_URL, csrfFetch } from "../../../services/api";
+import { buildBackendUrl, csrfFetch } from "../../../services/api";
 
 const jsonHeaders = { "Content-Type": "application/json" };
 
 export const getCurrentAdmin = (): Promise<Response> =>
-  fetch(`${BACKEND_URL}/api/auth/me`, { credentials: "include", cache: "no-store" });
+  fetch(buildBackendUrl("/api/auth/me"), { credentials: "include", cache: "no-store", redirect: "error" });
 
 export const logoutAdmin = (): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/api/auth/logout`, { method: "POST", credentials: "include" });
+  csrfFetch("/api/auth/logout", { method: "POST", credentials: "include" });
 
 export const getPapers = (): Promise<Response> =>
-  fetch(`${BACKEND_URL}/admin/papers`, { credentials: "include", cache: "no-store" });
+  fetch(buildBackendUrl("/admin/papers"), { credentials: "include", cache: "no-store", redirect: "error" });
 
 export const uploadPaper = (formData: FormData): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/upload`, { method: "POST", body: formData });
+  csrfFetch("/upload", { method: "POST", body: formData });
 
 export const deletePaper = (index: string | number, expected: Record<string, any> = {}): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/delete`, {
+  csrfFetch("/delete", {
     method: "DELETE",
     headers: jsonHeaders,
     body: JSON.stringify({ index, ...expected })
   });
 
 export const bulkDeletePapersApi = (items: any[]): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/bulk-delete`, {
+  csrfFetch("/bulk-delete", {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ items })
   });
 
 export const bulkEditPapersApi = (items: any[], updates: Record<string, any>): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/bulk-edit`, {
+  csrfFetch("/bulk-edit", {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ items, updates })
   });
 
 export const syncPapersToWebsite = (): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/sync`, { method: "POST" });
+  csrfFetch("/sync", { method: "POST" });
 
 export const getLogs = (): Promise<Response> =>
-  fetch(`${BACKEND_URL}/logs`, { credentials: "include", cache: "no-store" });
+  fetch(buildBackendUrl("/logs"), { credentials: "include", cache: "no-store", redirect: "error" });
 
 export const clearLogs = (): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/logs/clear`, { method: "DELETE" });
+  csrfFetch("/logs/clear", { method: "DELETE" });
 
 export const clearSelectedLogs = (ids: (string | number)[]): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/logs/delete`, {
+  csrfFetch("/logs/delete", {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ ids })
   });
 
 export const getBlockedEmails = (): Promise<Response> =>
-  fetch(`${BACKEND_URL}/admin/settings/blocked`, { credentials: "include", cache: "no-store" });
+  fetch(buildBackendUrl("/admin/settings/blocked"), { credentials: "include", cache: "no-store", redirect: "error" });
 
 export const blockAssistantUser = (email: string): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/admin/settings/block`, {
+  csrfFetch("/admin/settings/block", {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ email })
   });
 
 export const unblockAssistantUser = (email: string): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/admin/settings/unblock`, {
+  csrfFetch("/admin/settings/unblock", {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ email })
   });
 
 export const getStudentQueries = (): Promise<Response> =>
-  fetch(`${BACKEND_URL}/admin/queries`, { credentials: "include", cache: "no-store" });
+  fetch(buildBackendUrl("/admin/queries"), { credentials: "include", cache: "no-store", redirect: "error" });
 
-export const getQueryInsights = (days = 30): Promise<Response> =>
-  fetch(`${BACKEND_URL}/admin/queries/insights?days=${days}`, { credentials: "include", cache: "no-store" });
+export const getQueryInsights = (days = 30): Promise<Response> => {
+  const safeDays = Number.isFinite(days) ? Math.max(1, Math.min(365, Math.trunc(days))) : 30;
+  return fetch(buildBackendUrl(`/admin/queries/insights?days=${safeDays}`), {
+    credentials: "include",
+    cache: "no-store",
+    redirect: "error"
+  });
+};
 
 export const getAdminUsers = (): Promise<Response> =>
-  fetch(`${BACKEND_URL}/admin/users`, { credentials: "include", cache: "no-store" });
+  fetch(buildBackendUrl("/admin/users"), { credentials: "include", cache: "no-store", redirect: "error" });
 
 export const createAdminUser = (user: any): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/admin/users`, {
+  csrfFetch("/admin/users", {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify(user)
   });
 
 export const updateAdminUser = (user: any): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/admin/users`, {
+  csrfFetch("/admin/users", {
     method: "PATCH",
     headers: jsonHeaders,
     body: JSON.stringify(user)
   });
 
 export const deleteAdminUser = (id: string | number): Promise<Response> =>
-  csrfFetch(`${BACKEND_URL}/admin/users`, {
+  csrfFetch("/admin/users", {
     method: "DELETE",
     headers: jsonHeaders,
     body: JSON.stringify({ id })
   });
-

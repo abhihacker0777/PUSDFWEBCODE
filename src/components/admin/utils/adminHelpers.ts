@@ -1,4 +1,5 @@
 import { clearPaperCaches as clearClientPaperCaches } from "../../../services/api";
+import { toSafeUrl } from "@/lib/urlSecurity";
 import { semesterSequence } from "./adminConstants";
 
 export const clearPapersCache = (): void => {
@@ -154,22 +155,29 @@ export interface DocumentLinkParseResult {
 
 export const parseDocumentLink = (cleanUrl: string): DocumentLinkParseResult => {
   try {
-    const parsed = new URL(cleanUrl);
+    const parsed = toSafeUrl(cleanUrl, {
+      allowedProtocols: ["https:", "http:"],
+      allowLocalNetwork: false
+    });
     const host = parsed.hostname.toLowerCase();
     const pathname = parsed.pathname.toLowerCase();
+    const isDriveHost = host === "drive.google.com" || host === "docs.google.com";
     const isDriveDoc =
-      (host.includes("drive.google.com") || host.includes("docs.google.com")) &&
-      (pathname.includes("/file/d/") ||
-        pathname.includes("/document/d/") ||
-        pathname.includes("/open") ||
-        pathname.includes("/uc") ||
+      isDriveHost &&
+      (
+        /^\/file\/d\/[^/]+/.test(pathname) ||
+        /^\/document\/d\/[^/]+/.test(pathname) ||
+        pathname === "/open" ||
+        pathname === "/uc"
+      ) &&
+      (pathname.startsWith("/file/d/") ||
+        pathname.startsWith("/document/d/") ||
         parsed.searchParams.has("id"));
     const isDirectDoc =
       pathname.endsWith(".pdf") ||
       pathname.endsWith(".docx") ||
       pathname.endsWith(".doc") ||
-      parsed.pathname.includes(".pdf") ||
-      parsed.pathname.includes(".docx");
+      /\.(pdf|docx?|PDF|DOCX?)$/.test(parsed.pathname);
     if (isDriveDoc || isDirectDoc) {
       const pathParts = parsed.pathname.split("/").filter(Boolean);
       const lastPart = pathParts.at(-1) || "Paper Document";
@@ -233,4 +241,3 @@ export const parseLogTimestamp = (dateStr: any): number => {
   }
   return 0;
 };
-

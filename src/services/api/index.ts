@@ -1,4 +1,4 @@
-export { BACKEND_URL } from "./backendConfig";
+export { BACKEND_URL, buildBackendUrl } from "./backendConfig";
 export { csrfFetch, getCsrfToken } from "./csrf";
 export {
   clearPaperCaches,

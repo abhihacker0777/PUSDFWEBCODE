@@ -1,12 +1,13 @@
-import { BACKEND_URL } from "./backendConfig";
+import { buildBackendUrl } from "./backendConfig";
 
 export const fetchAssistantConfig = async (): Promise<any> => {
-  const response = await fetch(`${BACKEND_URL}/assistant/config`, {
+  const response = await fetch(buildBackendUrl("/assistant/config"), {
     method: "GET",
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
     },
+    redirect: "error",
   });
 
   const data = await response.json().catch(() => ({}));
@@ -18,13 +19,14 @@ export const fetchAssistantConfig = async (): Promise<any> => {
 };
 
 export const verifyAssistantGoogleCredential = async (credential: string): Promise<any> => {
-  const response = await fetch(`${BACKEND_URL}/assistant/google/verify`, {
+  const response = await fetch(buildBackendUrl("/assistant/google/verify"), {
     method: "POST",
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ credential }),
+    redirect: "error",
   });
 
   const data = await response.json().catch(() => ({}));
@@ -38,13 +40,14 @@ export const verifyAssistantGoogleCredential = async (credential: string): Promi
 };
 
 export const askPaperAssistant = async ({ credential, question }: { credential: string; question: string }): Promise<any> => {
-  const response = await fetch(`${BACKEND_URL}/assistant/search`, {
+  const response = await fetch(buildBackendUrl("/assistant/search"), {
     method: "POST",
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ credential, question }),
+    redirect: "error",
   });
 
   const data = await response.json().catch(() => ({}));

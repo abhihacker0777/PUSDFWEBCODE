@@ -73,8 +73,7 @@ async function handleFailedLogin(
 
 async function resolveAuthEmail(
   adminSupabase: any,
-  cleanIdentifier: string,
-  rawIdentifier: string
+  cleanIdentifier: string
 ): Promise<{ emailToAuth?: string; deactivated?: boolean; notFound?: boolean; emailNotAllowed?: boolean }> {
   const id = cleanIdentifier.trim().toLowerCase().slice(0, 254);
 
@@ -95,7 +94,9 @@ async function resolveAuthEmail(
     if (!byLogin.is_active) {
       return { deactivated: true };
     }
-    return { emailToAuth: byLogin.auth_email || byLogin.email || rawIdentifier.trim() };
+    const resolvedEmail = String(byLogin.auth_email || byLogin.email || "").toLowerCase().trim();
+    if (!resolvedEmail) return { notFound: true };
+    return { emailToAuth: resolvedEmail };
   }
 
   return { notFound: true };
@@ -103,16 +104,15 @@ async function resolveAuthEmail(
 
 async function verifyActiveAdminStatus(
   adminSupabase: any,
-  _supabase: any,
-  emailToAuth: string
+  authEmail: string,
+  isOwner: boolean
 ): Promise<boolean> {
-  const isSuperAdmin = Boolean(ADMIN_EMAIL && emailToAuth.toLowerCase() === ADMIN_EMAIL);
-  if (isSuperAdmin) return true;
+  if (isOwner) return true;
 
   const { data: adminRecord } = await adminSupabase
     .from("admin_users")
     .select("is_active, role")
-    .eq("email", emailToAuth.toLowerCase().trim())
+    .eq("email", authEmail.toLowerCase().trim())
     .maybeSingle();
 
   return Boolean(adminRecord?.is_active);
@@ -288,7 +288,7 @@ export async function loginAction(
     const supabase = await createClient();
     const adminSupabase = createAdminClient();
 
-    const resolution = await resolveAuthEmail(adminSupabase, cleanIdentifier, identifier);
+    const resolution = await resolveAuthEmail(adminSupabase, cleanIdentifier);
     if (resolution.emailNotAllowed) {
       await equalizeLoginTiming(startedAt);
       return {
@@ -312,21 +312,27 @@ export async function loginAction(
       return await handleFailedLogin(cleanIdentifier, startedAt);
     }
 
+    const authenticatedEmail = String(authData.user.email || "").toLowerCase().trim();
+    if (!authenticatedEmail || authenticatedEmail !== emailToAuth.toLowerCase()) {
+      await supabase.auth.signOut();
+      return await handleFailedLogin(cleanIdentifier, startedAt);
+    }
+
     await resetLoginAttempts(cleanIdentifier);
 
-    const isActive = await verifyActiveAdminStatus(adminSupabase, supabase, emailToAuth);
+    const ownerId = process.env.ADMIN_AUTH_USER_ID;
+    const isOwner = Boolean(
+      (ADMIN_EMAIL && authenticatedEmail === ADMIN_EMAIL) ||
+      (ownerId && authData.user.id === ownerId)
+    );
+
+    const isActive = await verifyActiveAdminStatus(adminSupabase, authenticatedEmail, isOwner);
     if (!isActive) {
       await supabase.auth.signOut();
       return await handleFailedLogin(cleanIdentifier, startedAt);
     }
 
-    const ownerId = process.env.ADMIN_AUTH_USER_ID;
-    const isOwner = Boolean(
-      (ADMIN_EMAIL && emailToAuth.toLowerCase() === ADMIN_EMAIL) ||
-      (ownerId && authData.user.id === ownerId)
-    );
-
-    const domainCheck = checkDomainAuthorization(emailToAuth, isOwner);
+    const domainCheck = checkDomainAuthorization(authenticatedEmail, isOwner);
     if (!domainCheck.authorized) {
       await supabase.auth.signOut();
       await equalizeLoginTiming(startedAt);
@@ -338,7 +344,7 @@ export async function loginAction(
     }
 
     try {
-      await recordSessionAndSendAlert(adminSupabase, authData.user.id, emailToAuth, isOwner, meta);
+      await recordSessionAndSendAlert(adminSupabase, authData.user.id, authenticatedEmail, isOwner, meta);
     } catch (sessionErr) {
       console.error("Session Recording Or Alert Email Failed:", sessionErr);
     }

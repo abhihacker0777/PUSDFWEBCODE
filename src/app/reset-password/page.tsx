@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ShieldAlert, ArrowLeft, KeyRound, CheckCircle2 } from "lucide-react";
-import { BACKEND_URL, csrfFetch, getCsrfToken } from "@/services/api";
+import { buildBackendUrl, csrfFetch, getCsrfToken } from "@/services/api";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -45,8 +45,7 @@ function ResetPasswordForm() {
 
     setIsLoading(true);
     try {
-      const endpoint = BACKEND_URL ? `${BACKEND_URL}/password-reset/confirm` : "/api/auth/reset/confirm";
-      const response = await csrfFetch(endpoint, {
+      const response = await csrfFetch(buildBackendUrl("/password-reset/confirm"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
