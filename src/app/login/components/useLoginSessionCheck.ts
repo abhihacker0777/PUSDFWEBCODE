@@ -6,7 +6,7 @@ import { buildBackendUrl, getCsrfToken } from "@/services/api";
 export default function useLoginSessionCheck(onAuthenticated: () => void) {
   useEffect(() => {
     getCsrfToken().catch(() => {});
-    fetch(buildBackendUrl("/me"), {
+    fetch(buildBackendUrl("/api/auth/me"), {
       method: "GET",
       credentials: "include",
       redirect: "error"

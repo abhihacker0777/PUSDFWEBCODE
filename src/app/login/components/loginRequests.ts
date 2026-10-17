@@ -3,7 +3,7 @@
 import { buildBackendUrl, csrfFetch } from "@/services/api";
 
 export async function requestLogin({ captchaToken, password, username }: { captchaToken?: string; password: string; username: string }) {
-  const response = await csrfFetch(buildBackendUrl("/login"), {
+  const response = await csrfFetch(buildBackendUrl("/api/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -17,7 +17,7 @@ export async function requestLogin({ captchaToken, password, username }: { captc
 }
 
 export async function requestPasswordReset(email: string) {
-  const response = await csrfFetch(buildBackendUrl("/password-reset"), {
+  const response = await csrfFetch(buildBackendUrl("/api/auth/reset"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

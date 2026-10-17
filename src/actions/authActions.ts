@@ -78,10 +78,26 @@ async function resolveAuthEmail(
   const id = cleanIdentifier.trim().toLowerCase().slice(0, 254);
 
   if (id.includes("@")) {
-    if (id === ADMIN_EMAIL?.toLowerCase().trim()) {
-      return { emailToAuth: ADMIN_EMAIL };
+    if (ADMIN_EMAIL && id === ADMIN_EMAIL.toLowerCase().trim()) {
+      return { emailToAuth: ADMIN_EMAIL.toLowerCase().trim() };
     }
-    return { emailNotAllowed: true };
+
+    const { data: byEmail } = await adminSupabase
+      .from("admin_users")
+      .select("email, auth_email, is_active")
+      .or(`email.eq.${id},auth_email.eq.${id}`)
+      .maybeSingle();
+
+    if (byEmail) {
+      if (!byEmail.is_active) {
+        return { deactivated: true };
+      }
+      const resolvedEmail = String(byEmail.auth_email || byEmail.email || "").toLowerCase().trim();
+      if (!resolvedEmail) return { notFound: true };
+      return { emailToAuth: resolvedEmail };
+    }
+
+    return { notFound: true };
   }
 
   const { data: byLogin } = await adminSupabase
@@ -324,7 +340,7 @@ export async function loginAction(
 
     const ownerId = process.env.ADMIN_AUTH_USER_ID;
     const isOwner = Boolean(
-      (ADMIN_EMAIL && authenticatedEmail === ADMIN_EMAIL) ||
+      (ADMIN_EMAIL && authenticatedEmail === ADMIN_EMAIL.toLowerCase().trim()) ||
       (ownerId && authData.user.id === ownerId)
     );
 
