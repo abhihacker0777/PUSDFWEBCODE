@@ -72,7 +72,7 @@ export async function notifyCourseSubscribersForNewPaper(paper: {
 
   try {
     const adminClient = createAdminClient();
-    const cleanCourse = paper.course.replace(/\.\$/, "").trim();
+    const cleanCourse = paper.course.replace(/\.$/, "").trim();
 
     const { data: subs } = await adminClient
       .from("push_subscriptions")

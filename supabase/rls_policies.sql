@@ -14,12 +14,6 @@ CREATE POLICY "Public papers are viewable by everyone" ON public.papers
 
 DROP POLICY IF EXISTS "Students can submit queries" ON public.student_queries;
 
-DROP TABLE IF EXISTS public.custom_replies CASCADE;
-DROP VIEW IF EXISTS public.portal_settings CASCADE;
-DROP VIEW IF EXISTS public.question_papers CASCADE;
-
-DROP INDEX IF EXISTS public.admin_sessions_revocation_token_idx;
-
 ALTER FUNCTION public.set_updated_at() SET search_path = public;
 
 -- Revoke all mutating privileges from anon & authenticated

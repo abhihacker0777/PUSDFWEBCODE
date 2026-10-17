@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export type AdminRole = "full" | "editor" | "view";
@@ -84,6 +85,40 @@ export async function requireAdminSession(requiredPermission?: string): Promise<
     throw new AuthError("Forbidden: Email Not Confirmed.", 403);
   }
 
+  // Enforce revocable database session token
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("admin_session_token")?.value;
+
+  if (!sessionToken) {
+    throw new AuthError("Unauthorized: Active Admin Session Required.", 401);
+  }
+
+  const adminClient = createAdminClient();
+  const { data: sessionRecord, error: sessionErr } = await adminClient
+    .from("admin_sessions")
+    .select("id, auth_user_id, is_revoked")
+    .eq("revocation_token", sessionToken)
+    .maybeSingle();
+
+  if (sessionErr || !sessionRecord) {
+    throw new AuthError("Unauthorized: Session Not Found Or Invalid.", 401);
+  }
+
+  if (sessionRecord.is_revoked) {
+    throw new AuthError("Forbidden: Session Has Been Revoked.", 403);
+  }
+
+  if (sessionRecord.auth_user_id !== user.id) {
+    throw new AuthError("Forbidden: Session Mismatch.", 403);
+  }
+
+  // Update last_active timestamp asynchronously
+  adminClient
+    .from("admin_sessions")
+    .update({ last_active: new Date().toISOString() })
+    .eq("id", sessionRecord.id)
+    .then(() => {});
+
   const ownerId = process.env.ADMIN_AUTH_USER_ID;
   const ownerEmail = (process.env.ADMIN_EMAIL ?? "").toLowerCase().trim();
   const callerEmail = (user.email ?? "").toLowerCase().trim();
@@ -103,7 +138,6 @@ export async function requireAdminSession(requiredPermission?: string): Promise<
     };
   }
 
-  const adminClient = createAdminClient();
   let adminRecord: any = null;
 
   const { data: byAuthId } = await adminClient

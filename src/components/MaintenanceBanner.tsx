@@ -15,13 +15,18 @@ export default function MaintenanceBanner() {
   const checkStatus = () => {
     setChecking(true);
     fetch("/api/settings/public", { cache: "no-store" })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) return null;
+        return r.json();
+      })
       .then((d) => {
-        const isEnabled = Boolean(d?.maintenanceMode);
-        setMaintenance({
-          active: isEnabled,
-          message: d?.message || "Papers Under Semester Review",
-        });
+        if (d && d.success) {
+          const isEnabled = Boolean(d.maintenanceMode);
+          setMaintenance({
+            active: isEnabled,
+            message: d.message || "Papers Under Semester Review",
+          });
+        }
       })
       .catch(() => {})
       .finally(() => setChecking(false));

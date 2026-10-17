@@ -359,11 +359,19 @@ export async function loginAction(
 
 export async function logoutAction() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
   try {
     const cookieStore = await cookies();
+    const token = cookieStore.get("admin_session_token")?.value;
+    if (token) {
+      const adminSupabase = createAdminClient();
+      await adminSupabase
+        .from("admin_sessions")
+        .update({ is_revoked: true })
+        .eq("revocation_token", token);
+    }
     cookieStore.delete("admin_session_token");
   } catch { }
+  await supabase.auth.signOut();
   return { success: true };
 }
 

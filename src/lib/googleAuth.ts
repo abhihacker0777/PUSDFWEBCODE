@@ -4,14 +4,14 @@ const CLIENT_ID = process.env.CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_SIGNIN
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const DRIVE_REFRESH_TOKEN = process.env.DRIVE_REFRESH_TOKEN;
 const GOOGLE_SIGNIN_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_SIGNIN_CLIENT_ID || process.env.GOOGLE_SIGNIN_CLIENT_ID || CLIENT_ID;
-const ASSISTANT_EMAIL_DOMAIN = (process.env.ASSISTANT_EMAIL_DOMAIN || "").trim().replace(/^@/, "");
+const DEFAULT_ASSISTANT_DOMAIN = "poornima.edu.in";
+const ASSISTANT_EMAIL_DOMAIN = (process.env.ASSISTANT_EMAIL_DOMAIN || DEFAULT_ASSISTANT_DOMAIN).trim().replace(/^@/, "");
 
 let googleServiceAuthClient: any = null;
 const googleSignInClient = new google.auth.OAuth2(GOOGLE_SIGNIN_CLIENT_ID);
 
 export function isAllowedAssistantEmail(email: string): boolean {
-  if (!email) return false;
-  if (!ASSISTANT_EMAIL_DOMAIN) return true;
+  if (!email || !ASSISTANT_EMAIL_DOMAIN) return false;
   return email.toLowerCase().trim().endsWith(`@${ASSISTANT_EMAIL_DOMAIN.toLowerCase()}`);
 }
 

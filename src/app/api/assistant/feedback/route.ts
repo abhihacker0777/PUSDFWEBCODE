@@ -16,27 +16,22 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const credential = String(body?.credential ?? "").trim();
-    let studentEmail = "";
+    if (!credential) {
+      return NextResponse.json(
+        { success: false, message: "Valid University Google Account Authentication Required." },
+        { status: 401 }
+      );
+    }
 
-    if (credential) {
-      try {
-        const student = await verifyGoogleInstitutionalToken(credential);
-        studentEmail = student.email.toLowerCase().trim();
-      } catch {
-        return NextResponse.json(
-          { success: false, message: "Invalid Or Expired Google Session. Please Sign In Again." },
-          { status: 401 }
-        );
-      }
-    } else {
-      const rawEmail = String(body?.studentEmail || body?.email || "").trim().toLowerCase();
-      if (!rawEmail || !isAllowedAssistantEmail(rawEmail)) {
-        return NextResponse.json(
-          { success: false, message: "Valid University Google Account Authentication Required." },
-          { status: 401 }
-        );
-      }
-      studentEmail = rawEmail;
+    let studentEmail = "";
+    try {
+      const student = await verifyGoogleInstitutionalToken(credential);
+      studentEmail = student.email.toLowerCase().trim();
+    } catch {
+      return NextResponse.json(
+        { success: false, message: "Invalid Or Expired Google Session. Please Sign In Again." },
+        { status: 401 }
+      );
     }
 
     const query = String(body?.query || body?.paperName || "").trim().slice(0, 300);
