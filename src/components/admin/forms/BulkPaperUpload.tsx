@@ -306,123 +306,201 @@ const BulkPapersDbTable = ({
   activeRowBg = "bg-amber-50",
   onInlineRename,
 }: any) => {
+  const [renameModalPaper, setRenameModalPaper] = useState<any | null>(null);
+  const [renameModalValue, setRenameModalValue] = useState("");
+
   const allSelected =
     pagedDbPapers.length > 0 &&
     pagedDbPapers.every((p: any) => dbSelectedIds.has(String(p.index ?? p.id)));
 
-  return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden shadow-xs">
-      <div className="max-h-[340px] overflow-y-auto">
-        <table className="w-full text-xs text-left">
-          <thead className="bg-gray-100 text-gray-700 font-bold sticky top-0 z-10 border-b">
-            <tr>
-              <th className="p-2.5 w-10 text-center">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={() => toggleAllDbPapers(pagedDbPapers)}
-                  className={`w-4 h-4 rounded cursor-pointer ${accentColor}`}
-                />
-              </th>
-              <th className="p-2.5">Paper Name</th>
-              <th className="p-2.5">Course</th>
-              <th className="p-2.5">Specialization</th>
-              <th className="p-2.5">Sem</th>
-              <th className="p-2.5">Exam</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {pagedDbPapers.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400">
-                  No Papers Match Your Filters.
-                </td>
-              </tr>
-            ) : (
-              pagedDbPapers.map((paper: any) => {
-                const id = String(paper.index ?? paper.id);
-                const isChecked = dbSelectedIds.has(id);
-                return (
-                  <tr
-                    key={id}
-                    onClick={() => toggleDbPaper(id)}
-                    className={`cursor-pointer transition-colors ${
-                      isChecked ? activeRowBg : "hover:bg-gray-50"
-                    }`}
-                  >
-                    <td
-                      className="p-2.5 text-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleDbPaper(id)}
-                        className={`w-4 h-4 rounded cursor-pointer ${accentColor}`}
-                      />
-                    </td>
-                    <td className="p-2.5 font-semibold text-gray-800">
-                      <div className="flex items-center gap-1.5 group">
-                        <span className="truncate">{paper.name}</span>
-                        {onInlineRename && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const newName = window.prompt("Edit Paper Name:", paper.name);
-                              if (newName?.trim() && newName.trim() !== paper.name) {
-                                onInlineRename(paper, newName.trim());
-                              }
-                            }}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-[#05488B] transition-opacity cursor-pointer shrink-0"
-                            title="Click To Rename Paper Name"
-                          >
-                            ✏️
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-2.5 text-gray-600">{paper.course}</td>
-                    <td className="p-2.5 text-gray-600">
-                      {paper.spec || paper.specialization || "-"}
-                    </td>
-                    <td className="p-2.5 text-gray-600">
-                      {paper.sem || paper.semester || "-"}
-                    </td>
-                    <td className="p-2.5 text-gray-600">{paper.exam}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+  const handleSaveRename = () => {
+    if (renameModalPaper && onInlineRename) {
+      const trimmed = renameModalValue.trim();
+      if (trimmed && trimmed !== renameModalPaper.name) {
+        onInlineRename(renameModalPaper, trimmed);
+      }
+    }
+    setRenameModalPaper(null);
+  };
 
-      <div className="p-2 bg-gray-50 border-t flex items-center justify-between text-xs text-gray-500">
-        <span>
-          Showing {pagedDbPapers.length} Of {totalCount} Papers
-        </span>
-        <div className="flex gap-1">
-          <button
-            type="button"
-            disabled={dbPage <= 1}
-            onClick={() => setDbPage((p: number) => Math.max(1, p - 1))}
-            className="px-2.5 py-1 bg-white border rounded disabled:opacity-40"
-          >
-            Previous
-          </button>
-          <span className="px-2 py-1 font-bold">Page {dbPage}</span>
-          <button
-            type="button"
-            disabled={dbPage * dbPageSize >= totalCount}
-            onClick={() => setDbPage((p: number) => p + 1)}
-            className="px-2.5 py-1 bg-white border rounded disabled:opacity-40"
-          >
-            Next
-          </button>
+  return (
+    <>
+      <div className="border border-gray-200 rounded-xl overflow-hidden shadow-xs">
+        <div className="max-h-[340px] overflow-y-auto">
+          <table className="w-full text-xs text-left">
+            <thead className="bg-gray-100 text-gray-700 font-bold sticky top-0 z-10 border-b">
+              <tr>
+                <th className="p-2.5 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={() => toggleAllDbPapers(pagedDbPapers)}
+                    className={`w-4 h-4 rounded cursor-pointer ${accentColor}`}
+                  />
+                </th>
+                <th className="p-2.5">Paper Name</th>
+                <th className="p-2.5">Course</th>
+                <th className="p-2.5">Specialization</th>
+                <th className="p-2.5">Sem</th>
+                <th className="p-2.5">Exam</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {pagedDbPapers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-gray-400">
+                    No Papers Match Your Filters.
+                  </td>
+                </tr>
+              ) : (
+                pagedDbPapers.map((paper: any) => {
+                  const id = String(paper.index ?? paper.id);
+                  const isChecked = dbSelectedIds.has(id);
+                  return (
+                    <tr
+                      key={id}
+                      onClick={() => toggleDbPaper(id)}
+                      className={`cursor-pointer transition-colors ${
+                        isChecked ? activeRowBg : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <td
+                        className="p-2.5 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleDbPaper(id)}
+                          className={`w-4 h-4 rounded cursor-pointer ${accentColor}`}
+                        />
+                      </td>
+                      <td className="p-2.5 font-semibold text-gray-800">
+                        <div className="flex items-center gap-1.5 group">
+                          <span className="truncate">{paper.name}</span>
+                          {onInlineRename && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenameModalPaper(paper);
+                                setRenameModalValue(paper.name || "");
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-[#05488B] transition-opacity cursor-pointer shrink-0"
+                              title="Click To Rename Paper Name"
+                            >
+                              ✏️
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-2.5 text-gray-600">{paper.course}</td>
+                      <td className="p-2.5 text-gray-600">
+                        {paper.spec || paper.specialization || "-"}
+                      </td>
+                      <td className="p-2.5 text-gray-600">
+                        {paper.sem || paper.semester || "-"}
+                      </td>
+                      <td className="p-2.5 text-gray-600">{paper.exam}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="p-2 bg-gray-50 border-t flex items-center justify-between text-xs text-gray-500">
+          <span>
+            Showing {pagedDbPapers.length} Of {totalCount} Papers
+          </span>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              disabled={dbPage <= 1}
+              onClick={() => setDbPage((p: number) => Math.max(1, p - 1))}
+              className="px-2.5 py-1 bg-white border rounded disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span className="px-2 py-1 font-bold">Page {dbPage}</span>
+            <button
+              type="button"
+              disabled={dbPage * dbPageSize >= totalCount}
+              onClick={() => setDbPage((p: number) => p + 1)}
+              className="px-2.5 py-1 bg-white border rounded disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {renameModalPaper && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 transition-opacity animate-fade-in"
+          onClick={() => setRenameModalPaper(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 md:p-7 max-w-md w-full transform transition-all border-t-8 border-[#05488B]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-[#05488B]/10 text-[#05488B] flex items-center justify-center text-xl shrink-0 font-bold">
+                ✏️
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Edit Paper Name</h3>
+                <p className="text-xs text-gray-500">
+                  {renameModalPaper.course || "Paper"} • Sem {renameModalPaper.sem || renameModalPaper.semester || "-"} • {renameModalPaper.exam || "Exam"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label htmlFor="bulk-paper-rename-input" className="block text-xs font-semibold text-gray-700 mb-1.5">
+                Paper Name
+              </label>
+              <input
+                id="bulk-paper-rename-input"
+                type="text"
+                value={renameModalValue}
+                onChange={(e) => setRenameModalValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSaveRename();
+                  } else if (e.key === "Escape") {
+                    setRenameModalPaper(null);
+                  }
+                }}
+                autoFocus
+                className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-300 focus:border-[#05488B] focus:ring-2 focus:ring-[#05488B]/20 outline-none transition-all text-gray-900 shadow-xs"
+                placeholder="Enter paper name"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2.5 justify-end">
+              <button
+                type="button"
+                onClick={() => setRenameModalPaper(null)}
+                className="px-5 py-2.5 text-xs font-bold rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveRename}
+                disabled={!renameModalValue?.trim() || renameModalValue.trim() === renameModalPaper.name}
+                className="px-5 py-2.5 text-xs font-bold rounded-lg bg-[#05488B] hover:bg-[#032e59] disabled:opacity-50 text-white shadow-md transition-colors cursor-pointer"
+              >
+                Save Name
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

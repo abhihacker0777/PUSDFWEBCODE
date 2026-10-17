@@ -35,14 +35,14 @@ export const ensureTrustedApiUrl = (url: string): string => {
     allowLocalNetwork: allowInsecureLocalNetwork,
   });
   if (BACKEND_URL && parsed.origin !== BACKEND_URL) {
-    throw new Error("Cross-origin API URL is not allowed");
+    throw new TypeError("Cross-origin API URL is not allowed");
   }
   if (!BACKEND_URL) {
     if (typeof window === "undefined") {
-      throw new Error("Absolute API URL is not allowed without NEXT_PUBLIC_API_URL");
+      throw new TypeError("Absolute API URL is not allowed without NEXT_PUBLIC_API_URL");
     }
     if (parsed.origin !== window.location.origin) {
-      throw new Error("Cross-origin API URL is not allowed");
+      throw new TypeError("Cross-origin API URL is not allowed");
     }
   }
   return parsed.toString();

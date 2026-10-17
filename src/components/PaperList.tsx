@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { FileText } from "lucide-react";
+import { FileText, ExternalLink } from "lucide-react";
 
 export interface PaperItem {
   id?: string | number;
@@ -76,47 +76,16 @@ export default function PaperList({ papers, isSearchResult = false }: Readonly<P
           const paperSem = p.sem || p.semester;
           const paperSpec = p.spec || p.specialization;
 
-          return (
-            <div 
-              key={`${p.course}-${paperDisplayName}-${p.index ?? p.link ?? idx}`} 
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
-                  e.preventDefault();
-                  if (safeLink && typeof window !== "undefined") {
-                    window.open(safeLink, "_blank", "noopener,noreferrer");
-                  }
-                }
-              }}
-              onClick={() => {
-                if (safeLink && typeof window !== "undefined") {
-                  window.open(safeLink, "_blank", "noopener,noreferrer");
-                }
-              }}
-              className={`bg-white p-4 border-l-[6px] border-[#ffca2c] rounded-lg shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3 ${
-                safeLink ? "cursor-pointer" : ""
-              }`}
-            >
+          const cardContent = (
+            <>
               <div className="w-8 h-8 rounded-lg bg-[#05488b]/10 flex items-center justify-center shrink-0">
                 <FileText className="w-4 h-4 text-[#05488b]" />
               </div>
               
               <div className="flex flex-col flex-grow min-w-0">
-                {safeLink ? (
-                  <a 
-                    href={safeLink} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-[#05488B] font-semibold hover:underline truncate"
-                  >
-                    {paperDisplayName}
-                  </a>
-                ) : (
-                  <span className="text-gray-400 font-medium italic truncate">
-                    {paperDisplayName} {p.link ? "(Invalid Link)" : "(Link Pending...)"}
-                  </span>
-                )}
+                <span className={`font-semibold truncate ${safeLink ? "text-[#05488B] group-hover:underline" : "text-gray-400 italic"}`}>
+                  {paperDisplayName} {!safeLink && (p.link ? "(Invalid Link)" : "(Link Pending...)")}
+                </span>
 
                 {isSearchResult && (
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
@@ -143,6 +112,35 @@ export default function PaperList({ papers, isSearchResult = false }: Readonly<P
                   </div>
                 )}
               </div>
+
+              {safeLink && (
+                <div className="text-gray-400 group-hover:text-[#05488B] transition-colors shrink-0">
+                  <ExternalLink className="w-4 h-4" />
+                </div>
+              )}
+            </>
+          );
+
+          if (safeLink) {
+            return (
+              <a 
+                key={`${p.course}-${paperDisplayName}-${p.index ?? p.link ?? idx}`}
+                href={safeLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group bg-white p-4 border-l-[6px] border-[#ffca2c] rounded-lg shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3 cursor-pointer no-underline"
+              >
+                {cardContent}
+              </a>
+            );
+          }
+
+          return (
+            <div 
+              key={`${p.course}-${paperDisplayName}-${p.index ?? p.link ?? idx}`}
+              className="bg-white p-4 border-l-[6px] border-[#ffca2c] rounded-lg shadow-xs flex items-center gap-3 opacity-75"
+            >
+              {cardContent}
             </div>
           );
         })}

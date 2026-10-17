@@ -9,9 +9,17 @@ export const metadata: Metadata = {
   description: "Official Privacy Policy for Poornima University Previous Year Question Papers (PYQP) Portal.",
 };
 
+function isValidContactEmail(email: string): boolean {
+  if (!email || email.includes(" ")) return false;
+  const atIdx = email.indexOf("@");
+  if (atIdx <= 0 || email.indexOf("@", atIdx + 1) !== -1) return false;
+  const dotIdx = email.lastIndexOf(".");
+  return dotIdx > atIdx + 1 && dotIdx < email.length - 1;
+}
+
 export default function PrivacyPage() {
-  const rawContactEmail = process.env.SECURITY_CONTACT_EMAIL || process.env.ADMIN_EMAIL || "";
-  const contactEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawContactEmail.trim()) ? rawContactEmail.trim() : "";
+  const rawContactEmail = (process.env.SECURITY_CONTACT_EMAIL || process.env.ADMIN_EMAIL || "").trim();
+  const contactEmail = isValidContactEmail(rawContactEmail) ? rawContactEmail : "";
   const contactHref = contactEmail ? `mailto:${encodeURIComponent(contactEmail)}` : "";
 
   return (

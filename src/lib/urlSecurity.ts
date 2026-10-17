@@ -5,20 +5,22 @@ function isValidIpv4Octet(value: string): boolean {
   return Number.isInteger(n) && n >= 0 && n <= 255;
 }
 
+function isReservedSubnet(a: number, b: number): boolean {
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && (b === 168 || b === 0)) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
+  if (a === 198 && (b === 18 || b === 19)) return true;
+  return false;
+}
+
 function isPrivateOrReservedIpv4(hostname: string): boolean {
   if (!IPV4_RE.test(hostname)) return false;
   const parts = hostname.split(".");
   if (parts.length !== 4 || parts.some((part) => !isValidIpv4Octet(part))) return true;
   const [a, b] = parts.map((part) => Number.parseInt(part, 10));
-  if (a === 0 || a === 10 || a === 127) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true;
-  if (a === 192 && b === 0) return true;
-  if (a === 198 && (b === 18 || b === 19)) return true;
-  if (a >= 224) return true;
-  return false;
+  if (a === 0 || a === 10 || a === 127 || a >= 224) return true;
+  return isReservedSubnet(a, b);
 }
 
 function isPrivateOrReservedIpv6(hostname: string): boolean {

@@ -133,7 +133,7 @@ const jsonLd = {
   ],
 };
 
-const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
+const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, String.raw`\u003c`);
 
 export default function RootLayout({
   children,
