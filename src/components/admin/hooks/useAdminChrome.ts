@@ -117,14 +117,19 @@ export default function useAdminChrome({
     ? (authUser?.displayName || matchingAdminUser?.display_name || "")
     : (matchingAdminUser?.display_name || matchingAdminUser?.displayName || authUser?.displayName || "");
 
-  const [cachedRole, setCachedRole] = useState(() => {
-    if (typeof window !== "undefined") {
+  const [cachedRole, setCachedRole] = useState("");
+
+  useEffect(() => {
+    try {
       const stored = localStorage.getItem("admin_user_role");
-      if (stored) return stored;
-      if (localStorage.getItem("admin_is_superadmin") === "1") return "super_admin";
+      if (stored) {
+        setCachedRole(stored);
+      } else if (localStorage.getItem("admin_is_superadmin") === "1") {
+        setCachedRole("super_admin");
+      }
+    } catch {
     }
-    return "";
-  });
+  }, []);
 
   const resolvedRole = useMemo(() => {
     if (

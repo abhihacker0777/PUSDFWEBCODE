@@ -37,22 +37,22 @@ export default function AdminUserRow({
 
   return (
     <tr className={isOwner ? "bg-blue-50/50" : "bg-white hover:bg-gray-50/60"}>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 text-center">
         <input
           value={user.displayName || ""}
           onChange={(e) => updateUserDraft(user.id, { displayName: e.target.value })}
           disabled={isOwner}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 outline-none disabled:bg-transparent disabled:border-transparent"
+          className="w-full h-[38px] border border-gray-200 rounded-lg px-3 text-center text-sm outline-none disabled:bg-transparent disabled:border-transparent focus:border-[#ffc107]"
         />
       </td>
-      <td className="px-4 py-3 text-gray-700 font-semibold">{user.loginIdentifier || "-"}</td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 text-center text-gray-700 font-semibold text-sm">{user.loginIdentifier || "-"}</td>
+      <td className="px-4 py-3 text-center">
         <input
           value={user.email || ""}
           onChange={(e) => updateUserDraft(user.id, { email: e.target.value })}
           disabled={isOwner}
           placeholder="Optional"
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 outline-none disabled:bg-transparent disabled:border-transparent"
+          className="w-full h-[38px] border border-gray-200 rounded-lg px-3 text-center text-sm outline-none disabled:bg-transparent disabled:border-transparent focus:border-[#ffc107]"
         />
       </td>
       <td className="px-4 py-3 text-center">
@@ -63,7 +63,9 @@ export default function AdminUserRow({
           disabled={isOwner}
           openRoleMenu={openRoleMenu}
           setOpenRoleMenu={setOpenRoleMenu}
-          className="min-w-[104px]"
+          buttonHeightClass="h-[38px]"
+          buttonBorderClass="border-gray-200"
+          className="w-full max-w-[120px] mx-auto"
         />
       </td>
       <td className="px-4 py-3 text-center">
@@ -91,7 +93,7 @@ export default function AdminUserRow({
           </button>
         )}
       </td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 text-center">
         <div className="relative">
           <input
             type={isPasswordVisible ? "text" : "password"}
@@ -103,7 +105,7 @@ export default function AdminUserRow({
             disabled={isOwner}
             placeholder={isOwner ? "Locked" : "Blank Keeps, Min 10 To Reset"}
             minLength={ADMIN_PASSWORD_MIN_LENGTH}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 pr-10 outline-none disabled:bg-transparent"
+            className="w-full h-[38px] border border-gray-200 rounded-lg px-3 pr-10 text-center text-sm outline-none disabled:bg-transparent focus:border-[#ffc107]"
           />
           {!isOwner && draftPassword.length > 0 && (
             <button
@@ -121,14 +123,14 @@ export default function AdminUserRow({
           <button
             onClick={() => handleUpdateAdminUser(user)}
             disabled={isOwner || saving}
-            className="text-[#05488B] hover:text-[#043a70] font-bold px-4 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="text-[#05488B] hover:text-[#043a70] font-bold px-4 h-[38px] flex items-center justify-center bg-blue-50 hover:bg-blue-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {saving ? "Saving..." : "Save"}
           </button>
           <button
             onClick={() => handleDeleteAdminUser(user)}
             disabled={isOwner || saving}
-            className="text-red-500 hover:text-red-700 font-bold px-4 py-1.5 bg-red-50 hover:bg-red-100 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="text-red-500 hover:text-red-700 font-bold px-4 h-[38px] flex items-center justify-center bg-red-50 hover:bg-red-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             Delete
           </button>

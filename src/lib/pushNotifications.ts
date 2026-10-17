@@ -65,6 +65,8 @@ export async function notifyCourseSubscribersForNewPaper(paper: {
   semester: string;
   exam: string;
   title: string;
+  year?: string;
+  specialization?: string;
 }) {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;
 
@@ -79,12 +81,22 @@ export async function notifyCourseSubscribersForNewPaper(paper: {
 
     if (!subs || subs.length === 0) return;
 
-    const directSearchUrl = `/?search=${encodeURIComponent(paper.title)}&course=${encodeURIComponent(paper.course)}&source=pwa_push`;
+    const queryParams = new URLSearchParams({
+      course: paper.course,
+      year: paper.year || "",
+      spec: paper.specialization || "",
+      sem: paper.semester,
+      exam: paper.exam,
+      paper: paper.title,
+      source: "pwa_push"
+    });
+
+    const directUrl = `/?${queryParams.toString()}`;
 
     const payload = JSON.stringify({
       title: `🔔 New ${paper.course} (${paper.exam}) Paper Uploaded!`,
       body: `${paper.title} (${paper.semester}) is now available on the PYQP Portal. Tap to open.`,
-      url: directSearchUrl,
+      url: directUrl,
       tag: `paper-${Date.now()}`,
     });
 

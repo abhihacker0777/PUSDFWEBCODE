@@ -139,10 +139,10 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <script src="/sw-cleanup.js" defer />
       </head>
       <body className={`${jakarta.className} antialiased min-h-screen flex flex-col bg-slate-50 text-slate-900`}>
         {children}
+        <Script src="/sw-cleanup.js" strategy="afterInteractive" />
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js"
           strategy="afterInteractive"

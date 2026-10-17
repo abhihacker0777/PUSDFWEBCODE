@@ -385,6 +385,8 @@ export async function uploadPaperAction(formData: FormData) {
         semester: m.semester,
         exam: m.exam,
         title: m.title,
+        year: m.year,
+        specialization: m.specialization,
       });
     }
 
@@ -478,7 +480,12 @@ export async function bulkDeletePapersAction(ids: (string | number)[]) {
 
 export async function bulkEditPapersAction(
   ids: (string | number)[],
-  updates: Partial<PaperTargetMapping> & { title?: string; paperName?: string; name?: string }
+  updates: Partial<PaperTargetMapping> & {
+    title?: string;
+    paperName?: string;
+    name?: string;
+    titlesById?: Record<string, string>;
+  }
 ) {
   try {
     const admin = await requireAdminSession("papers:update");
@@ -507,31 +514,51 @@ export async function bulkEditPapersAction(
       payload.title = (updates.title || updates.paperName || updates.name)!.trim();
     }
 
-    const CHUNK_SIZE = 100;
-    const updateChunks: (string | number)[][] = [];
-    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
-      updateChunks.push(ids.slice(i, i + CHUNK_SIZE));
+    const hasIndividualTitles = updates.titlesById && Object.keys(updates.titlesById).length > 0;
+
+    if (hasIndividualTitles) {
+      await Promise.all(
+        ids.map(async (id) => {
+          const itemPayload = { ...payload };
+          const specificTitle = updates.titlesById?.[id] ?? updates.titlesById?.[String(id)];
+          if (specificTitle !== undefined && specificTitle.trim()) {
+            itemPayload.title = specificTitle.trim();
+          }
+          const { error } = await adminClient
+            .from(PAPERS_TABLE)
+            .update(itemPayload)
+            .eq("id", id);
+          if (error) throw error;
+        })
+      );
+    } else {
+      const CHUNK_SIZE = 100;
+      const updateChunks: (string | number)[][] = [];
+      for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+        updateChunks.push(ids.slice(i, i + CHUNK_SIZE));
+      }
+      await Promise.all(
+        updateChunks.map(async (chunk) => {
+          const { error } = await adminClient
+            .from(PAPERS_TABLE)
+            .update(payload)
+            .in("id", chunk);
+          if (error) throw error;
+        })
+      );
     }
-    await Promise.all(
-      updateChunks.map(async (chunk) => {
-        const { error } = await adminClient
-          .from(PAPERS_TABLE)
-          .update(payload)
-          .in("id", chunk);
-        if (error) throw error;
-      })
-    );
 
     // Mirror updates to Google Sheets secondary database
     if (previousPapers && previousPapers.length > 0) {
       for (const p of previousPapers) {
+        const specificTitle = (updates.titlesById?.[p.id] ?? updates.titlesById?.[String(p.id)] ?? payload.title ?? p.title)?.trim();
         void mirrorPaperToSheet(
           {
             ...p,
             ...payload,
-            name: payload.title || p.title,
-            title: payload.title || p.title,
-            subject: payload.title || p.title,
+            name: specificTitle,
+            title: specificTitle,
+            subject: specificTitle,
             spec: payload.specialization || p.specialization,
             specialization: payload.specialization || p.specialization,
             sem: payload.semester || p.semester,

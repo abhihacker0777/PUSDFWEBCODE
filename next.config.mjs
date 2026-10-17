@@ -1,7 +1,8 @@
+const isDev = process.env.NODE_ENV !== "production";
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://accounts.google.com https://va.vercel-scripts.com",
+  `script-src 'self' 'unsafe-inline' ${isDev ? "'unsafe-eval' " : ""}https://challenges.cloudflare.com https://accounts.google.com https://va.vercel-scripts.com`,
   "style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com",
   "img-src 'self' data: blob: https://*.googleusercontent.com",
   "font-src 'self' data: https://fonts.gstatic.com",
@@ -46,9 +47,21 @@ const rewriteEntries = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  compiler: {
+    removeConsole:
+      process.env.NODE_ENV === "production"
+        ? { exclude: ["error", "warn"] }
+        : false,
+  },
   serverExternalPackages: ["nodemailer", "web-push"],
   images: {
     formats: ["image/avif", "image/webp"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.googleusercontent.com",
+      },
+    ],
   },
   rewrites() {
     return Promise.resolve(

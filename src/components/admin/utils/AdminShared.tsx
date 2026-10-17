@@ -274,9 +274,21 @@ export interface RoleDropdownProps {
   openRoleMenu: string;
   setOpenRoleMenu: (id: string) => void;
   className?: string;
+  buttonHeightClass?: string;
+  buttonBorderClass?: string;
 }
 
-export const RoleDropdown: React.FC<RoleDropdownProps> = ({ id, value, onChange, disabled, openRoleMenu, setOpenRoleMenu, className = "" }) => {
+export const RoleDropdown: React.FC<RoleDropdownProps> = ({
+  id,
+  value,
+  onChange,
+  disabled,
+  openRoleMenu,
+  setOpenRoleMenu,
+  className = "",
+  buttonHeightClass = "h-[38px]",
+  buttonBorderClass = "border-gray-200",
+}) => {
   const isOpen = openRoleMenu === id && !disabled;
   const valKey = String(value || "").toLowerCase();
   const currentLabel = ROLE_LABELS[valKey] || (value ? (value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()) : "View");
@@ -298,7 +310,9 @@ export const RoleDropdown: React.FC<RoleDropdownProps> = ({ id, value, onChange,
         type="button"
         disabled={disabled}
         onClick={() => setOpenRoleMenu(isOpen ? "" : id)}
-        className={`w-full h-[45px] px-4 rounded-lg border bg-white flex items-center justify-between text-left text-base shadow-sm transition-colors ${isOpen ? "border-[#ffc107] text-[#215ea0]" : "border-gray-300 text-[#374151] hover:bg-gray-50"} disabled:border-transparent disabled:bg-transparent disabled:text-gray-500 disabled:shadow-none`}
+        className={`w-full ${buttonHeightClass} px-3.5 rounded-lg border bg-white flex items-center justify-center gap-1.5 text-center text-sm shadow-xs transition-colors ${
+          isOpen ? "border-[#ffc107] text-[#215ea0]" : `${buttonBorderClass} text-[#374151] hover:bg-gray-50`
+        } disabled:border-transparent disabled:bg-transparent disabled:text-gray-500 disabled:shadow-none`}
       >
         <span className="truncate">{currentLabel}</span>
         {!disabled && <ChevronDownIcon />}

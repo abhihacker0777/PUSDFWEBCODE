@@ -126,104 +126,113 @@ export default function SystemSettingsPanel() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {}
-          <div className="flex items-start justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white transition-all">
-            <div className="pr-3">
-              <div className="flex items-center gap-1.5 font-bold text-sm text-gray-800">
-                <Mail className="w-4 h-4 text-blue-600" />
-                <span>Library Admin Invite Dispatch</span>
+          {/* 1. Library Admin Invite Dispatch */}
+          <div className="flex flex-col justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white transition-all">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-sm text-gray-800">
+                  <Mail className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>Library Admin Invite Dispatch</span>
+                </div>
+                <button
+                  type="button"
+                  disabled={savingKey === "library_admin_invite_notify"}
+                  onClick={() => updateSetting("library_admin_invite_notify", !settings.library_admin_invite_notify)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    settings.library_admin_invite_notify ? "bg-[#05488B]" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      settings.library_admin_invite_notify ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 Dispatches An Automated Onboarding Email When A New Library User Is Added. (Default: <strong>Off</strong>)
               </p>
-              <span className="inline-block mt-2 text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+            </div>
+            <div className="mt-3">
+              <span className="inline-block text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded bg-blue-100 text-blue-800">
                 {settings.library_admin_invite_notify ? "Enabled" : "Disabled (Default)"}
               </span>
             </div>
-
-            <button
-              type="button"
-              disabled={savingKey === "library_admin_invite_notify"}
-              onClick={() => updateSetting("library_admin_invite_notify", !settings.library_admin_invite_notify)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                settings.library_admin_invite_notify ? "bg-[#05488B]" : "bg-gray-300"
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  settings.library_admin_invite_notify ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
           </div>
 
-          {}
-          <div className="flex items-start justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white transition-all">
-            <div className="pr-3">
-              <div className="flex items-center gap-1.5 font-bold text-sm text-gray-800">
-                <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                <span>Admin Login Alerts</span>
+          {/* 2. Admin Login Alerts */}
+          <div className="flex flex-col justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white transition-all">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-sm text-gray-800">
+                  <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <span>Admin Login Alerts</span>
+                </div>
+                <button
+                  type="button"
+                  disabled={savingKey === "admin_login_notify"}
+                  onClick={() => updateSetting("admin_login_notify", !settings.admin_login_notify)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    settings.admin_login_notify ? "bg-indigo-600" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      settings.admin_login_notify ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 Dispatches Login Email Alert When Normal Library Admins Sign In. (Default: <strong>Off</strong>)
               </p>
-              <span className="inline-block mt-2 text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">
+            </div>
+            <div className="mt-3">
+              <span className="inline-block text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">
                 {settings.admin_login_notify ? "Enabled" : "Disabled (Default)"}
               </span>
             </div>
-
-            <button
-              type="button"
-              disabled={savingKey === "admin_login_notify"}
-              onClick={() => updateSetting("admin_login_notify", !settings.admin_login_notify)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                settings.admin_login_notify ? "bg-indigo-600" : "bg-gray-300"
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  settings.admin_login_notify ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
           </div>
 
-          {}
-          <div className="flex items-start justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white transition-all">
-            <div className="pr-3">
-              <div className="flex items-center gap-1.5 font-bold text-sm text-gray-800">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                <span>Maintenance Mode Banner</span>
+          {/* 3. Maintenance Mode Banner */}
+          <div className="flex flex-col justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white transition-all">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-sm text-gray-800">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>Maintenance Mode Banner</span>
+                </div>
+                <button
+                  type="button"
+                  disabled={savingKey === "maintenance_mode"}
+                  onClick={() => updateSetting("maintenance_mode", !settings.maintenance_mode)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    settings.maintenance_mode ? "bg-amber-500" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      settings.maintenance_mode ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 Displays <em>&quot;Papers Under Semester Review&quot;</em> Banner On Public Routes While Admin Remains Accessible.
               </p>
-              <span className={`inline-block mt-2 text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded ${
+            </div>
+            <div className="mt-3">
+              <span className={`inline-block text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded ${
                 settings.maintenance_mode ? "bg-amber-100 text-amber-800" : "bg-gray-200 text-gray-700"
               }`}>
                 {settings.maintenance_mode ? "Banner Active" : "Normal Operation"}
               </span>
             </div>
-
-            <button
-              type="button"
-              disabled={savingKey === "maintenance_mode"}
-              onClick={() => updateSetting("maintenance_mode", !settings.maintenance_mode)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                settings.maintenance_mode ? "bg-amber-500" : "bg-gray-300"
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  settings.maintenance_mode ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
           </div>
         </div>
       </div>
 
-      {}
+      {/* Admin Session Telemetry */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
           <div className="flex items-center gap-2">
@@ -234,7 +243,7 @@ export default function SystemSettingsPanel() {
             type="button"
             onClick={fetchSessions}
             disabled={loadingSessions}
-            className="flex items-center gap-1 text-xs font-semibold text-[#05488B] hover:underline"
+            className="flex items-center gap-1 text-xs font-semibold text-[#05488B] hover:underline cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loadingSessions ? "animate-spin" : ""}`} />
             <span>Refresh Telemetry</span>
@@ -245,11 +254,11 @@ export default function SystemSettingsPanel() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-gray-600">
-                <th className="px-3 py-2 text-left font-semibold">Status</th>
-                <th className="px-3 py-2 text-left font-semibold">Admin Account</th>
-                <th className="px-3 py-2 text-left font-semibold">IP Address</th>
-                <th className="px-3 py-2 text-left font-semibold">Last Active (IST)</th>
-                <th className="px-3 py-2 text-left font-semibold">Browser / Client</th>
+                <th className="px-3 py-2 text-center font-semibold">Status</th>
+                <th className="px-3 py-2 text-center font-semibold">Admin Account</th>
+                <th className="px-3 py-2 text-center font-semibold">IP Address</th>
+                <th className="px-3 py-2 text-center font-semibold">Last Active (IST)</th>
+                <th className="px-3 py-2 text-center font-semibold">Browser / Client</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -262,14 +271,14 @@ export default function SystemSettingsPanel() {
               ) : (
                 sessions.map((s) => (
                   <tr key={s.id} className="hover:bg-gray-50/60">
-                    <td className="px-3 py-2.5">
-                      {sessionStatusBadge(s)}
+                    <td className="px-3 py-2.5 text-center">
+                      <div className="flex justify-center">{sessionStatusBadge(s)}</div>
                     </td>
-                    <td className="px-3 py-2.5 font-medium text-gray-800">
+                    <td className="px-3 py-2.5 font-medium text-gray-800 text-center">
                       <div>{s.displayName}</div>
                       <div className="text-[10px] text-gray-400">{s.email}</div>
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-gray-600">
+                    <td className="px-3 py-2.5 font-mono text-gray-600 text-center">
                       {(!s.ipAddress || s.ipAddress === "::1" || s.ipAddress === "127.0.0.1") ? (
                         <span className="inline-flex items-center gap-1 text-gray-600 font-sans text-[11px] bg-gray-100 px-2 py-0.5 rounded">
                           127.0.0.1 (Localhost)
@@ -278,10 +287,10 @@ export default function SystemSettingsPanel() {
                         s.ipAddress
                       )}
                     </td>
-                    <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap text-center">
                       {s.lastActiveIst || "—"}
                     </td>
-                    <td className="px-3 py-2.5 text-gray-500 truncate max-w-[220px]" title={s.userAgent}>
+                    <td className="px-3 py-2.5 text-gray-500 truncate max-w-[220px] text-center" title={s.userAgent}>
                       {s.userAgent}
                     </td>
                   </tr>

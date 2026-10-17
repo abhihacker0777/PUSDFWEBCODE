@@ -123,8 +123,8 @@ export default function StudentQueriesPanel({
               <tr className="border-b-2 border-gray-100 bg-gray-50 sticky top-0 z-10 shadow-xs">
                 <th className="px-4 py-3 text-left text-gray-600 font-semibold w-12 rounded-tl-2xl bg-gray-50 border-b border-gray-100"></th>
                 <th className="px-4 py-3 text-left text-gray-600 font-semibold bg-gray-50 border-b border-gray-100">Student Name / Email</th>
-                <th className="px-4 py-3 text-left text-gray-600 font-semibold bg-gray-50 border-b border-gray-100">Total Queries</th>
-                <th className="px-4 py-3 text-left text-gray-600 font-semibold bg-gray-50 border-b border-gray-100">Last Active</th>
+                <th className="px-4 py-3 text-center text-gray-600 font-semibold bg-gray-50 border-b border-gray-100">Total Queries</th>
+                <th className="px-4 py-3 text-center text-gray-600 font-semibold bg-gray-50 border-b border-gray-100">Last Active</th>
                 <th className="px-4 py-3 text-center text-gray-600 font-semibold w-32 bg-gray-50 border-b border-gray-100">Status</th>
                 <th className="px-4 py-3 text-center text-gray-600 font-semibold w-32 rounded-tr-2xl bg-gray-50 border-b border-gray-100">Action</th>
               </tr>
@@ -159,12 +159,12 @@ export default function StudentQueriesPanel({
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-center">
                         <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-bold text-xs">
                           {group.totalCount} Queries
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{group.lastActiveDate}</td>
+                      <td className="px-4 py-3 text-center text-gray-500 whitespace-nowrap">{group.lastActiveDate}</td>
                       <td className="px-4 py-3 text-center">
                         {isBlocked ? (
                           <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">Blocked</span>

@@ -44,11 +44,11 @@ export default function AdminHeader({
                 <span>Inactive</span>
               </span>
             )}
-            <span className="text-xs sm:text-sm font-bold text-gray-900 whitespace-nowrap">
+            <span suppressHydrationWarning className="text-xs sm:text-sm font-bold text-gray-900 whitespace-nowrap">
               {loggedInLabel}
             </span>
           </div>
-          <span className="text-[10px] sm:text-[11px] font-semibold text-[#05488b] whitespace-nowrap">
+          <span suppressHydrationWarning className="text-[10px] sm:text-[11px] font-semibold text-[#05488b] whitespace-nowrap">
             {loggedInRoleLabel}
           </span>
         </div>

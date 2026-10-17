@@ -61,12 +61,53 @@ export default function HomePage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const urlQuery = params.get("search") || params.get("paper");
+      const urlQuery = params.get("search");
       if (urlQuery && urlQuery.trim()) {
         setSearchQuery(urlQuery.trim());
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || papersData.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const pTitle = params.get("paper") || params.get("title");
+    const pCourse = params.get("course");
+    const pYear = params.get("year");
+    const pSpec = params.get("spec") || params.get("specialization");
+    const pSem = params.get("sem") || params.get("semester");
+    const pExam = params.get("exam");
+
+    if (pTitle || (pCourse && (pSem || pExam))) {
+      let matchedPaper: any = null;
+      if (pTitle) {
+        matchedPaper = papersData.find((p) => {
+          const t = (p.subject || p.title || p.name || "").toLowerCase().trim();
+          const targetT = pTitle.toLowerCase().trim();
+          const matchesTitle = t === targetT || t.includes(targetT);
+          const matchesCourse = !pCourse || String(p.course || "").toLowerCase() === pCourse.toLowerCase();
+          return matchesTitle && matchesCourse;
+        });
+      }
+
+      const finalCourse = pCourse || matchedPaper?.course;
+      const finalYear = pYear || matchedPaper?.year;
+      const finalSpec = pSpec || matchedPaper?.specialization || matchedPaper?.spec;
+      const finalSem = pSem || matchedPaper?.semester || matchedPaper?.sem;
+      const finalExam = pExam || matchedPaper?.exam;
+
+      if (finalCourse && finalExam) {
+        setSelected({
+          course: finalCourse,
+          year: finalYear || null,
+          specialization: finalSpec || null,
+          sem: finalSem || null,
+          exam: finalExam,
+        });
+        setSearchQuery("");
+      }
+    }
+  }, [papersData]);
 
   useEffect(() => {
     let disposed = false;

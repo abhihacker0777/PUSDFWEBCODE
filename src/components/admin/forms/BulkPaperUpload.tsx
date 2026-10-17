@@ -444,6 +444,8 @@ interface BulkEditModeViewProps {
   clearDbSelection: () => void;
   editUpdates: any;
   setEditUpdates: (val: any) => void;
+  editTitles: Record<string, string>;
+  setEditTitles: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   isDbActionLoading: boolean;
   handleExecuteBulkEdit: () => void;
   executeBulkEdit?: (papersToEdit: any[], updates: any) => void;
@@ -478,6 +480,8 @@ const BulkEditModeView: React.FC<BulkEditModeViewProps> = ({
   clearDbSelection,
   editUpdates,
   setEditUpdates,
+  editTitles,
+  setEditTitles,
   isDbActionLoading,
   handleExecuteBulkEdit,
   executeBulkEdit,
@@ -516,93 +520,126 @@ const BulkEditModeView: React.FC<BulkEditModeViewProps> = ({
     />
 
     {selectedDbPapersList.length > 0 && (
-      <div className="p-3.5 bg-blue-50/80 border-2 border-blue-300 rounded-xl space-y-2.5 shadow-sm">
+      <div className="p-3.5 bg-blue-50/80 border-2 border-blue-300 rounded-xl space-y-3 shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-[#05488B]">
-            ✏️ Bulk Update Selected ({selectedDbPapersList.length} Papers)
+            ✏️ Bulk Update Selected ({selectedDbPapersList.length} Paper{selectedDbPapersList.length > 1 ? "s" : ""})
           </span>
-          <button type="button" onClick={clearDbSelection} className="text-xs text-gray-500 hover:text-black">
+          <button type="button" onClick={() => { clearDbSelection(); setEditTitles({}); }} className="text-xs text-gray-500 hover:text-black">
             Clear Selection
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-          <div>
-            <label htmlFor="bulk-edit-drawer-name" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Paper Name</label>
-            <input
-              id="bulk-edit-drawer-name"
-              placeholder={selectedDbPapersList.length === 1 ? (selectedDbPapersList[0].name || "(Keep Same)") : "(Keep Same)"}
-              value={editUpdates.title || ""}
-              onChange={(e) => setEditUpdates({ ...editUpdates, title: e.target.value })}
-              className="w-full bg-white border border-[#ffc107] rounded-lg px-3 py-2 text-xs md:text-sm font-medium shadow-xs outline-none text-[#215ea0] placeholder:text-gray-400"
-            />
+        {/* Dynamic Paper Name Inputs per Selected Paper */}
+        <div>
+          <label className="text-[10px] font-bold text-gray-500 block mb-1">
+            {selectedDbPapersList.length === 1 ? "Paper Name" : `Paper Names (${selectedDbPapersList.length} Selected)`}
+          </label>
+          <div className={`grid gap-2 ${
+            selectedDbPapersList.length === 1
+              ? "grid-cols-1"
+              : selectedDbPapersList.length === 2
+              ? "grid-cols-1 sm:grid-cols-2"
+              : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+          }`}>
+            {selectedDbPapersList.map((paper, idx) => {
+              const pId = String(paper.id ?? paper.index ?? idx);
+              const currentVal = editTitles[pId] !== undefined ? editTitles[pId] : (paper.name || paper.title || "");
+              return (
+                <div key={paper.id || idx} className="relative">
+                  {selectedDbPapersList.length > 1 && (
+                    <span className="text-[10px] font-bold text-gray-500 block mb-0.5 truncate" title={paper.name || `Paper ${idx + 1}`}>
+                      Paper {idx + 1}: {paper.name || `Paper ${idx + 1}`}
+                    </span>
+                  )}
+                  <input
+                    id={`bulk-edit-paper-name-${pId}`}
+                    placeholder={paper.name || `Paper ${idx + 1}`}
+                    value={currentVal}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditTitles((prev: any) => ({ ...prev, [pId]: val }));
+                    }}
+                    className="w-full bg-white border border-[#ffc107] rounded-lg px-4 py-2 text-base font-medium text-center shadow-xs outline-none text-[#215ea0] placeholder:text-[#374151]"
+                  />
+                </div>
+              );
+            })}
           </div>
+        </div>
 
-          <div>
-            <label htmlFor="bulk-edit-drawer-course" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Course</label>
-            <CustomDropdown
-              id="bulk-edit-drawer-course"
-              label="(Keep Same)"
-              options={["(Keep Same)", ...uniqueCourses]}
-              value={editUpdates.course || "(Keep Same)"}
-              setValue={(val) => setEditUpdates({ ...editUpdates, course: val === "(Keep Same)" ? "" : val })}
-              openDropdown={openDropdown}
-              setOpenDropdown={setOpenDropdown}
-              customHeight="max-h-[149px]"
-            />
-          </div>
+        {/* Common Metadata Updates */}
+        <div>
+          <label className="text-[10px] font-bold text-gray-500 block mb-1">
+            Common Metadata Updates (Optional)
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+            <div>
+              <label htmlFor="bulk-edit-drawer-course" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Course</label>
+              <CustomDropdown
+                id="bulk-edit-drawer-course"
+                label="(Keep Same)"
+                options={["(Keep Same)", ...uniqueCourses]}
+                value={editUpdates.course || "(Keep Same)"}
+                setValue={(val) => setEditUpdates({ ...editUpdates, course: val === "(Keep Same)" ? "" : val })}
+                openDropdown={openDropdown}
+                setOpenDropdown={setOpenDropdown}
+                customHeight="max-h-[149px]"
+              />
+            </div>
 
-          <div>
-            <label htmlFor="bulk-edit-drawer-year" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Year</label>
-            <CustomDropdown
-              id="bulk-edit-drawer-year"
-              label="(Keep Same)"
-              options={["(Keep Same)", ...uniqueYears]}
-              value={editUpdates.year || "(Keep Same)"}
-              setValue={(val) => setEditUpdates({ ...editUpdates, year: val === "(Keep Same)" ? "" : val })}
-              openDropdown={openDropdown}
-              setOpenDropdown={setOpenDropdown}
-              customHeight="max-h-[149px]"
-            />
-          </div>
+            <div>
+              <label htmlFor="bulk-edit-drawer-year" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Year</label>
+              <CustomDropdown
+                id="bulk-edit-drawer-year"
+                label="(Keep Same)"
+                options={["(Keep Same)", ...uniqueYears]}
+                value={editUpdates.year || "(Keep Same)"}
+                setValue={(val) => setEditUpdates({ ...editUpdates, year: val === "(Keep Same)" ? "" : val })}
+                openDropdown={openDropdown}
+                setOpenDropdown={setOpenDropdown}
+                customHeight="max-h-[149px]"
+              />
+            </div>
 
-          <div>
-            <label htmlFor="bulk-edit-drawer-spec" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Specialization</label>
-            <input
-              id="bulk-edit-drawer-spec"
-              placeholder="(Keep Same)"
-              value={editUpdates.spec}
-              onChange={(e) => setEditUpdates({ ...editUpdates, spec: e.target.value })}
-              className="w-full bg-white border border-[#ffc107] rounded-lg px-4 py-2 text-base font-medium text-center shadow-xs outline-none text-[#215ea0] placeholder:text-[#374151]"
-            />
-          </div>
+            <div>
+              <label htmlFor="bulk-edit-drawer-spec" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Specialization</label>
+              <input
+                id="bulk-edit-drawer-spec"
+                placeholder="(Keep Same)"
+                value={editUpdates.spec}
+                onChange={(e) => setEditUpdates({ ...editUpdates, spec: e.target.value })}
+                className="w-full bg-white border border-[#ffc107] rounded-lg px-4 py-2 text-base font-medium text-center shadow-xs outline-none text-[#215ea0] placeholder:text-[#374151]"
+              />
+            </div>
 
-          <div>
-            <label htmlFor="bulk-edit-drawer-sem" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Semester</label>
-            <CustomDropdown
-              id="bulk-edit-drawer-sem"
-              label="(Keep Same)"
-              options={["(Keep Same)", ...uniqueSemesters]}
-              value={editUpdates.semester || "(Keep Same)"}
-              setValue={(val) => setEditUpdates({ ...editUpdates, semester: val === "(Keep Same)" ? "" : val })}
-              openDropdown={openDropdown}
-              setOpenDropdown={setOpenDropdown}
-              customHeight="max-h-[149px]"
-            />
-          </div>
+            <div>
+              <label htmlFor="bulk-edit-drawer-sem" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Semester</label>
+              <CustomDropdown
+                id="bulk-edit-drawer-sem"
+                label="(Keep Same)"
+                options={["(Keep Same)", ...uniqueSemesters]}
+                value={editUpdates.semester || "(Keep Same)"}
+                setValue={(val) => setEditUpdates({ ...editUpdates, semester: val === "(Keep Same)" ? "" : val })}
+                openDropdown={openDropdown}
+                setOpenDropdown={setOpenDropdown}
+                customHeight="max-h-[149px]"
+              />
+            </div>
 
-          <div>
-            <label htmlFor="bulk-edit-drawer-exam" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Exam</label>
-            <CustomDropdown
-              id="bulk-edit-drawer-exam"
-              label="(Keep Same)"
-              options={["(Keep Same)", "MSE", "ESE"]}
-              value={editUpdates.exam || "(Keep Same)"}
-              setValue={(val) => setEditUpdates({ ...editUpdates, exam: val === "(Keep Same)" ? "" : val })}
-              openDropdown={openDropdown}
-              setOpenDropdown={setOpenDropdown}
-              customHeight="max-h-[149px]"
-            />
+            <div>
+              <label htmlFor="bulk-edit-drawer-exam" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Exam</label>
+              <CustomDropdown
+                id="bulk-edit-drawer-exam"
+                label="(Keep Same)"
+                options={["(Keep Same)", "MSE", "ESE"]}
+                value={editUpdates.exam || "(Keep Same)"}
+                setValue={(val) => setEditUpdates({ ...editUpdates, exam: val === "(Keep Same)" ? "" : val })}
+                openDropdown={openDropdown}
+                setOpenDropdown={setOpenDropdown}
+                customHeight="max-h-[149px]"
+              />
+            </div>
           </div>
         </div>
 
@@ -611,7 +648,7 @@ const BulkEditModeView: React.FC<BulkEditModeViewProps> = ({
             type="button"
             disabled={isDbActionLoading}
             onClick={handleExecuteBulkEdit}
-            className="bg-[#05488B] hover:bg-[#215ea0] disabled:opacity-50 text-[#ffc107] font-bold text-xs px-5 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+            className="bg-[#05488B] hover:bg-[#215ea0] disabled:opacity-50 text-[#ffc107] font-bold text-xs px-5 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             {isDbActionLoading ? "Updating..." : `💾 Apply Changes To ${selectedDbPapersList.length} Papers`}
           </button>
@@ -1233,6 +1270,7 @@ export default function BulkPaperUpload({
   const dbPageSize = 25;
 
   const [editUpdates, setEditUpdates] = useState({ title: "", course: "", year: "", spec: "", semester: "", exam: "" });
+  const [editTitles, setEditTitles] = useState<Record<string, string>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const mainInputRef = useRef<HTMLInputElement>(null);
@@ -1293,7 +1331,10 @@ export default function BulkPaperUpload({
 
   const handleExecuteBulkEdit = () => {
     if (selectedDbPapersList.length === 0) return;
-    executeBulkEdit(selectedDbPapersList, editUpdates);
+    executeBulkEdit(selectedDbPapersList, {
+      ...editUpdates,
+      titlesById: editTitles,
+    });
   };
 
   const handleExecuteBulkDelete = () => {
@@ -1400,6 +1441,8 @@ export default function BulkPaperUpload({
           clearDbSelection={clearDbSelection}
           editUpdates={editUpdates}
           setEditUpdates={setEditUpdates}
+          editTitles={editTitles}
+          setEditTitles={setEditTitles}
           isDbActionLoading={isDbActionLoading}
           handleExecuteBulkEdit={handleExecuteBulkEdit}
           executeBulkEdit={executeBulkEdit}

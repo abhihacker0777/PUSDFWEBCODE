@@ -9,13 +9,20 @@ self.addEventListener("push", function (event) {
       icon: "/icons/icon-192x192.png",
       badge: "/icons/icon-72x72.png",
       data: {
-        url: data.url || "/?source=pwa",
+        url: data.url || "/?source=pwa_push",
       },
-      vibrate: [300, 100, 400, 100, 300, 100, 400],
+      vibrate: [500, 250, 500, 250, 500],
       tag: data.tag || `paper-${Date.now()}`,
       renotify: true,
       requireInteraction: true,
       silent: false,
+      timestamp: Date.now(),
+      actions: [
+        {
+          action: "open",
+          title: "📄 View Paper",
+        },
+      ],
     };
 
     event.waitUntil(self.registration.showNotification(title, options));

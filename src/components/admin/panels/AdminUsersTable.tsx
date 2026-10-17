@@ -29,12 +29,12 @@ export default function AdminUsersTable({
         <table className="w-full text-sm min-w-[980px]">
           <thead>
             <tr className="border-b-2 border-gray-100 bg-gray-50">
-              <th className="px-4 py-3 text-left text-gray-600 font-semibold">Name</th>
-              <th className="px-4 py-3 text-left text-gray-600 font-semibold">Username</th>
-              <th className="px-4 py-3 text-left text-gray-600 font-semibold">Email</th>
+              <th className="px-4 py-3 text-center text-gray-600 font-semibold">Name</th>
+              <th className="px-4 py-3 text-center text-gray-600 font-semibold">Username</th>
+              <th className="px-4 py-3 text-center text-gray-600 font-semibold">Email</th>
               <th className="px-4 py-3 text-center text-gray-600 font-semibold">Role</th>
               <th className="px-4 py-3 text-center text-gray-600 font-semibold">Active</th>
-              <th className="px-4 py-3 text-left text-gray-600 font-semibold">New Password</th>
+              <th className="px-4 py-3 text-center text-gray-600 font-semibold">New Password</th>
               <th className="px-4 py-3 text-center text-gray-600 font-semibold">Action</th>
             </tr>
           </thead>
