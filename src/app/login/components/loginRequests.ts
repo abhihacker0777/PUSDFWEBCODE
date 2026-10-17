@@ -1,10 +1,9 @@
 "use client";
 
-import { BACKEND_URL, csrfFetch } from "@/services/api";
+import { buildBackendUrl, csrfFetch } from "@/services/api";
 
 export async function requestLogin({ captchaToken, password, username }: { captchaToken?: string; password: string; username: string }) {
-  const loginEndpoint = BACKEND_URL ? `${BACKEND_URL}/login` : "/api/auth/login";
-  const response = await csrfFetch(loginEndpoint, {
+  const response = await csrfFetch(buildBackendUrl("/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -18,8 +17,7 @@ export async function requestLogin({ captchaToken, password, username }: { captc
 }
 
 export async function requestPasswordReset(email: string) {
-  const endpoint = BACKEND_URL ? `${BACKEND_URL}/password-reset` : "/api/auth/reset";
-  const response = await csrfFetch(endpoint, {
+  const response = await csrfFetch(buildBackendUrl("/password-reset"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

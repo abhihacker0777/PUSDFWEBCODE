@@ -1,5 +1,27 @@
+import { toSafeUrl } from "@/lib/urlSecurity";
+
 const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET;
-const CAPTCHA_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const CAPTCHA_VERIFY_URL = process.env.CAPTCHA_VERIFY_URL || "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const CAPTCHA_ALLOWED_HOSTS = new Set(
+  (process.env.CAPTCHA_VERIFY_ALLOWED_HOSTS || "challenges.cloudflare.com")
+    .split(",")
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+function getSafeCaptchaVerifyUrl(): string | null {
+  try {
+    const url = toSafeUrl(CAPTCHA_VERIFY_URL, {
+      allowedProtocols: ["https:"],
+      allowedHosts: CAPTCHA_ALLOWED_HOSTS,
+      allowLocalNetwork: false
+    });
+    if (!url.pathname.startsWith("/turnstile/")) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
 
 export async function verifyTurnstileToken(token: string, remoteIp?: string): Promise<boolean> {
   if (!CAPTCHA_SECRET) {
@@ -7,6 +29,8 @@ export async function verifyTurnstileToken(token: string, remoteIp?: string): Pr
     return false;
   }
   if (!token) return false;
+  const verifyUrl = getSafeCaptchaVerifyUrl();
+  if (!verifyUrl) return false;
 
   try {
     const formData = new URLSearchParams();
@@ -14,10 +38,11 @@ export async function verifyTurnstileToken(token: string, remoteIp?: string): Pr
     formData.append("response", token);
     if (remoteIp) formData.append("remoteip", remoteIp);
 
-    const res = await fetch(CAPTCHA_VERIFY_URL, {
+    const res = await fetch(verifyUrl, {
       method: "POST",
       body: formData,
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      redirect: "error"
     });
 
     const data = await res.json();
