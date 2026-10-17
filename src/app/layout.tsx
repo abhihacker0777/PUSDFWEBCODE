@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { toSafeUrl } from "@/lib/urlSecurity";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -16,7 +17,17 @@ const rawBaseUrl =
   process.env.NEXT_PUBLIC_APP_URL ||
   process.env.BASE_URL ||
   "";
-const baseUrl = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+const baseUrl = (() => {
+  try {
+    const parsed = toSafeUrl(rawBaseUrl, {
+      allowedProtocols: process.env.NODE_ENV === "production" ? ["https:"] : ["https:", "http:"],
+      allowLocalNetwork: process.env.NODE_ENV !== "production",
+    });
+    return parsed.origin;
+  } catch {
+    return "";
+  }
+})();
 
 export const metadata: Metadata = {
   metadataBase: baseUrl ? new URL(baseUrl) : undefined,
@@ -122,6 +133,8 @@ const jsonLd = {
   ],
 };
 
+const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -135,10 +148,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="theme-color" content="#05488B" />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <Script id="structured-data" type="application/ld+json" strategy="beforeInteractive">
+          {safeJsonLd}
+        </Script>
       </head>
       <body className={`${jakarta.className} antialiased min-h-screen flex flex-col bg-slate-50 text-slate-900`}>
         {children}

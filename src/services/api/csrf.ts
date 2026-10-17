@@ -1,4 +1,4 @@
-import { BACKEND_URL } from "./backendConfig";
+import { buildBackendUrl, ensureTrustedApiUrl } from "./backendConfig";
 
 let csrfToken = "";
 let csrfTokenPromise: Promise<string> | null = null;
@@ -9,10 +9,11 @@ export const getCsrfToken = async ({ force = false }: { force?: boolean } = {}):
 
   const fetchToken = async (): Promise<string> => {
     try {
-      const response = await fetch(`${BACKEND_URL}/csrf-token`, {
+      const response = await fetch(buildBackendUrl("/csrf-token"), {
         method: "GET",
         cache: "no-store",
-        credentials: "include"
+        credentials: "include",
+        redirect: "error"
       });
       let data: any = {};
       try {
@@ -39,10 +40,12 @@ export const csrfFetch = async (url: string, options: RequestInit = {}): Promise
     const headers = new Headers(options.headers || {});
     headers.set("X-CSRF-Token", token);
 
-    return fetch(url, {
+    const trustedUrl = ensureTrustedApiUrl(url);
+    return fetch(trustedUrl, {
       ...options,
       credentials: options.credentials || "include",
-      headers
+      headers,
+      redirect: "error"
     });
   };
 

@@ -10,7 +10,9 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
-  const contactEmail = process.env.SECURITY_CONTACT_EMAIL || process.env.ADMIN_EMAIL || "";
+  const rawContactEmail = process.env.SECURITY_CONTACT_EMAIL || process.env.ADMIN_EMAIL || "";
+  const contactEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawContactEmail.trim()) ? rawContactEmail.trim() : "";
+  const contactHref = contactEmail ? `mailto:${encodeURIComponent(contactEmail)}` : "";
 
   return (
     <div className="w-full min-h-screen bg-[#f3f8fc] flex flex-col">
@@ -107,7 +109,7 @@ export default function PrivacyPage() {
                 <p className="font-semibold text-gray-900">Poornima University Central Library</p>
                 <p className="text-sm text-gray-600">IS-2027 to 2031, Ramchandrapura, P.O. Vidhani Vatika, Sitapura Extension, Jaipur, Rajasthan 303905</p>
                 <p className="text-sm text-[#05488B] font-medium mt-1">
-                  Email: <a href={`mailto:${contactEmail}`} className="underline">{contactEmail}</a>
+                  Email: {contactEmail ? <a href={contactHref} className="underline">{contactEmail}</a> : "Not Available"}
                 </p>
               </div>
             </section>
