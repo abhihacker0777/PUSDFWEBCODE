@@ -235,6 +235,7 @@ export default function Filters({
                 >
                   <svg
                     className="w-3.5 h-3.5"
+                    aria-hidden="true"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

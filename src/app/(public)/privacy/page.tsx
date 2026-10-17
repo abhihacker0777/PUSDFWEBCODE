@@ -10,7 +10,10 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
-  const contactEmail = process.env.SECURITY_CONTACT_EMAIL || process.env.ADMIN_EMAIL || "";
+  const rawEmail = (process.env.SECURITY_CONTACT_EMAIL || process.env.ADMIN_EMAIL || "library@poornima.edu.in").trim();
+  const contactEmail = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(rawEmail)
+    ? rawEmail
+    : "library@poornima.edu.in";
 
   return (
     <div className="w-full min-h-screen bg-[#f3f8fc] flex flex-col">

@@ -158,7 +158,10 @@ export const parseDocumentLink = (cleanUrl: string): DocumentLinkParseResult => 
     const host = parsed.hostname.toLowerCase();
     const pathname = parsed.pathname.toLowerCase();
     const isDriveDoc =
-      (host.includes("drive.google.com") || host.includes("docs.google.com")) &&
+      (host === "drive.google.com" ||
+        host === "docs.google.com" ||
+        host.endsWith(".drive.google.com") ||
+        host.endsWith(".docs.google.com")) &&
       (pathname.includes("/file/d/") ||
         pathname.includes("/document/d/") ||
         pathname.includes("/open") ||

@@ -20,6 +20,12 @@ const StatusBadge = ({ status, message }: { status?: string; message?: string })
   return <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400">Pending</span>;
 };
 
+const getBulkEditGridCols = (count: number): string => {
+  if (count === 1) return "grid-cols-1";
+  if (count === 2) return "grid-cols-1 sm:grid-cols-2";
+  return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+};
+
 const getRowCardClass = (isSelected: boolean, status?: string) => {
   if (isSelected) {
     return "bg-amber-50/70 border-amber-400 shadow-sm";
@@ -364,7 +370,7 @@ const BulkPapersDbTable = ({
                             onClick={(e) => {
                               e.stopPropagation();
                               const newName = window.prompt("Edit Paper Name:", paper.name);
-                              if (newName && newName.trim() && newName.trim() !== paper.name) {
+                              if (newName?.trim() && newName.trim() !== paper.name) {
                                 onInlineRename(paper, newName.trim());
                               }
                             }}
@@ -532,16 +538,10 @@ const BulkEditModeView: React.FC<BulkEditModeViewProps> = ({
 
         {/* Dynamic Paper Name Inputs per Selected Paper */}
         <div>
-          <label className="text-[10px] font-bold text-gray-500 block mb-1">
+          <span className="text-[10px] font-bold text-gray-500 block mb-1">
             {selectedDbPapersList.length === 1 ? "Paper Name" : `Paper Names (${selectedDbPapersList.length} Selected)`}
-          </label>
-          <div className={`grid gap-2 ${
-            selectedDbPapersList.length === 1
-              ? "grid-cols-1"
-              : selectedDbPapersList.length === 2
-              ? "grid-cols-1 sm:grid-cols-2"
-              : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-          }`}>
+          </span>
+          <div className={`grid gap-2 ${getBulkEditGridCols(selectedDbPapersList.length)}`}>
             {selectedDbPapersList.map((paper, idx) => {
               const pId = String(paper.id ?? paper.index ?? idx);
               const currentVal = editTitles[pId] !== undefined ? editTitles[pId] : (paper.name || paper.title || "");
@@ -570,9 +570,9 @@ const BulkEditModeView: React.FC<BulkEditModeViewProps> = ({
 
         {/* Common Metadata Updates */}
         <div>
-          <label className="text-[10px] font-bold text-gray-500 block mb-1">
+          <span className="text-[10px] font-bold text-gray-500 block mb-1">
             Common Metadata Updates (Optional)
-          </label>
+          </span>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
             <div>
               <label htmlFor="bulk-edit-drawer-course" className="text-[10px] font-bold text-gray-500 block mb-0.5">New Course</label>

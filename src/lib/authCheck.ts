@@ -74,6 +74,49 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   ]
 };
 
+async function validateAdminSessionRecord(adminClient: any, sessionToken: string, userId: string) {
+  const { data: sessionRecord, error: sessionErr } = await adminClient
+    .from("admin_sessions")
+    .select("id, auth_user_id, is_revoked")
+    .eq("revocation_token", sessionToken)
+    .maybeSingle();
+
+  if (sessionErr || !sessionRecord) {
+    throw new AuthError("Unauthorized: Session Not Found Or Invalid.", 401);
+  }
+  if (sessionRecord.is_revoked) {
+    throw new AuthError("Forbidden: Session Has Been Revoked.", 403);
+  }
+  if (sessionRecord.auth_user_id !== userId) {
+    throw new AuthError("Forbidden: Session Mismatch.", 403);
+  }
+
+  // Update last_active timestamp asynchronously
+  adminClient
+    .from("admin_sessions")
+    .update({ last_active: new Date().toISOString() })
+    .eq("id", sessionRecord.id)
+    .then(() => {});
+}
+
+async function fetchAdminUserRecord(adminClient: any, userId: string, callerEmail: string) {
+  const { data: byAuthId } = await adminClient
+    .from("admin_users")
+    .select("id, role, is_active, display_name, login_identifier")
+    .eq("auth_user_id", userId)
+    .maybeSingle();
+
+  if (byAuthId) return byAuthId;
+
+  const { data: byEmail } = await adminClient
+    .from("admin_users")
+    .select("id, role, is_active, display_name, login_identifier")
+    .eq("email", callerEmail)
+    .maybeSingle();
+
+  return byEmail;
+}
+
 export async function requireAdminSession(requiredPermission?: string): Promise<AuthenticatedAdmin> {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -94,30 +137,7 @@ export async function requireAdminSession(requiredPermission?: string): Promise<
   }
 
   const adminClient = createAdminClient();
-  const { data: sessionRecord, error: sessionErr } = await adminClient
-    .from("admin_sessions")
-    .select("id, auth_user_id, is_revoked")
-    .eq("revocation_token", sessionToken)
-    .maybeSingle();
-
-  if (sessionErr || !sessionRecord) {
-    throw new AuthError("Unauthorized: Session Not Found Or Invalid.", 401);
-  }
-
-  if (sessionRecord.is_revoked) {
-    throw new AuthError("Forbidden: Session Has Been Revoked.", 403);
-  }
-
-  if (sessionRecord.auth_user_id !== user.id) {
-    throw new AuthError("Forbidden: Session Mismatch.", 403);
-  }
-
-  // Update last_active timestamp asynchronously
-  adminClient
-    .from("admin_sessions")
-    .update({ last_active: new Date().toISOString() })
-    .eq("id", sessionRecord.id)
-    .then(() => {});
+  await validateAdminSessionRecord(adminClient, sessionToken, user.id);
 
   const ownerId = process.env.ADMIN_AUTH_USER_ID;
   const ownerEmail = (process.env.ADMIN_EMAIL ?? "").toLowerCase().trim();
@@ -138,24 +158,7 @@ export async function requireAdminSession(requiredPermission?: string): Promise<
     };
   }
 
-  let adminRecord: any = null;
-
-  const { data: byAuthId } = await adminClient
-    .from("admin_users")
-    .select("id, role, is_active, display_name, login_identifier")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-
-  if (byAuthId) {
-    adminRecord = byAuthId;
-  } else {
-    const { data: byEmail } = await adminClient
-      .from("admin_users")
-      .select("id, role, is_active, display_name, login_identifier")
-      .eq("email", callerEmail)
-      .maybeSingle();
-    adminRecord = byEmail;
-  }
+  const adminRecord = await fetchAdminUserRecord(adminClient, user.id, callerEmail);
 
   if (!adminRecord || adminRecord.is_active === false) {
     throw new AuthError("Forbidden: Account Is Inactive Or Unauthorized.", 403);

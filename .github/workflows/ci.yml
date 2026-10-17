@@ -40,6 +40,8 @@ jobs:
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: dummy_site_key
       CAPTCHA_SECRET: dummy_captcha_secret
       REDIS_URL: redis://localhost:6379
+      UPSTASH_REDIS_REST_URL: https://dummy.upstash.io
+      UPSTASH_REDIS_REST_TOKEN: dummy_token_for_ci_build_only
       BASE_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
     steps:

@@ -137,7 +137,9 @@ export default function RootLayout({
         <meta name="theme-color" content="#05488B" />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+          }}
         />
       </head>
       <body className={`${jakarta.className} antialiased min-h-screen flex flex-col bg-slate-50 text-slate-900`}>

@@ -79,6 +79,16 @@ export default function PaperList({ papers, isSearchResult = false }: Readonly<P
           return (
             <div 
               key={`${p.course}-${paperDisplayName}-${p.index ?? p.link ?? idx}`} 
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+                  e.preventDefault();
+                  if (safeLink && typeof window !== "undefined") {
+                    window.open(safeLink, "_blank", "noopener,noreferrer");
+                  }
+                }
+              }}
               onClick={() => {
                 if (safeLink && typeof window !== "undefined") {
                   window.open(safeLink, "_blank", "noopener,noreferrer");

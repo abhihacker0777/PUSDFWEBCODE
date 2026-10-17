@@ -1,3 +1,2 @@
-const configuredBackendUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
-
-export const BACKEND_URL: string = configuredBackendUrl || "";
+// All API endpoints are relative to the current origin within Next.js
+export const BACKEND_URL = "";

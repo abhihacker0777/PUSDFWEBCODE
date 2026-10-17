@@ -443,22 +443,24 @@ export async function bulkDeletePapersAction(ids: (string | number)[]) {
     );
 
     // Delete matching rows from Google Sheets secondary database
-    if (papersToDelete && papersToDelete.length > 0) {
+    if (papersToDelete?.length) {
       void mirrorBulkDeletePapersFromSheet(papersToDelete);
     }
 
     // Clean up orphan drive files
-    if (papersToDelete && papersToDelete.length > 0) {
+    if (papersToDelete?.length) {
       const fileIds = [...new Set(papersToDelete.map((p) => p.drive_file_id).filter(Boolean))];
-      for (const fid of fileIds) {
-        const { count } = await adminClient
-          .from(PAPERS_TABLE)
-          .select("id", { count: "exact", head: true })
-          .eq("drive_file_id", fid);
-        if (count === 0) {
-          await deleteDriveFile(fid).catch(() => {});
-        }
-      }
+      await Promise.all(
+        fileIds.map(async (fid) => {
+          const { count } = await adminClient
+            .from(PAPERS_TABLE)
+            .select("id", { count: "exact", head: true })
+            .eq("drive_file_id", fid);
+          if (count === 0) {
+            await deleteDriveFile(fid).catch(() => {});
+          }
+        })
+      );
     }
 
     // Detailed activity log with affected papers JSON stored in spec for expandable UI
@@ -476,6 +478,30 @@ export async function bulkDeletePapersAction(ids: (string | number)[]) {
     console.error("Bulk Delete Papers Action Error:", error);
     return { success: false, message: error.message };
   }
+}
+
+function buildBulkEditPayload(updates: Partial<PaperTargetMapping> & {
+  title?: string;
+  paperName?: string;
+  name?: string;
+}) {
+  const payload: Record<string, any> = {
+    updated_at: new Date().toISOString()
+  };
+  if (updates.course) payload.course = updates.course;
+  if (updates.year) payload.year = updates.year;
+  if (updates.spec !== undefined && updates.spec !== null && updates.spec !== "") {
+    payload.specialization = updates.spec;
+  }
+  if (updates.semester) {
+    payload.semester = updates.semester;
+  }
+  if (updates.exam) payload.exam = updates.exam;
+  const rawTitle = updates.title || updates.paperName || updates.name;
+  if (rawTitle?.trim()) {
+    payload.title = rawTitle.trim();
+  }
+  return payload;
 }
 
 export async function bulkEditPapersAction(
@@ -498,30 +524,15 @@ export async function bulkEditPapersAction(
       .select("id, title, course, year, semester, exam, specialization, drive_url")
       .in("id", ids);
 
-    const payload: any = {
-      updated_at: new Date().toISOString()
-    };
-    if (updates.course) payload.course = updates.course;
-    if (updates.year) payload.year = updates.year;
-    if (updates.spec !== undefined && updates.spec !== null && updates.spec !== "") {
-      payload.specialization = updates.spec;
-    }
-    if (updates.semester) {
-      payload.semester = updates.semester;
-    }
-    if (updates.exam) payload.exam = updates.exam;
-    if (updates.title || updates.paperName || updates.name) {
-      payload.title = (updates.title || updates.paperName || updates.name)!.trim();
-    }
-
-    const hasIndividualTitles = updates.titlesById && Object.keys(updates.titlesById).length > 0;
+    const payload = buildBulkEditPayload(updates);
+    const hasIndividualTitles = Boolean(updates.titlesById && Object.keys(updates.titlesById).length > 0);
 
     if (hasIndividualTitles) {
       await Promise.all(
         ids.map(async (id) => {
           const itemPayload = { ...payload };
           const specificTitle = updates.titlesById?.[id] ?? updates.titlesById?.[String(id)];
-          if (specificTitle !== undefined && specificTitle.trim()) {
+          if (specificTitle?.trim()) {
             itemPayload.title = specificTitle.trim();
           }
           const { error } = await adminClient
@@ -549,7 +560,7 @@ export async function bulkEditPapersAction(
     }
 
     // Mirror updates to Google Sheets secondary database
-    if (previousPapers && previousPapers.length > 0) {
+    if (previousPapers?.length) {
       for (const p of previousPapers) {
         const specificTitle = (updates.titlesById?.[p.id] ?? updates.titlesById?.[String(p.id)] ?? payload.title ?? p.title)?.trim();
         void mirrorPaperToSheet(

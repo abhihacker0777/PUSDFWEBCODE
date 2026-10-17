@@ -95,7 +95,11 @@ async function resolveAuthEmail(
     if (!byLogin.is_active) {
       return { deactivated: true };
     }
-    return { emailToAuth: byLogin.auth_email || byLogin.email || rawIdentifier.trim() };
+    const targetEmail = byLogin.auth_email || byLogin.email;
+    if (!targetEmail) {
+      return { notFound: true };
+    }
+    return { emailToAuth: targetEmail };
   }
 
   return { notFound: true };
@@ -219,13 +223,15 @@ async function validatePreLoginCredentials(
   captchaToken: string,
   startedAt: number
 ): Promise<PreLoginResult> {
-  const captchaOk = await verifyTurnstileToken(captchaToken);
-  if (!captchaOk && process.env.CAPTCHA_SECRET) {
-    await equalizeLoginTiming(startedAt);
-    return {
-      ok: false,
-      response: { success: false, message: "CAPTCHA Verification Failed. Please Try Again.", code: "CAPTCHA_REQUIRED" },
-    };
+  if (process.env.CAPTCHA_SECRET) {
+    const captchaOk = await verifyTurnstileToken(captchaToken);
+    if (!captchaOk) {
+      await equalizeLoginTiming(startedAt);
+      return {
+        ok: false,
+        response: { success: false, message: "CAPTCHA Verification Failed. Please Try Again.", code: "CAPTCHA_REQUIRED" },
+      };
+    }
   }
 
   if (!identifier || !password) {

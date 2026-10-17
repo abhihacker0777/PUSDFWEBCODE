@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { allow, clientIp } from "@/lib/ratelimit";
-import { verifyGoogleInstitutionalToken, isAllowedAssistantEmail } from "@/lib/googleAuth";
+import { verifyGoogleInstitutionalToken } from "@/lib/googleAuth";
 
 export async function POST(req: NextRequest) {
   try {

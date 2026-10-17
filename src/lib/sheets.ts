@@ -56,8 +56,22 @@ export function paperFromSheetRow(row: any[] = [], index: string | number | null
   };
 }
 
+function isValidGoogleSheetUrl(urlStr: string): boolean {
+  try {
+    const u = new URL(urlStr);
+    return (
+      u.protocol === "https:" &&
+      (u.hostname === "docs.google.com" ||
+        u.hostname === "sheets.googleapis.com" ||
+        u.hostname.endsWith(".google.com"))
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchPublicPapersFromSheet(): Promise<Paper[]> {
-  if (!SHEET_URL) return [];
+  if (!SHEET_URL || !isValidGoogleSheetUrl(SHEET_URL)) return [];
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
 
@@ -97,7 +111,7 @@ function isPaperMatch(r: any[], paper: Partial<Paper>): boolean {
   // 1. Exact or normalized drive URL match (primary reliable identifier)
   if (paperDriveUrl && sheetDriveUrl) {
     if (sheetDriveUrl === paperDriveUrl) return true;
-    const cleanUrl = (u: string) => u.split("?")[0].replace(/\/+$/, "");
+    const cleanUrl = (u: string) => u.split("?")[0].replace(/\/$/, "");
     if (cleanUrl(sheetDriveUrl) === cleanUrl(paperDriveUrl)) return true;
   }
 

@@ -16,10 +16,10 @@ input::-ms-clear {
 
 input::-webkit-credentials-auto-fill-button {
   visibility: hidden;
-  display: none !important;
+  display: none;
   pointer-events: none;
 }
 
 input::-webkit-caps-lock-indicator {
-  display: none !important;
+  display: none;
 }

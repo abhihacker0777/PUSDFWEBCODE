@@ -188,6 +188,7 @@ export default function RecentActionsPanel({
                             >
                               <svg
                                 className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? "rotate-90" : "rotate-0"}`}
+                                aria-hidden="true"
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth={2.5}
@@ -248,7 +249,7 @@ export default function RecentActionsPanel({
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                   {subPapers.map((paper: any, pIdx: number) => (
-                                    <tr key={pIdx} className="hover:bg-blue-50/30 transition-colors">
+                                    <tr key={paper.id ? String(paper.id) : `${row.id}-${paper.title || paper.name || pIdx}`} className="hover:bg-blue-50/30 transition-colors">
                                       <td className="px-3 py-2 text-center text-gray-400 font-mono text-[11px]">{pIdx + 1}</td>
                                       <td className="px-3 py-2 font-semibold text-gray-800">{paper.title || paper.name || "-"}</td>
                                       <td className="px-3 py-2 text-gray-600">{paper.course || "-"}</td>

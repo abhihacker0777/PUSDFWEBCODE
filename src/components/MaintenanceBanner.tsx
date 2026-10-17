@@ -20,7 +20,7 @@ export default function MaintenanceBanner() {
         return r.json();
       })
       .then((d) => {
-        if (d && d.success) {
+        if (d?.success) {
           const isEnabled = Boolean(d.maintenanceMode);
           setMaintenance({
             active: isEnabled,

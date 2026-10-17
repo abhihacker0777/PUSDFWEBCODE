@@ -62,7 +62,7 @@ export default function HomePage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const urlQuery = params.get("search");
-      if (urlQuery && urlQuery.trim()) {
+      if (urlQuery?.trim()) {
         setSearchQuery(urlQuery.trim());
       }
     }
