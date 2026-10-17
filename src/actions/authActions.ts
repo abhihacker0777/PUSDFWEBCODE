@@ -71,15 +71,31 @@ async function handleFailedLogin(
   };
 }
 
+type AuthEmailResolution = {
+  emailToAuth?: string;
+  deactivated?: boolean;
+  notFound?: boolean;
+  emailNotAllowed?: boolean;
+};
+
+function resolveAdminRecordEmail(
+  record: { email?: string | null; auth_email?: string | null; is_active?: boolean } | null
+): AuthEmailResolution {
+  if (!record) return { notFound: true };
+  if (!record.is_active) return { deactivated: true };
+  const resolvedEmail = String(record.auth_email || record.email || "").toLowerCase().trim();
+  return resolvedEmail ? { emailToAuth: resolvedEmail } : { notFound: true };
+}
+
 async function resolveAuthEmail(
   adminSupabase: any,
   cleanIdentifier: string
-): Promise<{ emailToAuth?: string; deactivated?: boolean; notFound?: boolean; emailNotAllowed?: boolean }> {
+): Promise<AuthEmailResolution> {
   const id = cleanIdentifier.trim().toLowerCase().slice(0, 254);
 
   if (id.includes("@")) {
-    if (ADMIN_EMAIL && id === ADMIN_EMAIL.toLowerCase().trim()) {
-      return { emailToAuth: ADMIN_EMAIL.toLowerCase().trim() };
+    if (id === ADMIN_EMAIL?.toLowerCase().trim()) {
+      return { emailToAuth: id };
     }
 
     const { data: byEmail } = await adminSupabase
@@ -88,16 +104,7 @@ async function resolveAuthEmail(
       .or(`email.eq.${id},auth_email.eq.${id}`)
       .maybeSingle();
 
-    if (byEmail) {
-      if (!byEmail.is_active) {
-        return { deactivated: true };
-      }
-      const resolvedEmail = String(byEmail.auth_email || byEmail.email || "").toLowerCase().trim();
-      if (!resolvedEmail) return { notFound: true };
-      return { emailToAuth: resolvedEmail };
-    }
-
-    return { notFound: true };
+    return resolveAdminRecordEmail(byEmail);
   }
 
   const { data: byLogin } = await adminSupabase
@@ -106,16 +113,7 @@ async function resolveAuthEmail(
     .eq("login_identifier", id)
     .maybeSingle();
 
-  if (byLogin) {
-    if (!byLogin.is_active) {
-      return { deactivated: true };
-    }
-    const resolvedEmail = String(byLogin.auth_email || byLogin.email || "").toLowerCase().trim();
-    if (!resolvedEmail) return { notFound: true };
-    return { emailToAuth: resolvedEmail };
-  }
-
-  return { notFound: true };
+  return resolveAdminRecordEmail(byLogin);
 }
 
 async function verifyActiveAdminStatus(
@@ -340,7 +338,7 @@ export async function loginAction(
 
     const ownerId = process.env.ADMIN_AUTH_USER_ID;
     const isOwner = Boolean(
-      (ADMIN_EMAIL && authenticatedEmail === ADMIN_EMAIL.toLowerCase().trim()) ||
+      authenticatedEmail === ADMIN_EMAIL?.toLowerCase().trim() ||
       (ownerId && authData.user.id === ownerId)
     );
 
@@ -434,7 +432,7 @@ export async function requestPasswordResetAction(email: string) {
 
   try {
     const adminSupabase = createAdminClient();
-    const isSuperAdmin = Boolean(ADMIN_EMAIL && cleanEmail === ADMIN_EMAIL);
+    const isSuperAdmin = Boolean(cleanEmail === ADMIN_EMAIL?.toLowerCase().trim());
 
     let recipientName = "Administrator";
     if (!isSuperAdmin) {
