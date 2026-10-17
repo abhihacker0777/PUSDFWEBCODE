@@ -175,6 +175,9 @@ create policy "Public papers are viewable by everyone" on public.papers
   for select
   using (true);
 
+revoke all on public.papers from anon, authenticated;
+revoke all on public.student_queries from anon, authenticated;
+grant select on public.papers to anon, authenticated;
 
 create table if not exists public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),

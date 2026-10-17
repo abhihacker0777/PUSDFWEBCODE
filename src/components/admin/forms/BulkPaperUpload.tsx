@@ -447,11 +447,15 @@ const BulkPapersDbTable = ({
       </div>
 
       {renameModalPaper && (
-        <div
-          role="dialog"
-          aria-modal="true"
+        <dialog
+          open
           aria-labelledby="bulk-rename-title"
-          className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 transition-opacity animate-fade-in"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setRenameModalPaper(null);
+            }
+          }}
+          className="fixed inset-0 m-0 p-4 w-full h-full max-w-none max-h-none bg-black/50 z-[9999] flex items-center justify-center border-0 animate-fade-in"
         >
           <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-7 max-w-md w-full transform transition-all border-t-8 border-[#05488B]">
             <div className="flex items-center gap-3 mb-4">
@@ -506,7 +510,7 @@ const BulkPapersDbTable = ({
               </button>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
     </>
   );
