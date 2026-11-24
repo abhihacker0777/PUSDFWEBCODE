@@ -36,7 +36,7 @@ export default function SystemSettingsPanel() {
     library_admin_invite_notify: false,
     admin_login_notify: false,
     maintenance_mode: false,
-    maintenance_message: "Papers Under Semester Review",
+    maintenance_message: "Portal Under Maintenance Mode",
   });
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -218,7 +218,7 @@ export default function SystemSettingsPanel() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Displays <em>&quot;Papers Under Semester Review&quot;</em> Banner On Public Routes While Admin Remains Accessible.
+                Displays <em>&quot;Portal Under Maintenance Mode&quot;</em> Banner On Public Routes While Admin Remains Accessible.
               </p>
             </div>
             <div className="mt-3">

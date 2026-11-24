@@ -39,10 +39,8 @@ function tryReadCachedPapers(): PaperItem[] | null {
 }
 
 export default function HomePage() {
-  const [papersData, setPapersData] = useState<PaperItem[]>(() => {
-    return tryReadCachedPapers() ?? [];
-  });
-  const [isLoading, setIsLoading] = useState(() => papersData.length === 0);
+  const [papersData, setPapersData] = useState<PaperItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState<{
     course: string | null;

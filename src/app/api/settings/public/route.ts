@@ -24,7 +24,7 @@ export async function GET() {
     }
 
     const isEnabled = Boolean(row?.value?.enabled);
-    const message = row?.value?.message || "Papers Under Semester Review";
+    const message = row?.value?.message || "Portal Under Maintenance Mode";
 
     return NextResponse.json({
       success: true,

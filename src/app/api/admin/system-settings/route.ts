@@ -15,7 +15,7 @@ export async function GET() {
       library_admin_invite_notify: false,
       admin_login_notify: false,
       maintenance_mode: false,
-      maintenance_message: "Papers Under Semester Review",
+      maintenance_message: "Portal Under Maintenance Mode",
     };
 
     if (Array.isArray(rows)) {
@@ -73,7 +73,7 @@ export async function PATCH(req: NextRequest) {
         key: "maintenance_mode",
         value: {
           enabled: body.maintenance_mode,
-          message: body.maintenance_message || "Papers Under Semester Review",
+          message: body.maintenance_message || "Portal Under Maintenance Mode",
         },
         updated_at: new Date().toISOString(),
       });
